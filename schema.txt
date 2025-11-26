@@ -1,0 +1,89 @@
+
+├── app/
+│   ├── (landing)/
+│   │   ├── page.tsx
+│   │   ├── components/
+│   │   │   ├── Hero.tsx
+│   │   │   ├── Features.tsx
+│   │   │   ├── Pricing.tsx
+│   │   │   └── ...
+│   │   └── layout.tsx
+│   │
+│   ├── (auth)/
+│   │   ├── login/
+│   │   │   └── page.tsx
+│   │   ├── register/
+│   │   │   └── page.tsx
+│   │   └── layout.tsx
+│   │
+│   ├── dashboard/
+│   │   ├── page.tsx
+│   │   ├── layout.tsx
+│   │   ├── components/
+│   │   │   ├── Sidebar.tsx
+│   │   │   ├── Navbar.tsx
+│   │   │   └── StatsCard.tsx
+│   │   ├── settings/
+│   │   │   └── page.tsx
+│   │   ├── users/
+│   │   │   ├── page.tsx
+│   │   │   └── [id].tsx
+│   │   └── ...
+│   │
+│   ├── api/
+│   │   ├── auth/
+│   │   │   └── route.ts
+│   │   ├── users/
+│   │   │   └── route.ts
+│   │   └── ...
+│   │
+│   └── layout.tsx
+│
+├── components/               ← global shared components
+│   ├── ui/
+│   │   ├── Button.tsx
+│   │   ├── Input.tsx
+│   │   ├── Modal.tsx
+│   │   └── ...
+│   └── Logo.tsx
+│
+├── lib/
+│   ├── utils.ts
+│   ├── auth.ts
+│   ├── validation/
+│   │   └── userSchema.ts
+│   └── api-client.ts
+│
+├── hooks/
+│   ├── useUser.ts
+│   ├── useSidebar.ts
+│   └── ...
+│
+├── services/                 ← API services (frontend)
+│   ├── userService.ts
+│   └── authService.ts
+│
+├── providers/                ← context providers
+│   ├── theme-provider.tsx
+│   ├── auth-provider.tsx
+│   └── ...
+│
+├── types/                    ← global TypeScript types
+│   ├── user.d.ts
+│   └── index.d.ts
+│
+├── public/
+│   ├── images/
+│   ├── logo.png
+│   └── ...
+│
+├── styles/
+│   ├── globals.css
+│   └── variables.css
+│
+├── .env
+├── next.config.js
+├── tailwind.config.js        (if using Tailwind)
+├── tsconfig.json
+├── package.json
+└── README.md
