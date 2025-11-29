@@ -1,89 +1,95 @@
-
-├── app/
-│   ├── (landing)/
-│   │   ├── page.tsx
-│   │   ├── components/
-│   │   │   ├── Hero.tsx
-│   │   │   ├── Features.tsx
-│   │   │   ├── Pricing.tsx
-│   │   │   └── ...
-│   │   └── layout.tsx
-│   │
-│   ├── (auth)/
-│   │   ├── login/
-│   │   │   └── page.tsx
-│   │   ├── register/
-│   │   │   └── page.tsx
-│   │   └── layout.tsx
-│   │
-│   ├── dashboard/
-│   │   ├── page.tsx
-│   │   ├── layout.tsx
-│   │   ├── components/
-│   │   │   ├── Sidebar.tsx
-│   │   │   ├── Navbar.tsx
-│   │   │   └── StatsCard.tsx
-│   │   ├── settings/
-│   │   │   └── page.tsx
-│   │   ├── users/
-│   │   │   ├── page.tsx
-│   │   │   └── [id].tsx
-│   │   └── ...
-│   │
-│   ├── api/
-│   │   ├── auth/
-│   │   │   └── route.ts
-│   │   ├── users/
-│   │   │   └── route.ts
-│   │   └── ...
-│   │
-│   └── layout.tsx
+app/
 │
-├── components/               ← global shared components
-│   ├── ui/
-│   │   ├── Button.tsx
-│   │   ├── Input.tsx
-│   │   ├── Modal.tsx
-│   │   └── ...
-│   └── Logo.tsx
+├── (public-pages)/
+│     └── page.tsx                    → Landing page
 │
-├── lib/
-│   ├── utils.ts
-│   ├── auth.ts
-│   ├── validation/
-│   │   └── userSchema.ts
-│   └── api-client.ts
+├── auth/                             → Authentication for all roles
+│     ├── bm/
+│     │     ├── login/
+│     │     ├── register/
+│     │     ├── forgot-password/
+│     │     └── layout.tsx
+│     │
+│     ├── admin/
+│     ├── system-admin/
+│     ├── agent/
+│     └── user/
 │
-├── hooks/
-│   ├── useUser.ts
-│   ├── useSidebar.ts
-│   └── ...
+├── dashboard/                         → Dashboards for all roles
+│     ├── bm/
+│     │     ├── page.tsx               → BM dashboard home
+│     │     ├── layout.tsx             → BM dashboard layout (navbar + sidebar)
+│     │     │
+│     │     ├── customers/
+│     │     │     ├── page.tsx         → customers list
+│     │     │     ├── [id]/
+│     │     │     │     ├── page.tsx   → single customer
+│     │     │     │     └── loans/
+│     │     │     │           └── page.tsx     → customer’s loans
+│     │     │     └── components/
+│     │     │           ├── CustomerTable.tsx
+│     │     │           ├── CustomerCard.tsx
+│     │     │           └── CustomerLoans.tsx
+│     │     │
+│     │     ├── loans/
+│     │     │     ├── page.tsx
+│     │     │     ├── new/
+│     │     │     │     └── page.tsx
+│     │     │     ├── [id]/
+│     │     │     │     └── page.tsx
+│     │     │     └── components/
+│     │     │           ├── LoanTable.tsx
+│     │     │           ├── LoanForm.tsx
+│     │     │           └── LoanOverviewCard.tsx
+│     │     │
+│     │     ├── reports/
+│     │     │     ├── page.tsx
+│     │     │     ├── loan-performance/
+│     │     │     ├── credit-officers/
+│     │     │     └── customers-report/
+│     │     │
+│     │     ├── credit-officers/
+│     │     │     ├── page.tsx
+│     │     │     ├── new/
+│     │     │     └── [id]/
+│     │     │
+│     │     └── settings/
+│     │           ├── page.tsx
+│     │           └── profile/
+│     │                 └── page.tsx
+│     │
+│     ├── admin/
+│     ├── system-admin/
+│     ├── agent/
+│     └── user/
 │
-├── services/                 ← API services (frontend)
-│   ├── userService.ts
-│   └── authService.ts
+├── api/                                → API routes
+│     ├── auth/
+│     │     ├── bm/
+│     │     ├── admin/
+│     │     ├── system-admin/
+│     │     ├── agent/
+│     │     └── user/
+│     └── common/
+│           ├── send-otp/
+│           ├── verify-email/
+│           └── logout/
 │
-├── providers/                ← context providers
-│   ├── theme-provider.tsx
-│   ├── auth-provider.tsx
-│   └── ...
+├── components/                          → Shared UI
+│     ├── navbar/
+│     ├── sidebar/
+│     ├── dashboard-cards/
+│     ├── forms/
+│     └── ui/
 │
-├── types/                    ← global TypeScript types
-│   ├── user.d.ts
-│   └── index.d.ts
+├── lib/                                  → Business logic + helpers
+│     ├── auth/
+│     │     ├── bm.ts
+│     │     ├── admin.ts
+│     │     ├── system-admin.ts
+│     │     ├── agent.ts
+│     │     └── user.ts
+│     └── db.ts
 │
-├── public/
-│   ├── images/
-│   ├── logo.png
-│   └── ...
-│
-├── styles/
-│   ├── globals.css
-│   └── variables.css
-│
-├── .env
-├── next.config.js
-├── tailwind.config.js        (if using Tailwind)
-├── tsconfig.json
-├── package.json
-└── README.md
+└── styles/
+      └── globals.css
