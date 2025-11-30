@@ -5,19 +5,27 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  --color-accent: #66CCFF;
+  /* --color-accent: #66CCFF;
   --color-secondary: #330066;
   --color-primary: #101828;
   --color-text: #475467;
   --color-bg: #F4F6FA;
   --color-tertiary: #7F56D9;
+  --color-dashboard-text: ##021C3E */
+
+--color-primary-500: #101828;
+--color-primary-300: #66CCFF;       /* accent */
+--color-primary-700: #330066;       /* secondary */
+
+--color-neutral-700: #021C3E;       /* dashboard text */
+--color-neutral-500: #475467;       /* normal text */
+--color-neutral-100: #F4F6FA;       /* background */
+
+--color-brand-purple: #7F56D9;      /* tertiary */
+
 
 }
 
-;
-
-
-;
 
  @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
@@ -30,13 +38,13 @@
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
+  --color-primary: var(--color-primary-500);
   --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
+  --color-secondary: var(--color-primary-700);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
+  --color-accent: var(--color-primary-300);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-border: var(--border);
