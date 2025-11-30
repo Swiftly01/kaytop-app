@@ -5,10 +5,10 @@ import React from "react";
 export default function page() {
   return (
     <div className="w-full max-w-lg p-10 mx-5 bg-white rounded-lg">
-      <h1 className="text-[#021C3E] text-3xl font-medium">
+      <h1 className="text-3xl font-medium text-neutral-700">
         Security Verification
       </h1>
-      <p className="text-[#021C3E] text-md">
+      <p className="text-neutral-700 text-md">
         To secure your account please verify it’s you
       </p>
       <form action="">
