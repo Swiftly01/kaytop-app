@@ -1,10 +1,10 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { JSX, useState } from "react";
 import Logo from "../ui/Logo";
 import Button from "../ui/Button";
 
-export default function Navbar() {
+export default function Navbar(): JSX.Element {
   const [isOpen, setIsOpen] = useState(false);
 
   return (

@@ -1,8 +1,9 @@
 import Button from "@/app/_components/ui/Button";
 import { Input } from "@/app/_components/ui/input";
 import Link from "next/link";
+import { JSX } from "react";
 
-export default function page() {
+export default function page(): JSX.Element  {
   return (
     <div className="w-full max-w-lg p-10 mx-5 bg-white rounded-lg">
       <h1 className="text-3xl font-medium text-neutral-700">

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { JSX } from "react";
 import hand from "@/public/hand.svg";
 import facebook from "@/public/facebook.svg";
 import github from "@/public/github.svg";
@@ -8,7 +8,7 @@ import web from "@/public/web.svg";
 import Image from "next/image";
 import Logo from "../ui/Logo";
 
-export default function Footer() {
+export default function Footer(): JSX.Element {
   return (
     <footer className="mt-20 text-white bg-primary-700">
       <div className="container px-5 mx-auto py-14">
