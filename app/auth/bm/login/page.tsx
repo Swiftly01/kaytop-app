@@ -1,6 +1,6 @@
 import Button from "@/app/_components/ui/Button";
 import { Checkbox } from "@/app/_components/ui/Checkbox";
-import { Input } from "@/app/_components/ui/input";
+import { Input } from "@/app/_components/ui/Input";
 import Link from "next/link";
 import React, { JSX } from "react";
 
