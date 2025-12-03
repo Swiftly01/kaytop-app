@@ -1,4 +1,3 @@
-
 @import "tailwindcss";
 @import "tw-animate-css";
 @plugin "daisyui";
@@ -7,29 +6,65 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  /* --color-accent: #66CCFF;
-  --color-secondary: #330066;
-  --color-primary: #101828;
-  --color-text: #475467;
-  --color-bg: #F4F6FA;
-  --color-tertiary: #7F56D9;
-  --color-dashboard-text: ##021C3E */
 
---color-primary-500: #101828;
---color-primary-300: #66CCFF;       /* accent */
---color-primary-700: #330066;       /* secondary */
 
---color-neutral-700: #021C3E;       /* dashboard text */
---color-neutral-500: #475467;       /* normal text */
---color-neutral-100: #F4F6FA;       /* background */
+  --color-primary-500: #101828;
+  --color-primary-300: #66CCFF;
+  --color-primary-700: #330066;
 
---color-brand-purple: #7F56D9;      /* tertiary */
+  --color-neutral-700: #021C3E;
+  --color-neutral-500: #475467;
+  --color-neutral-100: #F4F6FA;
+
+  --color-brand-purple: #7F56D9;
+
+
 
 
 }
 
 
- @theme inline {
+.custom-tabs .tab {
+  transition: color 0.2s ease;
+}
+
+
+.custom-tabs .tab:hover {
+  color: #66CCFF !important;
+}
+
+
+.custom-tabs .tab:checked {
+  color: #66CCFF !important;
+}
+
+
+
+.custom-btn .btn {
+  color: #475467;
+  border: 1px solid #F4F6FA;
+  
+
+
+
+}
+
+.custom-btn .btn:hover {
+  color: white !important;
+  background-color: #7f56d9 !important;
+
+}
+
+.custom-btn .btn-active {
+  color: white !important;
+  background-color: #7f56d9 !important;
+}
+
+
+
+
+
+@theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -70,12 +105,12 @@
 
 ;
 
- /*
+/*
 ---break--- */
 
 ;
 
- :root {
+:root {
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -83,13 +118,13 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary:  #101828;
+  --primary: #101828;
   --primary-foreground: oklch(0.985 0 0);
   --secondary: #330066;
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
   --muted-foreground: oklch(0.556 0 0);
-  --accent:  #66CCFF;
+  --accent: #66CCFF;
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
@@ -113,12 +148,12 @@
 
 ;
 
- /*
+/*
 ---break--- */
 
 ;
 
- .dark {
+.dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -155,16 +190,17 @@
 
 ;
 
- /*
+/*
 ---break--- */
 
 ;
 
- @layer base {
+@layer base {
   * {
     @apply border-border outline-ring/50;
 
   }
+
   body {
     @apply bg-background text-foreground;
 
