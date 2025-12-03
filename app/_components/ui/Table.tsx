@@ -1,6 +1,7 @@
-import React from "react";
+import React, { JSX } from "react";
+import Pagination from "./Pagination";
 
-export default function Table() {
+export default function Table(): JSX.Element {
   return (
     <div className="overflow-x-auto">
       <table className="table table-md">
@@ -108,18 +109,7 @@ export default function Table() {
           </tr>
         </tbody>
       </table>
-      <div className="flex justify-end">
-        <div className="join custom-btn">
-          <button className="join-item btn btn-sm">Previous</button>
-          <button className="join-item btn btn-sm">1</button>
-          <button className="join-item btn btn-active btn-sm ">
-            2
-          </button>
-          <button className="join-item btn btn-sm">3</button>
-          <button className="join-item btn btn-sm">4</button>
-          <button className="join-item btn btn-sm">Next</button>
-        </div>
-      </div>
+     <Pagination/>
     </div>
   );
 }
