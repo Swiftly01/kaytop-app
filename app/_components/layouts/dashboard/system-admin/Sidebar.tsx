@@ -11,7 +11,7 @@ interface MenuItem {
 
 const data: MenuItem[] = [
   { icon: "/dashboard.svg", label: "Dashboard", link: "/dashboard/system-admin" },
-  { icon: "/dashboard.svg", label: "Branches", link: "/dashboard/system-admin/branches" },
+  { icon: "/clients.svg", label: "Branches", link: "/dashboard/system-admin/branches" },
   { icon: "/credit.svg", label: "Credit Officers", link: "/dashboard/system-admin/credit-officers" },
   { icon: "/customer.svg", label: "Customers", link: "/dashboard/system-admin/customers" },
   { icon: "/loans.svg", label: "Loans", link: "/dashboard/system-admin/loans" },
@@ -46,12 +46,16 @@ export default function Sidebar(): JSX.Element {
                         isActive ? "text-[#7F56D9]" : "text-[#888F9B]"
                       }`}
                     >
-                      <img
-                        src={item.icon}
-                        alt={item.label}
-                        className="w-[18px] h-[18px] transition-all duration-200"
-                        style={{ filter: isActive ? "none" : "grayscale(1) opacity(0.6)" }}
-                      />
+                      <div className="flex items-center justify-center w-[18px] h-[18px] flex-shrink-0">
+                        <img
+                          src={item.icon}
+                          alt={item.label}
+                          className="w-full h-full object-contain transition-opacity duration-200"
+                          style={{ 
+                            opacity: isActive ? 1 : 0.6
+                          }}
+                        />
+                      </div>
                       <span>{item.label}</span>
                     </Link>
                   </li>
