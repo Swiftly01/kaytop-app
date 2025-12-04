@@ -32,10 +32,10 @@ export default function Sidebar(): JSX.Element {
           <div className="w-[232px] min-h-full bg-white">
             {/* Active indicator bar */}
             {pathname === "/dashboard/system-admin" && (
-              <div className="absolute left-0 w-[2px] h-[44px] bg-[#7F56D9]" style={{ top: "115px" }} />
+              <div className="absolute left-0 w-[2px] h-[44px] bg-[#7F56D9]" style={{ top: "24px" }} />
             )}
             
-            <ul className="flex flex-col w-full gap-[47px] px-[35px] pt-[125px]">
+            <ul className="flex flex-col w-full gap-[47px] px-[35px] pt-6">
               {data.map((item, i) => {
                 const isActive = pathname === item.link;
                 return (
