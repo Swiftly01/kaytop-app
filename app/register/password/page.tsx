@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { Eye, EyeOff } from "lucide-react"
-import { Input } from "@/app/_components/ui/input"
+import  Input  from "@/app/_components/ui/input"
 import Button from "@/app/_components/ui/Button"
 
 export default function CreatePasswordPage() {

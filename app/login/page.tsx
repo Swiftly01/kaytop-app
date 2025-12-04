@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { Label } from "../_components/ui/label";
-import { Input } from "../_components/ui/input";
 import Button from "../_components/ui/Button";
+import { Input } from "@/components/ui/input";
+// import Input from "../_components/ui/input";
 
 
 export default function LoginPage() {

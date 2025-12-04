@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { Label } from "../_components/ui/label";
-import { Input } from "../_components/ui/input";
 import Button from "../_components/ui/Button";
+import { Input } from "@/components/ui/input";
 
 export default function ForgotPasswordPage() {
   return (

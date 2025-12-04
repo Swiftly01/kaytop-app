@@ -4,9 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
 import Button from "../_components/ui/Button";
-import { Input } from "../_components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../_components/ui/Select";
 import { Label } from "../_components/ui/label";
+import { Input } from "@/components/ui/input";
 
 
 

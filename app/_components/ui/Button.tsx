@@ -1,29 +1,5 @@
 import React from "react";
 
-<<<<<<< HEAD
-// import React from "react";
-
-// type AppProps = {
-//   width?: string
-// }
-
-// export default function Button({width = ""}: AppProps) {
-//   return (
-//     <button
-//       className={`${width} relative px-4 py-1.5 rounded-md text-secondary bg-accent
-//                        overflow-hidden transition-all duration-300
-//                        before:content-[''] before:absolute before:top-0 before:left-0
-//                        before:w-0 before:h-full before:bg-white/30
-//                        before:transition-all before:duration-300
-//                        hover:before:w-full hover:text-white cursor-pointer`}
-//     >
-//       Get Started
-//     </button>
-//   );
-// }
-
-=======
->>>>>>> 35af71aa7f763dc0adb3b3153c877668ec307350
 type ButtonProps = {
   children: React.ReactNode;
   variant?: "primary" | "tertiary" | "danger";
@@ -33,13 +9,8 @@ type ButtonProps = {
 };
 
 const variants = {
-<<<<<<< HEAD
-  primary: "bg-accent text-primary hover:text-white font-medium",
-  tertiary: "bg-tertiary text-white hover:text-white font-medium",
-=======
   primary: "bg-primary-300 text-primary hover:text-white font-medium",
   tertiary: "bg-brand-purple text-white hover:text-white font-medium",
->>>>>>> 35af71aa7f763dc0adb3b3153c877668ec307350
   danger: "bg-red-500 text-white hover:bg-red-600",
 };
 
