@@ -1,3 +1,4 @@
+"use client";
 import FilterButton from "@/app/_components/ui/FilterButton";
 import StatsCard from "@/app/_components/ui/StatsCard";
 import { JSX } from "react";
