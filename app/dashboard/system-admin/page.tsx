@@ -5,196 +5,268 @@ import { JSX } from "react";
 export default function page(): JSX.Element {
   return (
     <div className="drawer-content">
-      <div className="container h-full px-5 pt-4 mx-auto max-w-7xl">
-        <div className="leading-4 text-neutral-700">
-          <h1 className="text-2xl font-medium">Overview</h1>
-          <p className="text-md opacity-50">Osun state</p>
+      <div className="h-full px-5 pt-4 mx-auto" style={{ maxWidth: "1091px" }}>
+        <div className="text-[#021C3E]">
+          <h1 className="text-2xl font-bold leading-[1.33]">Overview</h1>
+          <p className="text-base font-medium leading-4 opacity-50">Osun state</p>
         </div>
 
-        {/* Stats Cards Row 1 */}
-        <div className="grid grid-cols-1 gap-6 mt-10 md:grid-cols-2 lg:grid-cols-4">
-          <div className="p-6 bg-white border border-neutral-200/50 rounded-lg">
-            <StatsCard
-              title="All Branches"
-              value="45"
-              change="+6% this month"
-              isPositive={true}
-            />
-          </div>
-          <div className="p-6 bg-white border border-neutral-200/50 rounded-lg">
-            <StatsCard
-              title="All CO's"
-              value="128"
-              change="+6% this month"
-              isPositive={true}
-            />
-          </div>
-          <div className="p-6 bg-white border border-neutral-200/50 rounded-lg">
-            <StatsCard
-              title="All Customers"
-              value="2,847"
-              change="-26% this month"
-              isPositive={false}
-            />
-          </div>
-          <div className="p-6 bg-white border border-neutral-200/50 rounded-lg">
-            <StatsCard
-              title="Loans Processed"
-              value="1,234"
-              change="+40% this month"
-              isPositive={true}
-            />
-          </div>
-        </div>
-
-        {/* Stats Cards Row 2 */}
-        <div className="grid grid-cols-1 gap-6 mt-6 md:grid-cols-2 lg:grid-cols-3">
-          <div className="p-6 bg-white border border-neutral-200/50 rounded-lg">
-            <StatsCard
-              title="Loan Amounts"
-              value="₦45.2M"
-              change="+6% this month"
-              isPositive={true}
-            />
-          </div>
-          <div className="p-6 bg-white border border-neutral-200/50 rounded-lg">
-            <StatsCard
-              title="Active Loans"
-              value="892"
-              change="+6% this month"
-              isPositive={true}
-            />
-          </div>
-          <div className="p-6 bg-white border border-neutral-200/50 rounded-lg">
-            <StatsCard
-              title="Missed Payments"
-              value="34"
-              change="+6% this month"
-              isPositive={true}
-            />
+        {/* Stats Cards Row 1 - Exact Figma spacing */}
+        <div className="relative mt-[60px]">
+          <div className="absolute inset-0 bg-black/[0.04] blur-[60px] rounded-lg" style={{ top: "73px", height: "46px", width: "666px", left: "70px" }} />
+          <div className="relative bg-white border border-[rgba(2,28,62,0.2)] rounded-[4px] p-3">
+            <div className="grid grid-cols-4 gap-0">
+              <div className="px-[63px] py-3 border-r border-black/20">
+                <StatsCard
+                  title="All Branches"
+                  value="45"
+                  change="+6% this month"
+                  isPositive={true}
+                />
+              </div>
+              <div className="px-[63px] py-3 border-r border-black/20">
+                <StatsCard
+                  title="All CO's"
+                  value="128"
+                  change="+6% this month"
+                  isPositive={true}
+                />
+              </div>
+              <div className="px-[63px] py-3 border-r border-black/20">
+                <StatsCard
+                  title="All Customers"
+                  value="2,847"
+                  change="-26% this month"
+                  isPositive={false}
+                />
+              </div>
+              <div className="px-[63px] py-3">
+                <StatsCard
+                  title="Loans Processed"
+                  value="1,234"
+                  change="+40% this month"
+                  isPositive={true}
+                />
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-6 mt-10">
-          <button className="pb-2 text-base font-medium border-b-2 text-brand-purple border-brand-purple">
-            Disbursements
-          </button>
-          <button className="pb-2 text-base font-medium text-neutral-400">
+        {/* Stats Cards Row 2 - Exact Figma spacing */}
+        <div className="relative mt-[16px]">
+          <div className="absolute inset-0 bg-black/[0.04] blur-[60px] rounded-lg" style={{ top: "73px", height: "46px", width: "494px", left: "70px" }} />
+          <div className="relative bg-white border border-[rgba(2,28,62,0.2)] rounded-[4px] p-3">
+            <div className="grid grid-cols-3 gap-0">
+              <div className="px-[63px] py-3 border-r border-black/20">
+                <StatsCard
+                  title="Loan Amounts"
+                  value="₦45.2M"
+                  change="+6% this month"
+                  isPositive={true}
+                />
+              </div>
+              <div className="px-[63px] py-3 border-r border-black/20">
+                <StatsCard
+                  title="Active Loans"
+                  value="892"
+                  change="+6% this month"
+                  isPositive={true}
+                />
+              </div>
+              <div className="px-[63px] py-3">
+                <StatsCard
+                  title="Missed Payments"
+                  value="34"
+                  change="+6% this month"
+                  isPositive={true}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs - Exact Figma styling */}
+        <div className="flex items-center gap-6 mt-[182px]">
+          <div className="relative">
+            <button className="text-base font-medium leading-4 text-[#7F56D9]">
+              Disbursements
+            </button>
+            <div className="absolute bottom-0 left-0 w-[99px] h-[2px] bg-[#7F56D9] rounded-[20px]" style={{ transform: "translateY(8px)" }} />
+          </div>
+          <button className="text-base font-medium leading-4 text-[#ABAFB3]">
             Re-collections
           </button>
-          <button className="pb-2 text-base font-medium text-neutral-400">
+          <button className="text-base font-medium leading-4 text-[#ABAFB3]">
             Savings
           </button>
-          <button className="pb-2 text-base font-medium text-neutral-400">
+          <button className="text-base font-medium leading-4 text-[#ABAFB3]">
             Missed payments
           </button>
         </div>
 
-        {/* Filters */}
-        <div className="flex items-center justify-between mt-6">
-          <div className="flex flex-wrap items-center gap-1 px-1 py-1 bg-white border rounded-lg shadow-sm border-neutral-200 w-fit">
-            <FilterButton active={true}>12 months</FilterButton>
-            <FilterButton>30 days</FilterButton>
-            <FilterButton>7 days</FilterButton>
-            <FilterButton>24 hours</FilterButton>
+        {/* Filters - Exact Figma styling */}
+        <div className="flex items-center justify-between mt-[28px]">
+          <div className="flex items-center border border-[#D0D5DD] rounded-lg shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)]">
+            <button className="px-4 py-[10px] text-sm font-semibold leading-[1.43] text-[#1D2939] bg-[#F9FAFB] border-r border-[#D0D5DD] rounded-l-lg">
+              12 months
+            </button>
+            <button className="px-4 py-[10px] text-sm font-semibold leading-[1.43] text-[#344054] bg-white border-r border-[#D0D5DD]">
+              30 days
+            </button>
+            <button className="px-4 py-[10px] text-sm font-semibold leading-[1.43] text-[#344054] bg-white border-r border-[#D0D5DD]">
+              7 days
+            </button>
+            <button className="px-4 py-[10px] text-sm font-semibold leading-[1.43] text-[#344054] bg-white rounded-r-lg">
+              24 hours
+            </button>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <FilterButton className="flex gap-2 px-4 py-2 bg-white border rounded-lg shadow-sm border-neutral-200">
-              <img src="/calendar.svg" alt="calendar" />
+          <div className="flex items-center gap-3">
+            <button className="flex items-center gap-2 px-4 py-[10px] text-sm font-semibold leading-[1.43] text-[#344054] bg-white border border-[#D0D5DD] rounded-lg shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)]">
+              <img src="/calendar.svg" alt="calendar" className="w-5 h-5" />
               <span>Select dates</span>
-            </FilterButton>
-            <FilterButton className="flex gap-2 px-4 py-2 bg-white border rounded-lg shadow-sm border-neutral-200">
-              <img src="/filter.svg" alt="filter" />
+            </button>
+            <button className="flex items-center gap-2 px-4 py-[10px] text-sm font-semibold leading-[1.43] text-[#344054] bg-white border border-[#D0D5DD] rounded-lg shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)]">
+              <img src="/filter.svg" alt="filter" className="w-5 h-5" />
               <span>Filters</span>
-            </FilterButton>
+            </button>
           </div>
         </div>
 
-        {/* Table Placeholder */}
-        <div className="p-6 mt-6 mb-10 bg-white border rounded-lg shadow-sm border-neutral-200">
-          <h3 className="mb-4 text-lg font-semibold text-neutral-700">
-            Recent Disbursements
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-neutral-50">
-                <tr className="border-b border-neutral-200">
-                  <th className="px-6 py-3 text-xs font-medium tracking-wider text-left uppercase text-neutral-500">
-                    <input type="checkbox" className="rounded" />
-                  </th>
-                  <th className="px-6 py-3 text-xs font-medium tracking-wider text-left uppercase text-neutral-500">
-                    Branch
-                  </th>
-                  <th className="px-6 py-3 text-xs font-medium tracking-wider text-left uppercase text-neutral-500">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-xs font-medium tracking-wider text-left uppercase text-neutral-500">
-                    Interest Rate
-                  </th>
-                  <th className="px-6 py-3 text-xs font-medium tracking-wider text-left uppercase text-neutral-500">
-                    Amount
-                  </th>
-                  <th className="px-6 py-3 text-xs font-medium tracking-wider text-left uppercase text-neutral-500">
-                    Date
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-neutral-200">
-                {[
-                  {
-                    branch: "Ikeja Branch",
-                    status: "Active",
-                    rate: "7.25%",
-                    amount: "NGN87,000",
-                    date: "June 03, 2024",
-                  },
-                  {
-                    branch: "Lekki Branch",
-                    status: "Active",
-                    rate: "6.50%",
-                    amount: "NGN55,000",
-                    date: "Dec 24, 2023",
-                  },
-                  {
-                    branch: "Surulere Branch",
-                    status: "Pending",
-                    rate: "8.00%",
-                    amount: "NGN92,000",
-                    date: "Nov 11, 2024",
-                  },
-                ].map((row, idx) => (
-                  <tr key={idx} className="hover:bg-neutral-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <input type="checkbox" className="rounded" />
-                    </td>
-                    <td className="px-6 py-4 text-sm text-neutral-700 whitespace-nowrap">
-                      {row.branch}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                          row.status === "Active"
-                            ? "bg-green-100 text-green-800"
-                            : "bg-orange-100 text-orange-800"
-                        }`}
-                      >
-                        {row.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-neutral-700 whitespace-nowrap">
-                      {row.rate}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-neutral-700 whitespace-nowrap">
-                      {row.amount}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-neutral-700 whitespace-nowrap">
-                      {row.date}
-                    </td>
+        {/* Table - Exact Figma styling */}
+        <div className="mt-[32px] mb-10 bg-white border border-[#EAECF0] rounded-xl shadow-[0px_1px_2px_0px_rgba(16,24,40,0.06),0px_1px_3px_0px_rgba(16,24,40,0.1)]">
+          <div className="p-6">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-[#F9FAFB] border-b border-[#EAECF0]">
+                    <th className="px-6 py-3 text-left">
+                      <input type="checkbox" className="w-4 h-4 rounded border-[#D0D5DD]" />
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium leading-[1.43] tracking-[0.006em] text-[#475467]">
+                      BRANCH
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium leading-[1.43] tracking-[0.006em] text-[#475467]">
+                      STATUS
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium leading-[1.43] tracking-[0.006em] text-[#475467]">
+                      INTEREST RATE
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium leading-[1.43] tracking-[0.006em] text-[#475467]">
+                      AMOUNT
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium leading-[1.43] tracking-[0.006em] text-[#475467]">
+                      DATE
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="bg-white">
+                  {[
+                    {
+                      branch: "Ikeja Branch",
+                      status: "Active",
+                      rate: "7.25%",
+                      amount: "NGN87,000",
+                      date: "June 03, 2024",
+                    },
+                    {
+                      branch: "Lekki Branch",
+                      status: "Active",
+                      rate: "6.50%",
+                      amount: "NGN55,000",
+                      date: "Dec 24, 2023",
+                    },
+                    {
+                      branch: "Surulere Branch",
+                      status: "Pending",
+                      rate: "8.00%",
+                      amount: "NGN92,000",
+                      date: "Nov 11, 2024",
+                    },
+                    {
+                      branch: "Victoria Island",
+                      status: "Active",
+                      rate: "7.75%",
+                      amount: "NGN68,000",
+                      date: "Feb 02, 2024",
+                    },
+                    {
+                      branch: "Yaba Branch",
+                      status: "Active",
+                      rate: "7.00%",
+                      amount: "NGN79,000",
+                      date: "Aug 18, 2023",
+                    },
+                    {
+                      branch: "Ajah Branch",
+                      status: "Active",
+                      rate: "6.75%",
+                      amount: "NGN46,000",
+                      date: "Sept 09, 2024",
+                    },
+                    {
+                      branch: "Ikoyi Branch",
+                      status: "Active",
+                      rate: "8.25%",
+                      amount: "NGN61,000",
+                      date: "July 27, 2023",
+                    },
+                    {
+                      branch: "Festac Branch",
+                      status: "Active",
+                      rate: "7.50%",
+                      amount: "NGN73,000",
+                      date: "April 05, 2024",
+                    },
+                    {
+                      branch: "Gbagada Branch",
+                      status: "Active",
+                      rate: "6.25%",
+                      amount: "NGN52,000",
+                      date: "Oct 14, 2023",
+                    },
+                    {
+                      branch: "Apapa Branch",
+                      status: "Active",
+                      rate: "7.10%",
+                      amount: "NGN84,000",
+                      date: "March 22, 2024",
+                    },
+                  ].map((row, idx) => (
+                    <tr key={idx} className="border-b border-[#EAECF0] last:border-b-0">
+                      <td className="px-6 py-4">
+                        <input type="checkbox" className="w-4 h-4 rounded border-[#D0D5DD]" />
+                      </td>
+                      <td className="px-6 py-4 text-sm font-normal leading-[1.43] text-[#475467]">
+                        {row.branch}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium leading-[1.43] rounded-2xl ${
+                            row.status === "Active"
+                              ? "bg-[#ECFDF3] text-[#027A48]"
+                              : "bg-[rgba(255,147,38,0.1)] text-[#FF9326]"
+                          }`}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${
+                            row.status === "Active" ? "bg-[#12B76A]" : "bg-[#FF9326]"
+                          }`} />
+                          {row.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm font-normal leading-[1.43] text-[#475467]">
+                        {row.rate}
+                      </td>
+                      <td className="px-6 py-4 text-sm font-normal leading-[1.43] text-[#475467]">
+                        {row.amount}
+                      </td>
+                      <td className="px-6 py-4 text-sm font-normal leading-[1.43] text-[#475467]">
+                        {row.date}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>

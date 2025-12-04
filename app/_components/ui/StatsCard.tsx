@@ -14,14 +14,14 @@ export default function StatsCard({
   isPositive = true,
 }: StatsCardProps) {
   return (
-    <div className="flex flex-col gap-2">
-      <p className="text-sm font-semibold text-neutral-500 opacity-90">
+    <div className="flex flex-col gap-6">
+      <p className="text-sm font-semibold tracking-[0.006em] text-[#8B8F96] opacity-90">
         {title}
       </p>
-      <p className="text-3xl font-bold text-neutral-700">{value}</p>
+      <p className="text-[28px] font-bold leading-[1.29] text-neutral-700">{value}</p>
       <p
-        className={`text-sm ${
-          isPositive ? "text-green-500" : "text-red-500"
+        className={`text-sm leading-[1.43] tracking-[0.006em] ${
+          isPositive ? "text-[#5CC47C]" : "text-[#E43535]"
         }`}
       >
         {change}

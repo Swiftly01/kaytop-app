@@ -1,5 +1,7 @@
+"use client";
 import React, { JSX } from 'react';
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 interface MenuItem {
   icon: string;
@@ -18,6 +20,8 @@ const data: MenuItem[] = [
 ];
 
 export default function Sidebar(): JSX.Element {
+  const pathname = usePathname();
+  
   return (
     <div className="drawer-side">
           <label
@@ -25,25 +29,34 @@ export default function Sidebar(): JSX.Element {
             className="drawer-overlay lg:hidden"
           ></label>
 
-          <div className="w-64 min-h-full bg-white">
-            <ul className="flex flex-col w-full gap-6 px-5 pt-16 lg:pt-4">
-              {data.map((item, i) => (
-                <li key={i}>
-                  <Link
-                    href={item.link}
-                    className="relative flex items-center gap-3 px-3 py-2 overflow-hidden transition-colors duration-300 rounded-md cursor-pointer text-neutral-700 hover:text-white before:absolute before:top-0 before:left-0 before:w-0 before:h-full before:bg-brand-purple/70 before:transition-all before:duration-300 hover:before:w-full"
-                  >
-                    <span className="shrink-0">
+          <div className="w-[232px] min-h-full bg-white">
+            {/* Active indicator bar */}
+            {pathname === "/dashboard/system-admin" && (
+              <div className="absolute left-0 w-[2px] h-[44px] bg-[#7F56D9]" style={{ top: "115px" }} />
+            )}
+            
+            <ul className="flex flex-col w-full gap-[47px] px-[35px] pt-[125px]">
+              {data.map((item, i) => {
+                const isActive = pathname === item.link;
+                return (
+                  <li key={i}>
+                    <Link
+                      href={item.link}
+                      className={`flex items-center gap-[23px] text-base font-medium leading-[1.24] ${
+                        isActive ? "text-[#7F56D9]" : "text-[#888F9B]"
+                      }`}
+                    >
                       <img
                         src={item.icon}
                         alt={item.label}
-                        className="w-5 h-5"
+                        className="w-[18px] h-[18px]"
+                        style={{ filter: isActive ? "none" : "grayscale(1) opacity(0.6)" }}
                       />
-                    </span>
-                    <span className="relative z-10">{item.label}</span>
-                  </Link>
-                </li>
-              ))}
+                      <span>{item.label}</span>
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         </div>
