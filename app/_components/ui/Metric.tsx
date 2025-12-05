@@ -1,53 +1,35 @@
 import React, { JSX } from "react";
 import MetricCard from "./MetricCard";
+import { MetricProps } from "@/app/types/dashboard";
 
-interface MetricProps {
-  title: string;
-  value: string;
-  change: string;
-  changeColor: "green" | "red";
-  border: boolean;
+
+type AllowedCols = 1 | 2 | 3 | 4 
+
+interface AppProps  {
+  cols?: AllowedCols;
+  item: MetricProps[];
+  
 }
 
-const data: MetricProps[] = [
-  {
-    title: "All Customers",
-    value: "42,094",
-    change: "+6% this month",
-    changeColor: "green",
-    border: false,
-  },
-  {
-    title: "All CO's",
-    value: "15,350",
-    change: "+6% this month",
-    changeColor: "green",
-    border: true,
-  },
-  {
-    title: "Loans Processed",
-    value: "28,350",
-    change: "-26% this month",
-    changeColor: "red",
-    border: true,
-  },
-  {
-    title: "Loan Amount",
-    value: "₦50,350.00",
-    change: "+40% this month",
-    changeColor: "green",
-    border: true,
-  },
-];
+const colMap: Record<number, string> = {
+  1: "md:grid-cols-1",
+  2: "md:grid-cols-2",
+  3: "md:grid-cols-3",
+  4: "md:grid-cols-4",
+}
 
 
 
-export default function Metric(): JSX.Element {
+export default function Metric({ cols = 4, item }: AppProps): JSX.Element {
+  const numcols = colMap[cols] ?? "md:grid-cols-4";
+ 
   return (
-    <>
-      {data.map((item: MetricProps, index: number) => {
+    <div
+      className={`grid grid-cols-2 px-4 py-5 my-5 bg-white rounded-md ${numcols}  gap-y-4`}
+    >
+      {item.map((item: MetricProps, index: number) => {
         return <MetricCard key={index} item={item} index={index} />;
       })}
-    </>
+    </div>
   );
 }
