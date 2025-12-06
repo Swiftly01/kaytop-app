@@ -332,3 +332,101 @@
 .font-open-sauce-sans {
   font-family: var(--font-open-sauce-sans);
 }
+
+
+/* Date Range Picker Custom Styles */
+.date-range-picker {
+  font-family: var(--font-open-sauce-sans);
+}
+
+.date-range-picker .rdp-months {
+  display: flex;
+  gap: 2rem;
+}
+
+.date-range-picker .rdp-month {
+  margin: 0;
+}
+
+.date-range-picker .rdp-caption {
+  display: none !important;
+}
+
+.date-range-picker .rdp-caption_label {
+  display: none !important;
+}
+
+.date-range-picker .rdp-nav {
+  display: none !important;
+}
+
+.date-range-picker .rdp-nav_button {
+  display: none !important;
+}
+
+.date-range-picker .rdp-nav_button:hover {
+  background-color: var(--color-bg-gray-50);
+  color: var(--color-primary-600);
+}
+
+.date-range-picker .rdp-head_cell {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  text-transform: capitalize;
+  padding: 0.5rem 0;
+}
+
+.date-range-picker .rdp-cell {
+  padding: 0.125rem;
+}
+
+.date-range-picker .rdp-day {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  color: var(--color-text-dark);
+  transition: all 0.2s;
+}
+
+.date-range-picker .rdp-day:hover:not(.rdp-day_selected):not(.rdp-day_disabled) {
+  background-color: var(--color-bg-gray-50);
+  color: var(--color-primary-600);
+}
+
+.date-range-picker .rdp-day_selected {
+  background-color: var(--color-primary-600) !important;
+  color: white !important;
+  font-weight: 500;
+}
+
+.date-range-picker .rdp-day_range_middle {
+  background-color: rgba(127, 86, 217, 0.1) !important;
+  color: var(--color-primary-600) !important;
+  border-radius: 0 !important;
+}
+
+.date-range-picker .rdp-day_range_start {
+  border-radius: 0.375rem 0 0 0.375rem !important;
+}
+
+.date-range-picker .rdp-day_range_end {
+  border-radius: 0 0.375rem 0.375rem 0 !important;
+}
+
+.date-range-picker .rdp-day_outside {
+  color: var(--color-text-tertiary);
+  opacity: 0.5;
+}
+
+.date-range-picker .rdp-day_disabled {
+  color: var(--color-text-tertiary);
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.date-range-picker .rdp-day_today:not(.rdp-day_selected) {
+  font-weight: 600;
+  color: var(--color-primary-600);
+}

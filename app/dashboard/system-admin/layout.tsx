@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import React from "react";
 import "../../styles/globals.css";
 
-import Sidebar from "@/app/_components/layouts/dashboard/Sidebar";
+import SystemAdminSidebar from "@/app/_components/layouts/dashboard/SystemAdminSidebar";
 import Navbar from "@/app/_components/layouts/dashboard/Navbar";
 
 export const metadata: Metadata = {
@@ -26,13 +26,14 @@ export default function SystemAdminLayout({
     <html lang="en" className="h-full">
       <body className="bg-[#F4F6FA]">
         <Navbar />
-        <div className="pt-16 drawer lg:drawer-open">
+        <div className="drawer lg:drawer-open" style={{ paddingTop: '70px' }}>
           <input
             id="my-drawer-4"
             type="checkbox"
             className="drawer-toggle lg:hidden"
+            aria-label="Toggle navigation drawer"
           />
-          <Sidebar />
+          <SystemAdminSidebar />
           {children}
         </div>
       </body>

@@ -14,6 +14,7 @@ export const DotsVerticalIcon: React.FC<IconProps> = ({
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
     className={className}
+    aria-hidden="true"
   >
     <path
       d="M10.0001 10.8333C10.4603 10.8333 10.8334 10.4602 10.8334 9.99999C10.8334 9.53975 10.4603 9.16666 10.0001 9.16666C9.53984 9.16666 9.16675 9.53975 9.16675 9.99999C9.16675 10.4602 9.53984 10.8333 10.0001 10.8333Z"

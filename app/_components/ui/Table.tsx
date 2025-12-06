@@ -1,115 +1,168 @@
-import React, { JSX } from "react";
-import Pagination from "./Pagination";
+"use client";
 
-export default function Table(): JSX.Element {
+import React, { useState } from "react";
+import { Checkbox } from "./Checkbox";
+import { StatusBadge } from "./StatusBadge";
+import { ArrowDownIcon } from "../icons/arrow-down-icon";
+import { formatDate } from "@/lib/formatDate";
+
+interface LoanRecord {
+  id: string;
+  loanId: string;
+  name: string;
+  status: 'Active' | 'Scheduled';
+  interest: string;
+  amount: string;
+  dateDisbursed: string | Date;
+}
+
+interface TableProps {
+  data?: LoanRecord[];
+}
+
+// Default data for backwards compatibility
+const defaultLoanData: LoanRecord[] = [
+  { id: '1', loanId: '43756', name: 'Ademola Jumoke', status: 'Active', interest: '7.25%', amount: 'NGN87,000', dateDisbursed: '2024-06-03' },
+  { id: '2', loanId: '45173', name: 'Adegboyoga Precious', status: 'Active', interest: '6.50%', amount: 'NGN55,000', dateDisbursed: '2023-12-24' },
+  { id: '3', loanId: '70668', name: 'Nneka Chukwu', status: 'Scheduled', interest: '8.00%', amount: 'NGN92,000', dateDisbursed: '2024-11-11' },
+  { id: '4', loanId: '87174', name: 'Damilare Usman', status: 'Active', interest: '7.75%', amount: 'NGN68,000', dateDisbursed: '2024-02-02' },
+  { id: '5', loanId: '89636', name: 'Jide Kosoko', status: 'Active', interest: '7.00%', amount: 'NGN79,000', dateDisbursed: '2023-08-18' },
+  { id: '6', loanId: '97174', name: 'Oladejo israel', status: 'Active', interest: '6.75%', amount: 'NGN46,000', dateDisbursed: '2024-09-09' },
+  { id: '7', loanId: '22739', name: 'Eze Chinedu', status: 'Active', interest: '8.25%', amount: 'NGN61,000', dateDisbursed: '2023-07-27' },
+  { id: '8', loanId: '22739', name: 'Adebanji Bolaji', status: 'Active', interest: '7.50%', amount: 'NGN73,000', dateDisbursed: '2024-04-05' },
+  { id: '9', loanId: '48755', name: 'Baba Kaothat', status: 'Active', interest: '6.25%', amount: 'NGN62,000', dateDisbursed: '2023-10-14' },
+  { id: '10', loanId: '30635', name: 'Adebayo Salami', status: 'Active', interest: '7.10%', amount: 'NGN84,000', dateDisbursed: '2024-03-22' },
+];
+
+export default function Table({ data = defaultLoanData }: TableProps) {
+  const [selectedRows, setSelectedRows] = useState<string[]>([]);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedRows(data.map(loan => loan.id));
+    } else {
+      setSelectedRows([]);
+    }
+  };
+
+  const handleSelectRow = (id: string, checked: boolean) => {
+    if (checked) {
+      setSelectedRows([...selectedRows, id]);
+    } else {
+      setSelectedRows(selectedRows.filter(rowId => rowId !== id));
+    }
+  };
+
+  const handleSort = () => {
+    setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+  };
+
+  // Sort data based on status column
+  const sortedData = [...data].sort((a, b) => {
+    if (sortDirection === 'asc') {
+      return a.status.localeCompare(b.status);
+    } else {
+      return b.status.localeCompare(a.status);
+    }
+  });
+
+  const allSelected = selectedRows.length === data.length && data.length > 0;
+
   return (
-    <div className="overflow-x-auto">
-      <table className="table table-md">
-        <thead>
-          <tr>
-            <th></th>
-            <th>Name</th>
-            <th>Job</th>
-            <th>company</th>
-            <th>location</th>
-            <th>Last Login</th>
-            <th>Favorite Color</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <th>1</th>
-            <td>Cy Ganderton</td>
-            <td>Quality Control Specialist</td>
-            <td>Littel, Schaden and Vandervort</td>
-            <td>Canada</td>
-            <td>12/16/2020</td>
-            <td>Blue</td>
-          </tr>
-          <tr>
-            <th>2</th>
-            <td>Hart Hagerty</td>
-            <td>Desktop Support Technician</td>
-            <td>Zemlak, Daniel and Leannon</td>
-            <td>United States</td>
-            <td>12/5/2020</td>
-            <td>Purple</td>
-          </tr>
-          <tr>
-            <th>3</th>
-            <td>Brice Swyre</td>
-            <td>Tax Accountant</td>
-            <td>Carroll Group</td>
-            <td>China</td>
-            <td>8/15/2020</td>
-            <td>Red</td>
-          </tr>
-          <tr>
-            <th>4</th>
-            <td>Marjy Ferencz</td>
-            <td>Office Assistant I</td>
-            <td>Rowe-Schoen</td>
-            <td>Russia</td>
-            <td>3/25/2021</td>
-            <td>Crimson</td>
-          </tr>
-          <tr>
-            <th>5</th>
-            <td>Yancy Tear</td>
-            <td>Community Outreach Specialist</td>
-            <td>Wyman-Ledner</td>
-            <td>Brazil</td>
-            <td>5/22/2020</td>
-            <td>Indigo</td>
-          </tr>
-          <tr>
-            <th>6</th>
-            <td>Irma Vasilik</td>
-            <td>Editor</td>
-            <td>Wiza, Bins and Emard</td>
-            <td>Venezuela</td>
-            <td>12/8/2020</td>
-            <td>Purple</td>
-          </tr>
-          <tr>
-            <th>7</th>
-            <td>Meghann Durtnal</td>
-            <td>Staff Accountant IV</td>
-            <td>Schuster-Schimmel</td>
-            <td>Philippines</td>
-            <td>2/17/2021</td>
-            <td>Yellow</td>
-          </tr>
-          <tr>
-            <th>8</th>
-            <td>Sammy Seston</td>
-            <td>Accountant I</td>
-            <td>O&apos;Hara, Welch and Keebler</td>
-            <td>Indonesia</td>
-            <td>5/23/2020</td>
-            <td>Crimson</td>
-          </tr>
-          <tr>
-            <th>9</th>
-            <td>Lesya Tinham</td>
-            <td>Safety Technician IV</td>
-            <td>Turner-Kuhlman</td>
-            <td>Philippines</td>
-            <td>2/21/2021</td>
-            <td>Maroon</td>
-          </tr>
-          <tr>
-            <th>10</th>
-            <td>Zaneta Tewkesbury</td>
-            <td>VP Marketing</td>
-            <td>Sauer LLC</td>
-            <td>Chad</td>
-            <td>6/23/2020</td>
-            <td>Green</td>
-          </tr>
-        </tbody>
-      </table>
-     <Pagination/>
+    <div 
+      className="w-full max-w-[1041px] bg-white rounded-[4px] border border-[#EAECF0]"
+      role="region"
+      aria-label="Loan disbursements table"
+    >
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="h-[44px] bg-[#F9FAFB] border-b border-[#EAECF0]">
+              <th className="w-[48px] text-left pl-6 pr-3" scope="col">
+                <div className="flex items-center">
+                  <Checkbox
+                    checked={allSelected}
+                    onCheckedChange={handleSelectAll}
+                    aria-label="Select all loans"
+                  />
+                </div>
+              </th>
+              <th className="w-[140px] text-left px-3 text-xs font-medium text-[#475467]" scope="col">
+                Loan ID
+              </th>
+              <th className="w-[200px] text-left px-3 text-xs font-medium text-[#475467]" scope="col">
+                Name
+              </th>
+              <th className="w-[140px] text-left px-3" scope="col" aria-sort={sortDirection === 'asc' ? 'ascending' : 'descending'}>
+                <button
+                  onClick={handleSort}
+                  className="flex items-center gap-1 text-xs font-medium text-[#475467] hover:text-[#344054] active:text-[#1D2939] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:ring-offset-2 rounded px-1 py-0.5"
+                  aria-label={`Sort by status ${sortDirection === 'asc' ? 'descending' : 'ascending'}`}
+                >
+                  Status
+                  <ArrowDownIcon 
+                    className={`w-4 h-4 transition-transform duration-200 ${sortDirection === 'desc' ? 'rotate-180' : ''}`}
+                    color="#475467"
+                    aria-hidden="true"
+                  />
+                </button>
+              </th>
+              <th className="w-[120px] text-left px-3 text-xs font-medium text-[#475467]" scope="col">
+                Interest
+              </th>
+              <th className="w-[140px] text-left px-3 text-xs font-medium text-[#475467]" scope="col">
+                Amount
+              </th>
+              <th className="w-[180px] text-left px-3 text-xs font-medium text-[#475467]" scope="col">
+                Date disbursed
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedData.map((loan) => {
+              const isSelected = selectedRows.includes(loan.id);
+              return (
+              <tr
+                key={loan.id}
+                className={`h-[72px] border-b border-[#EAECF0] transition-colors ${
+                  isSelected 
+                    ? 'bg-[#F9F5FF] hover:bg-[#F4EBFF]' 
+                    : 'hover:bg-gray-50'
+                }`}
+                aria-selected={isSelected}
+              >
+                <td className="pl-6 pr-3">
+                  <Checkbox
+                    checked={selectedRows.includes(loan.id)}
+                    onCheckedChange={(checked) => handleSelectRow(loan.id, checked as boolean)}
+                    aria-label={`Select loan ${loan.loanId} for ${loan.name}`}
+                  />
+                </td>
+                <td className="px-3 text-sm font-normal text-[#475467]">
+                  {loan.loanId}
+                </td>
+                <td className="px-3 text-sm font-medium text-[#101828]">
+                  {loan.name}
+                </td>
+                <td className="px-3">
+                  <StatusBadge status={loan.status} />
+                </td>
+                <td className="px-3 text-sm font-normal text-[#475467]">
+                  {loan.interest}
+                </td>
+                <td className="px-3 text-sm font-normal text-[#475467]">
+                  {loan.amount}
+                </td>
+                <td className="px-3 text-sm font-normal text-[#475467]">
+                  {formatDate(loan.dateDisbursed)}
+                </td>
+              </tr>
+            );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
