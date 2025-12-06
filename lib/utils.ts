@@ -1,3 +1,4 @@
+import { MetricProps } from "@/app/types/dashboard";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -5,13 +6,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-interface MetricProps {
-  title: string;
-  value: string;
-  change: string;
-  changeColor: "green" | "red";
-  border: boolean;
-}
+
 
 export const creditOficcer: MetricProps[] = [
   {
