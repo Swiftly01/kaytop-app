@@ -26,7 +26,7 @@ export default function Sidebar(): JSX.Element {
           ></label>
 
           <div className="w-64 min-h-full bg-white">
-            <ul className="flex flex-col w-full gap-6 px-5 pt-16 lg:pt-4">
+            <ul className="flex flex-col w-full gap-6 px-5 pt-20 lg:pt-4">
               {data.map((item, i) => (
                 <li key={i}>
                   <Link
