@@ -1,7 +1,8 @@
+import BreadCrumb from "@/app/_components/ui/BreadCrumb";
 import Metric from "@/app/_components/ui/Metric";
 import Table from "@/app/_components/ui/Table";
 import { MetricProps } from "@/app/types/dashboard";
-import { data as dashboardData } from "@/lib/utils";
+import { data as dashboardData, ROUTES } from "@/lib/utils";
 import Link from "next/link";
 import { JSX } from "react";
 
@@ -11,14 +12,8 @@ export default function page(): JSX.Element {
   return (
     <div className="drawer-content">
       <div className="container h-full px-5 pt-4 mx-auto max-w-7xl">
-        <div className="leading-4 text-neutral-700 mt-5">
-          <Link href="/" className="relative inline-block group">
-            <img src="/back.svg" alt="Back" className="relative z-10" />
-            <span className="absolute left-0 -bottom-1 h-[2px] w-0 bg-brand-purple transition-all duration-300 group-hover:w-full"></span>
-          </Link>
-
-          <h1 className="text-2xl font-medium">Credit Officer</h1>
-        </div>
+        <BreadCrumb title="Credit Officer" link={ROUTES.Bm.CREDIT}/>
+       
 
         <Metric item={metricData} />
         <Metric item={metricData} />
