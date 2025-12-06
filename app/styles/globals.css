@@ -23,6 +23,21 @@
 
 }
 
+.custom-progress::-webkit-progress-bar {
+  background: #e5e7eb; /* gray-200 */
+  border-radius: 8px;
+}
+
+.custom-progress::-webkit-progress-value {
+  background: #6b21a8; /* brand purple */
+  border-radius: 8px;
+}
+
+.custom-progress {
+  height: 8px;
+  border-radius: 8px;
+}
+
 
 .custom-tabs .tab {
   transition: color 0.2s ease;
