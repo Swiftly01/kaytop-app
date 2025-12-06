@@ -43,3 +43,22 @@ next-env.d.ts
 # kiro specs and settings (local only)
 .kiro/
 .vscode/
+
+# Documentation files (implementation notes, verification, summaries)
+# All markdown files in dashboard system-admin directory
+app/dashboard/system-admin/*.md
+app/dashboard/system-admin/branches/*.md
+app/dashboard/system-admin/branches/[id]/*.md
+
+# Pattern-based exclusions for any location
+**/*_SUMMARY.md
+**/*_VERIFICATION.md
+**/*_IMPLEMENTATION.md
+**/*_NOTES.md
+**/*_GUIDE.md
+**/*_REPORT.md
+**/*_INTEGRATION.md
+**/*_IMPROVEMENTS.md
+**/*_CHECKLIST.md
+**/*COMPLETION_REPORT.md
+**/*ENHANCEMENT_PLAN.md

@@ -12,46 +12,42 @@ interface BranchInfoCardProps {
 export default function BranchInfoCard({ fields }: BranchInfoCardProps) {
   return (
     <div
+      className="w-full bg-white rounded-lg p-6"
       style={{
-        width: '1096px',
-        height: '97px',
-        background: '#FFFFFF',
-        border: '1px solid #EAECF0',
-        borderRadius: '12px',
-        boxShadow: '0px 1px 3px rgba(16, 24, 40, 0.1), 0px 1px 2px rgba(16, 24, 40, 0.06)',
-        padding: '24px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '100px'
+        border: '1px solid #E5E7EB',
+        boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
       }}
     >
-      {fields.map((field, index) => (
-        <div key={index} className="flex flex-col" style={{ gap: '4px' }}>
-          {/* Label */}
-          <div
-            style={{
-              fontSize: '14px',
-              fontWeight: 400,
-              lineHeight: '140%',
-              color: '#7C8FAC'
-            }}
-          >
-            {field.label}
-          </div>
+      {/* Responsive grid layout */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+        {fields.map((field, index) => (
+          <div key={index} className="flex flex-col gap-1">
+            {/* Label */}
+            <div 
+              className="text-sm"
+              style={{
+                fontWeight: 400,
+                lineHeight: '140%',
+                color: '#7C8FAC'
+              }}
+            >
+              {field.label}
+            </div>
 
-          {/* Value */}
-          <div
-            style={{
-              fontSize: '16px',
-              fontWeight: 400,
-              lineHeight: '120%',
-              color: '#1E3146'
-            }}
-          >
-            {field.value}
+            {/* Value */}
+            <div 
+              className="text-base text-gray-900"
+              style={{
+                fontWeight: 400,
+                lineHeight: '120%',
+                color: '#1E3146'
+              }}
+            >
+              {field.value}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import MultiSelectDropdown from './MultiSelectDropdown';
 
 interface CreateBranchModalProps {
   isOpen: boolean;
@@ -11,15 +12,36 @@ interface CreateBranchModalProps {
 interface BranchFormData {
   branchName: string;
   stateRegion: string;
-  assignUsers: string;
+  assignUsers: string[];
+}
+
+interface FormErrors {
+  branchName?: string;
+  stateRegion?: string;
+  assignUsers?: string;
 }
 
 export default function CreateBranchModal({ isOpen, onClose, onSubmit }: CreateBranchModalProps) {
   const [formData, setFormData] = useState<BranchFormData>({
     branchName: '',
     stateRegion: '',
-    assignUsers: '',
+    assignUsers: [],
   });
+
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  // Sample users data
+  const availableUsers = [
+    { id: '1', name: 'John Doe', email: 'john@example.com' },
+    { id: '2', name: 'Jane Smith', email: 'jane@example.com' },
+    { id: '3', name: 'Mike Johnson', email: 'mike@example.com' },
+    { id: '4', name: 'Sarah Williams', email: 'sarah@example.com' },
+    { id: '5', name: 'David Brown', email: 'david@example.com' },
+    { id: '6', name: 'Emily Davis', email: 'emily@example.com' },
+    { id: '7', name: 'Chris Wilson', email: 'chris@example.com' },
+    { id: '8', name: 'Lisa Anderson', email: 'lisa@example.com' },
+  ];
 
   // Reset form when modal closes
   useEffect(() => {
@@ -27,10 +49,82 @@ export default function CreateBranchModal({ isOpen, onClose, onSubmit }: CreateB
       setFormData({
         branchName: '',
         stateRegion: '',
-        assignUsers: '',
+        assignUsers: [],
       });
+      setErrors({});
+      setTouched({});
     }
   }, [isOpen]);
+
+  // Validation function
+  const validateField = (name: keyof BranchFormData, value: string): string | undefined => {
+    switch (name) {
+      case 'branchName':
+        if (!value.trim()) {
+          return 'Branch name is required';
+        }
+        if (value.trim().length < 2) {
+          return 'Branch name must be at least 2 characters';
+        }
+        if (value.trim().length > 100) {
+          return 'Branch name must not exceed 100 characters';
+        }
+        break;
+      case 'stateRegion':
+        if (!value.trim()) {
+          return 'State/Region is required';
+        }
+        if (value.trim().length < 2) {
+          return 'State/Region must be at least 2 characters';
+        }
+        break;
+      case 'assignUsers':
+        // Optional field, no validation needed
+        break;
+    }
+    return undefined;
+  };
+
+  // Validate all fields
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {};
+    
+    (Object.keys(formData) as Array<keyof BranchFormData>).forEach((key) => {
+      const value = formData[key];
+      // Only validate string fields
+      if (typeof value === 'string') {
+        const error = validateField(key, value);
+        if (error) {
+          newErrors[key] = error;
+        }
+      }
+    });
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Handle field blur
+  const handleBlur = (field: keyof BranchFormData) => {
+    setTouched({ ...touched, [field]: true });
+    const value = formData[field];
+    // Only validate string fields
+    if (typeof value === 'string') {
+      const error = validateField(field, value);
+      setErrors({ ...errors, [field]: error });
+    }
+  };
+
+  // Handle field change
+  const handleChange = (field: keyof BranchFormData, value: string | string[]) => {
+    setFormData({ ...formData, [field]: value });
+    
+    // Clear error when user starts typing (only for string fields)
+    if (touched[field] && typeof value === 'string') {
+      const error = validateField(field, value);
+      setErrors({ ...errors, [field]: error });
+    }
+  };
 
   // Handle backdrop click
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -42,9 +136,23 @@ export default function CreateBranchModal({ isOpen, onClose, onSubmit }: CreateB
   // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
-    onClose();
+    
+    // Mark all fields as touched
+    setTouched({
+      branchName: true,
+      stateRegion: true,
+      assignUsers: true,
+    });
+
+    // Validate form
+    if (validateForm()) {
+      onSubmit(formData);
+      onClose();
+    }
   };
+
+  // Check if form is valid
+  const isFormValid = formData.branchName.trim() && formData.stateRegion.trim() && Object.keys(errors).filter(k => errors[k as keyof FormErrors]).length === 0;
 
   // Handle escape key
   useEffect(() => {
@@ -115,56 +223,77 @@ export default function CreateBranchModal({ isOpen, onClose, onSubmit }: CreateB
         <form onSubmit={handleSubmit}>
           <div className="px-6 pt-5 pb-8 space-y-4">
             {/* Branch Name Field */}
-            <div className="flex items-center gap-8">
-              <label className="w-[160px] text-[14px] font-medium leading-[20px] text-[#344054]">
-                Branch name
+            <div className="flex items-start gap-8">
+              <label className="w-[160px] text-[14px] font-medium leading-[20px] text-[#344054] pt-[10px]">
+                Branch name <span className="text-[#E43535]">*</span>
               </label>
               <div className="flex-1">
                 <input
                   type="text"
                   value={formData.branchName}
-                  onChange={(e) => setFormData({ ...formData, branchName: e.target.value })}
+                  onChange={(e) => handleChange('branchName', e.target.value)}
+                  onBlur={() => handleBlur('branchName')}
                   placeholder="e.g. Linear"
-                  className="w-full px-[14px] py-[10px] text-[16px] leading-[24px] text-[#101828] placeholder:text-[#667085] bg-white border border-[#D0D5DD] rounded-lg shadow-[0px_1px_2px_rgba(16,24,40,0.05)] focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:border-[#7F56D9] transition-all"
+                  className={`w-full px-[14px] py-[10px] text-[16px] leading-[24px] text-[#101828] placeholder:text-[#667085] bg-white border rounded-lg shadow-[0px_1px_2px_rgba(16,24,40,0.05)] focus:outline-none focus:ring-2 transition-all ${
+                    touched.branchName && errors.branchName
+                      ? 'border-[#E43535] focus:ring-[#E43535] focus:border-[#E43535]'
+                      : 'border-[#D0D5DD] focus:ring-[#7F56D9] focus:border-[#7F56D9]'
+                  }`}
+                  aria-invalid={touched.branchName && !!errors.branchName}
+                  aria-describedby={touched.branchName && errors.branchName ? 'branchName-error' : undefined}
                 />
+                {touched.branchName && errors.branchName && (
+                  <p id="branchName-error" className="mt-1 text-[14px] text-[#E43535]">
+                    {errors.branchName}
+                  </p>
+                )}
               </div>
             </div>
 
             {/* State/Region Field */}
-            <div className="flex items-center gap-8">
-              <label className="w-[160px] text-[14px] font-medium leading-[20px] text-[#344054]">
-                State/Region
+            <div className="flex items-start gap-8">
+              <label className="w-[160px] text-[14px] font-medium leading-[20px] text-[#344054] pt-[10px]">
+                State/Region <span className="text-[#E43535]">*</span>
               </label>
               <div className="flex-1">
                 <input
                   type="text"
                   value={formData.stateRegion}
-                  onChange={(e) => setFormData({ ...formData, stateRegion: e.target.value })}
-                  placeholder="www.example.com"
-                  className="w-full px-[14px] py-[10px] text-[16px] leading-[24px] text-[#101828] placeholder:text-[#667085] bg-white border border-[#D0D5DD] rounded-lg shadow-[0px_1px_2px_rgba(16,24,40,0.05)] focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:border-[#7F56D9] transition-all"
+                  onChange={(e) => handleChange('stateRegion', e.target.value)}
+                  onBlur={() => handleBlur('stateRegion')}
+                  placeholder="e.g. Lagos State"
+                  className={`w-full px-[14px] py-[10px] text-[16px] leading-[24px] text-[#101828] placeholder:text-[#667085] bg-white border rounded-lg shadow-[0px_1px_2px_rgba(16,24,40,0.05)] focus:outline-none focus:ring-2 transition-all ${
+                    touched.stateRegion && errors.stateRegion
+                      ? 'border-[#E43535] focus:ring-[#E43535] focus:border-[#E43535]'
+                      : 'border-[#D0D5DD] focus:ring-[#7F56D9] focus:border-[#7F56D9]'
+                  }`}
+                  aria-invalid={touched.stateRegion && !!errors.stateRegion}
+                  aria-describedby={touched.stateRegion && errors.stateRegion ? 'stateRegion-error' : undefined}
                 />
+                {touched.stateRegion && errors.stateRegion && (
+                  <p id="stateRegion-error" className="mt-1 text-[14px] text-[#E43535]">
+                    {errors.stateRegion}
+                  </p>
+                )}
               </div>
             </div>
 
             {/* Assign Users Field */}
-            <div className="flex items-center gap-8">
-              <label className="w-[160px] text-[14px] font-medium leading-[20px] text-[#344054]">
+            <div className="flex items-start gap-8">
+              <label className="w-[160px] text-[14px] font-medium leading-[20px] text-[#344054] pt-[10px]">
                 Assign users
               </label>
-              <div className="flex-1 relative">
-                <input
-                  type="text"
-                  value={formData.assignUsers}
-                  onChange={(e) => setFormData({ ...formData, assignUsers: e.target.value })}
-                  placeholder="e.g. Linear"
-                  className="w-full px-[14px] py-[10px] pr-[40px] text-[16px] leading-[24px] text-[#101828] placeholder:text-[#667085] bg-white border border-[#D0D5DD] rounded-lg shadow-[0px_1px_2px_rgba(16,24,40,0.05)] focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:border-[#7F56D9] transition-all"
+              <div className="flex-1">
+                <MultiSelectDropdown
+                  options={availableUsers}
+                  selectedIds={formData.assignUsers}
+                  onChange={(selectedIds) => setFormData({ ...formData, assignUsers: selectedIds })}
+                  placeholder="Select users to assign..."
+                  searchPlaceholder="Search users..."
                 />
-                {/* Dropdown Icon */}
-                <div className="absolute right-[14px] top-1/2 -translate-y-1/2 pointer-events-none">
-                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M5 7.5L10 12.5L15 7.5" stroke="#667085" strokeWidth="1.66667" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </div>
+                <p className="mt-1 text-xs text-[#667085]">
+                  Select one or more users to assign to this branch
+                </p>
               </div>
             </div>
           </div>
@@ -181,7 +310,12 @@ export default function CreateBranchModal({ isOpen, onClose, onSubmit }: CreateB
               </button>
               <button
                 type="submit"
-                className="flex-1 px-[18px] py-[10px] text-[16px] font-semibold leading-[24px] text-white bg-[#7F56D9] border border-[#7F56D9] rounded-lg shadow-[0px_1px_2px_rgba(16,24,40,0.05)] hover:bg-[#6941C6] transition-colors"
+                disabled={!isFormValid}
+                className={`flex-1 px-[18px] py-[10px] text-[16px] font-semibold leading-[24px] text-white rounded-lg shadow-[0px_1px_2px_rgba(16,24,40,0.05)] transition-colors ${
+                  isFormValid
+                    ? 'bg-[#7F56D9] border border-[#7F56D9] hover:bg-[#6941C6] cursor-pointer'
+                    : 'bg-[#D0D5DD] border border-[#D0D5DD] cursor-not-allowed opacity-60'
+                }`}
               >
                 Create Branch
               </button>

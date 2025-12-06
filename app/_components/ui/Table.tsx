@@ -32,6 +32,10 @@ interface TableProps {
   data?: LoanRecord[] | BranchRecord[];
   tableType?: TableType;
   onSelectionChange?: (selectedIds: string[]) => void;
+  onRowClick?: (id: string) => void;
+  sortColumn?: string | null;
+  sortDirection?: 'asc' | 'desc';
+  onSort?: (column: string) => void;
 }
 
 // Default data for backwards compatibility
@@ -48,7 +52,15 @@ const defaultLoanData: LoanRecord[] = [
   { id: '10', loanId: '30635', name: 'Adebayo Salami', status: 'Active', interest: '7.10%', amount: 'NGN84,000', dateDisbursed: '2024-03-22' },
 ];
 
-export default function Table({ data = defaultLoanData, tableType = 'disbursements', onSelectionChange }: TableProps) {
+export default function Table({ 
+  data = defaultLoanData, 
+  tableType = 'disbursements', 
+  onSelectionChange, 
+  onRowClick,
+  sortColumn,
+  sortDirection: externalSortDirection,
+  onSort
+}: TableProps) {
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -223,64 +235,262 @@ export default function Table({ data = defaultLoanData, tableType = 'disbursemen
               {columnConfig.isBranchTable ? (
                 <>
                   <th className="w-[140px] text-left px-3 text-xs font-medium text-[#475467]" scope="col">
-                    Branch ID
+                    <button
+                      onClick={() => onSort?.('branchId')}
+                      className="flex items-center gap-1 hover:text-[#101828] transition-colors"
+                    >
+                      Branch ID
+                      {sortColumn === 'branchId' && (
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          className={`transition-transform ${externalSortDirection === 'desc' ? 'rotate-180' : ''}`}
+                        >
+                          <path
+                            d="M8 3.33334V12.6667M8 12.6667L12.6667 8.00001M8 12.6667L3.33333 8.00001"
+                            stroke="currentColor"
+                            strokeWidth="1.33333"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      )}
+                    </button>
                   </th>
                   <th className="w-[200px] text-left px-3 text-xs font-medium text-[#475467]" scope="col">
-                    Name
+                    <button
+                      onClick={() => onSort?.('name')}
+                      className="flex items-center gap-1 hover:text-[#101828] transition-colors"
+                    >
+                      Name
+                      {sortColumn === 'name' && (
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          className={`transition-transform ${externalSortDirection === 'desc' ? 'rotate-180' : ''}`}
+                        >
+                          <path
+                            d="M8 3.33334V12.6667M8 12.6667L12.6667 8.00001M8 12.6667L3.33333 8.00001"
+                            stroke="currentColor"
+                            strokeWidth="1.33333"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      )}
+                    </button>
                   </th>
                   <th className="w-[140px] text-left px-3 text-xs font-medium text-[#475467]" scope="col">
-                    CO's
+                    <button
+                      onClick={() => onSort?.('cos')}
+                      className="flex items-center gap-1 hover:text-[#101828] transition-colors"
+                    >
+                      CO's
+                      {sortColumn === 'cos' && (
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          className={`transition-transform ${externalSortDirection === 'desc' ? 'rotate-180' : ''}`}
+                        >
+                          <path
+                            d="M8 3.33334V12.6667M8 12.6667L12.6667 8.00001M8 12.6667L3.33333 8.00001"
+                            stroke="currentColor"
+                            strokeWidth="1.33333"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      )}
+                    </button>
                   </th>
                   <th className="w-[140px] text-left px-3 text-xs font-medium text-[#475467]" scope="col">
-                    Customers
+                    <button
+                      onClick={() => onSort?.('customers')}
+                      className="flex items-center gap-1 hover:text-[#101828] transition-colors"
+                    >
+                      Customers
+                      {sortColumn === 'customers' && (
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          className={`transition-transform ${externalSortDirection === 'desc' ? 'rotate-180' : ''}`}
+                        >
+                          <path
+                            d="M8 3.33334V12.6667M8 12.6667L12.6667 8.00001M8 12.6667L3.33333 8.00001"
+                            stroke="currentColor"
+                            strokeWidth="1.33333"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      )}
+                    </button>
                   </th>
                   <th className="w-[180px] text-left px-3 text-xs font-medium text-[#475467]" scope="col">
-                    Date Created
+                    <button
+                      onClick={() => onSort?.('dateCreated')}
+                      className="flex items-center gap-1 hover:text-[#101828] transition-colors"
+                    >
+                      Date Created
+                      {sortColumn === 'dateCreated' && (
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          className={`transition-transform ${externalSortDirection === 'desc' ? 'rotate-180' : ''}`}
+                        >
+                          <path
+                            d="M8 3.33334V12.6667M8 12.6667L12.6667 8.00001M8 12.6667L3.33333 8.00001"
+                            stroke="currentColor"
+                            strokeWidth="1.33333"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      )}
+                    </button>
                   </th>
                 </>
               ) : (
                 <>
                   <th className="w-[140px] text-left px-3 text-xs font-medium text-[#475467]" scope="col">
-                    Loan ID
+                    <button
+                      onClick={() => onSort?.('loanId')}
+                      className="flex items-center gap-1 hover:text-[#101828] transition-colors"
+                    >
+                      Loan ID
+                      {sortColumn === 'loanId' && (
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          className={`transition-transform ${externalSortDirection === 'desc' ? 'rotate-180' : ''}`}
+                        >
+                          <path
+                            d="M8 3.33334V12.6667M8 12.6667L12.6667 8.00001M8 12.6667L3.33333 8.00001"
+                            stroke="currentColor"
+                            strokeWidth="1.33333"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      )}
+                    </button>
                   </th>
                   {columnConfig.showType ? (
                     <>
-                      <th className="w-[140px] text-left px-3" scope="col" aria-sort={sortDirection === 'asc' ? 'ascending' : 'descending'}>
+                      <th className="w-[140px] text-left px-3" scope="col">
                         <button
-                          onClick={handleSort}
-                          className="flex items-center gap-1 text-xs font-medium text-[#475467] hover:text-[#344054] active:text-[#1D2939] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:ring-offset-2 rounded px-1 py-0.5"
-                          aria-label={`Sort by type ${sortDirection === 'asc' ? 'descending' : 'ascending'}`}
+                          onClick={() => onSort?.('type')}
+                          className="flex items-center gap-1 text-xs font-medium text-[#475467] hover:text-[#101828] transition-colors"
                         >
                           Type
-                          <ArrowDownIcon 
-                            className={`w-4 h-4 transition-transform duration-200 ${sortDirection === 'desc' ? 'rotate-180' : ''}`}
-                            color="#475467"
-                            aria-hidden="true"
-                          />
+                          {sortColumn === 'type' && (
+                            <svg
+                              width="16"
+                              height="16"
+                              viewBox="0 0 16 16"
+                              fill="none"
+                              className={`transition-transform ${externalSortDirection === 'desc' ? 'rotate-180' : ''}`}
+                            >
+                              <path
+                                d="M8 3.33334V12.6667M8 12.6667L12.6667 8.00001M8 12.6667L3.33333 8.00001"
+                                stroke="currentColor"
+                                strokeWidth="1.33333"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          )}
                         </button>
                       </th>
                       <th className="w-[200px] text-left px-3 text-xs font-medium text-[#475467]" scope="col">
-                        Name
+                        <button
+                          onClick={() => onSort?.('name')}
+                          className="flex items-center gap-1 hover:text-[#101828] transition-colors"
+                        >
+                          Name
+                          {sortColumn === 'name' && (
+                            <svg
+                              width="16"
+                              height="16"
+                              viewBox="0 0 16 16"
+                              fill="none"
+                              className={`transition-transform ${externalSortDirection === 'desc' ? 'rotate-180' : ''}`}
+                            >
+                              <path
+                                d="M8 3.33334V12.6667M8 12.6667L12.6667 8.00001M8 12.6667L3.33333 8.00001"
+                                stroke="currentColor"
+                                strokeWidth="1.33333"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          )}
+                        </button>
                       </th>
                     </>
                   ) : (
                     <>
                       <th className="w-[200px] text-left px-3 text-xs font-medium text-[#475467]" scope="col">
-                        Name
+                        <button
+                          onClick={() => onSort?.('name')}
+                          className="flex items-center gap-1 hover:text-[#101828] transition-colors"
+                        >
+                          Name
+                          {sortColumn === 'name' && (
+                            <svg
+                              width="16"
+                              height="16"
+                              viewBox="0 0 16 16"
+                              fill="none"
+                              className={`transition-transform ${externalSortDirection === 'desc' ? 'rotate-180' : ''}`}
+                            >
+                              <path
+                                d="M8 3.33334V12.6667M8 12.6667L12.6667 8.00001M8 12.6667L3.33333 8.00001"
+                                stroke="currentColor"
+                                strokeWidth="1.33333"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          )}
+                        </button>
                       </th>
                       {columnConfig.showStatus && (
-                        <th className="w-[140px] text-left px-3" scope="col" aria-sort={sortDirection === 'asc' ? 'ascending' : 'descending'}>
+                        <th className="w-[140px] text-left px-3" scope="col">
                           <button
-                            onClick={handleSort}
-                            className="flex items-center gap-1 text-xs font-medium text-[#475467] hover:text-[#344054] active:text-[#1D2939] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:ring-offset-2 rounded px-1 py-0.5"
-                            aria-label={`Sort by status ${sortDirection === 'asc' ? 'descending' : 'ascending'}`}
+                            onClick={() => onSort?.('status')}
+                            className="flex items-center gap-1 text-xs font-medium text-[#475467] hover:text-[#101828] transition-colors"
                           >
                             Status
-                            <ArrowDownIcon 
-                              className={`w-4 h-4 transition-transform duration-200 ${sortDirection === 'desc' ? 'rotate-180' : ''}`}
-                              color="#475467"
-                              aria-hidden="true"
-                            />
+                            {sortColumn === 'status' && (
+                              <svg
+                                width="16"
+                                height="16"
+                                viewBox="0 0 16 16"
+                                fill="none"
+                                className={`transition-transform ${externalSortDirection === 'desc' ? 'rotate-180' : ''}`}
+                              >
+                                <path
+                                  d="M8 3.33334V12.6667M8 12.6667L12.6667 8.00001M8 12.6667L3.33333 8.00001"
+                                  stroke="currentColor"
+                                  strokeWidth="1.33333"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            )}
                           </button>
                         </th>
                       )}
@@ -288,15 +498,81 @@ export default function Table({ data = defaultLoanData, tableType = 'disbursemen
                   )}
                   {columnConfig.showInterest && (
                     <th className="w-[120px] text-left px-3 text-xs font-medium text-[#475467]" scope="col">
-                      Interest
+                      <button
+                        onClick={() => onSort?.('interest')}
+                        className="flex items-center gap-1 hover:text-[#101828] transition-colors"
+                      >
+                        Interest
+                        {sortColumn === 'interest' && (
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 16 16"
+                            fill="none"
+                            className={`transition-transform ${externalSortDirection === 'desc' ? 'rotate-180' : ''}`}
+                          >
+                            <path
+                              d="M8 3.33334V12.6667M8 12.6667L12.6667 8.00001M8 12.6667L3.33333 8.00001"
+                              stroke="currentColor"
+                              strokeWidth="1.33333"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        )}
+                      </button>
                     </th>
                   )}
                   <th className={`${columnConfig.showInterest ? 'w-[140px]' : 'w-[180px]'} text-left px-3 text-xs font-medium text-[#475467]`} scope="col">
-                    {columnConfig.amountLabel}
+                    <button
+                      onClick={() => onSort?.('amount')}
+                      className="flex items-center gap-1 hover:text-[#101828] transition-colors"
+                    >
+                      {columnConfig.amountLabel}
+                      {sortColumn === 'amount' && (
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          className={`transition-transform ${externalSortDirection === 'desc' ? 'rotate-180' : ''}`}
+                        >
+                          <path
+                            d="M8 3.33334V12.6667M8 12.6667L12.6667 8.00001M8 12.6667L3.33333 8.00001"
+                            stroke="currentColor"
+                            strokeWidth="1.33333"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      )}
+                    </button>
                   </th>
                   {columnConfig.showDate && (
                     <th className={`${columnConfig.showInterest ? 'w-[180px]' : 'w-[220px]'} text-left px-3 text-xs font-medium text-[#475467]`} scope="col">
-                      {columnConfig.dateLabel}
+                      <button
+                        onClick={() => onSort?.('dateDisbursed')}
+                        className="flex items-center gap-1 hover:text-[#101828] transition-colors"
+                      >
+                        {columnConfig.dateLabel}
+                        {sortColumn === 'dateDisbursed' && (
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 16 16"
+                            fill="none"
+                            className={`transition-transform ${externalSortDirection === 'desc' ? 'rotate-180' : ''}`}
+                          >
+                            <path
+                              d="M8 3.33334V12.6667M8 12.6667L12.6667 8.00001M8 12.6667L3.33333 8.00001"
+                              stroke="currentColor"
+                              strokeWidth="1.33333"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        )}
+                      </button>
                     </th>
                   )}
                   {columnConfig.showActions && (
@@ -318,11 +594,12 @@ export default function Table({ data = defaultLoanData, tableType = 'disbursemen
               return (
               <tr
                 key={item.id}
+                onClick={() => isBranch && onRowClick && onRowClick(item.id)}
                 className={`h-[72px] border-b border-[#EAECF0] transition-colors ${
                   isSelected 
                     ? 'bg-[#F9F5FF] hover:bg-[#F4EBFF]' 
                     : 'hover:bg-gray-50'
-                }`}
+                } ${isBranch && onRowClick ? 'cursor-pointer' : ''}`}
                 aria-selected={isSelected}
               >
                 <td className="pl-6 pr-3">
