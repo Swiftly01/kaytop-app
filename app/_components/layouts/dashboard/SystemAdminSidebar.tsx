@@ -77,7 +77,7 @@ export default function SystemAdminSidebar() {
         className="drawer-overlay lg:hidden"
       ></label>
 
-      <div className="w-[232px] min-h-full bg-white">
+      <div className="w-[232px] max-w-[232px] min-w-[232px] min-h-full bg-white">
         {/* Menu Items */}
         <nav className="pt-16 lg:pt-6 pl-[35px]">
           <ul className="flex flex-col gap-[47px]">
@@ -100,7 +100,7 @@ export default function SystemAdminSidebar() {
                     className={`
                       flex items-center gap-3 transition-all duration-200
                       ${!active ? 'hover:opacity-70' : ''}
-                      focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:ring-offset-2 rounded-md px-2 py-1 -mx-2 -my-1
+                      focus:outline-none
                     `}
                     aria-current={active ? 'page' : undefined}
                   >

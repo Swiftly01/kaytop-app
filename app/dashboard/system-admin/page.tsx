@@ -12,7 +12,7 @@ type TabValue = 'disbursements' | 're-collections' | 'savings' | 'missed-payment
 
 export default function SystemAdminDashboard() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
-  const [timePeriod, setTimePeriod] = useState<string>('12months');
+  const [timePeriod, setTimePeriod] = useState<string | null>('12months');
   const [activeTab, setActiveTab] = useState<TabValue>('disbursements');
 
   // Handler for date range changes
@@ -24,7 +24,7 @@ export default function SystemAdminDashboard() {
   };
 
   // Handler for time period changes
-  const handleTimePeriodChange = (period: string) => {
+  const handleTimePeriodChange = (period: string | null) => {
     setTimePeriod(period);
     console.log('Dashboard filtering by time period:', period);
     // TODO: Fetch filtered data from backend API based on time period
@@ -181,18 +181,40 @@ export default function SystemAdminDashboard() {
       { id: '10', loanId: '30635', name: 'Adebayo Salami', status: 'Active' as const, interest: '7.10%', amount: 'NGN84,000', dateDisbursed: '2024-03-22' },
     ],
     're-collections': [
-      { id: '11', loanId: '54321', name: 'Oluwaseun Adeyemi', status: 'Active' as const, interest: '6.75%', amount: 'NGN45,000', dateDisbursed: '2024-01-15' },
-      { id: '12', loanId: '67890', name: 'Chioma Okonkwo', status: 'Active' as const, interest: '7.50%', amount: 'NGN52,000', dateDisbursed: '2024-02-20' },
-      { id: '13', loanId: '13579', name: 'Ibrahim Mohammed', status: 'Scheduled' as const, interest: '8.00%', amount: 'NGN38,000', dateDisbursed: '2024-03-10' },
+      { id: '11', loanId: '43756', name: 'Ademola Jumoke', status: 'Active' as const, amount: 'NGN87,000', dateDisbursed: '2024-06-03' },
+      { id: '12', loanId: '43178', name: 'Adegboyoga Precious', status: 'Active' as const, amount: 'NGN55,000', dateDisbursed: '2023-12-24' },
+      { id: '13', loanId: '70668', name: 'Nneka Chukwu', status: 'Scheduled' as const, amount: 'NGN92,000', dateDisbursed: '2024-11-11' },
+      { id: '14', loanId: '97174', name: 'Damilare Usman', status: 'Active' as const, amount: 'NGN68,000', dateDisbursed: '2024-02-02' },
+      { id: '15', loanId: '39635', name: 'Jide Kosoko', status: 'Active' as const, amount: 'NGN79,000', dateDisbursed: '2023-08-18' },
+      { id: '16', loanId: '97174', name: 'Oladejo israel', status: 'Active' as const, amount: 'NGN46,000', dateDisbursed: '2024-09-09' },
+      { id: '17', loanId: '22739', name: 'Eze Chinedu', status: 'Active' as const, amount: 'NGN61,000', dateDisbursed: '2023-07-27' },
+      { id: '18', loanId: '22739', name: 'Adebanji Bolaji', status: 'Active' as const, amount: 'NGN73,000', dateDisbursed: '2024-04-05' },
+      { id: '19', loanId: '43756', name: 'Baba Kaothat', status: 'Active' as const, amount: 'NGN52,000', dateDisbursed: '2023-10-14' },
+      { id: '20', loanId: '39635', name: 'Adebayo Salami', status: 'Active' as const, amount: 'NGN84,000', dateDisbursed: '2024-03-22' },
     ],
     savings: [
-      { id: '14', loanId: '24680', name: 'Funmilayo Ajayi', status: 'Active' as const, interest: '5.50%', amount: 'NGN120,000', dateDisbursed: '2024-01-05' },
-      { id: '15', loanId: '97531', name: 'Emeka Nwosu', status: 'Active' as const, interest: '5.75%', amount: 'NGN95,000', dateDisbursed: '2024-02-12' },
+      { id: '21', loanId: '43756', name: 'Ademola Jumoke', type: 'Savings' as const, amount: 'NGN87,000', dateDisbursed: '2024-06-03' },
+      { id: '22', loanId: '43178', name: 'Adegboyoga Precious', type: 'Savings' as const, amount: 'NGN55,000', dateDisbursed: '2023-12-24' },
+      { id: '23', loanId: '70668', name: 'Nneka Chukwu', type: 'Savings' as const, amount: 'NGN92,000', dateDisbursed: '2024-11-11' },
+      { id: '24', loanId: '97174', name: 'Damilare Usman', type: 'Savings' as const, amount: 'NGN68,000', dateDisbursed: '2024-02-02' },
+      { id: '25', loanId: '39635', name: 'Jide Kosoko', type: 'Savings' as const, amount: 'NGN79,000', dateDisbursed: '2023-08-18' },
+      { id: '26', loanId: '97174', name: 'Oladejo israel', type: 'Savings' as const, amount: 'NGN46,000', dateDisbursed: '2024-09-09' },
+      { id: '27', loanId: '22739', name: 'Eze Chinedu', type: 'Savings' as const, amount: 'NGN61,000', dateDisbursed: '2023-07-27' },
+      { id: '28', loanId: '22739', name: 'Adebanji Bolaji', type: 'Savings' as const, amount: 'NGN73,000', dateDisbursed: '2024-04-05' },
+      { id: '29', loanId: '43756', name: 'Baba Kaothat', type: 'Savings' as const, amount: 'NGN52,000', dateDisbursed: '2023-10-14' },
+      { id: '30', loanId: '39635', name: 'Adebayo Salami', type: 'Savings' as const, amount: 'NGN84,000', dateDisbursed: '2024-03-22' },
     ],
     'missed-payments': [
-      { id: '16', loanId: '86420', name: 'Aisha Bello', status: 'Active' as const, interest: '9.00%', amount: 'NGN72,000', dateDisbursed: '2023-11-20' },
-      { id: '17', loanId: '75309', name: 'Tunde Bakare', status: 'Active' as const, interest: '8.50%', amount: 'NGN65,000', dateDisbursed: '2023-12-05' },
-      { id: '18', loanId: '64208', name: 'Ngozi Eze', status: 'Scheduled' as const, interest: '9.25%', amount: 'NGN58,000', dateDisbursed: '2024-01-18' },
+      { id: '31', loanId: '43756', name: 'Ademola Jumoke', status: 'Active' as const, interest: '7.25%', amount: 'NGN87,000', dateDisbursed: '2024-06-03' },
+      { id: '32', loanId: '43178', name: 'Adegboyoga Precious', status: 'Active' as const, interest: '6.50%', amount: 'NGN55,000', dateDisbursed: '2023-12-24' },
+      { id: '33', loanId: '70668', name: 'Nneka Chukwu', status: 'Scheduled' as const, interest: '8.00%', amount: 'NGN92,000', dateDisbursed: '2024-11-11' },
+      { id: '34', loanId: '97174', name: 'Damilare Usman', status: 'Active' as const, interest: '7.75%', amount: 'NGN68,000', dateDisbursed: '2024-02-02' },
+      { id: '35', loanId: '39635', name: 'Jide Kosoko', status: 'Active' as const, interest: '7.00%', amount: 'NGN79,000', dateDisbursed: '2023-08-18' },
+      { id: '36', loanId: '97174', name: 'Oladejo israel', status: 'Active' as const, interest: '6.75%', amount: 'NGN46,000', dateDisbursed: '2024-09-09' },
+      { id: '37', loanId: '22739', name: 'Eze Chinedu', status: 'Active' as const, interest: '8.25%', amount: 'NGN61,000', dateDisbursed: '2023-07-27' },
+      { id: '38', loanId: '22739', name: 'Adebanji Bolaji', status: 'Active' as const, interest: '7.50%', amount: 'NGN73,000', dateDisbursed: '2024-04-05' },
+      { id: '39', loanId: '43756', name: 'Baba Kaothat', status: 'Active' as const, interest: '6.25%', amount: 'NGN52,000', dateDisbursed: '2023-10-14' },
+      { id: '40', loanId: '39635', name: 'Adebayo Salami', status: 'Active' as const, interest: '7.10%', amount: 'NGN84,000', dateDisbursed: '2024-03-22' },
     ],
   };
 
@@ -201,27 +223,27 @@ export default function SystemAdminDashboard() {
 
   return (
     <div className="drawer-content flex flex-col min-h-screen">
-      <main className="flex-1 p-4 sm:p-6">
-        <div className="max-w-7xl mx-auto">
-          {/* Page Header */}
-          <header className="mb-6 sm:mb-8">
-            <h1 className="text-xl sm:text-2xl font-bold text-[#021C3E]">Overview</h1>
-            <p className="text-sm sm:text-base font-medium text-[#021C3E] opacity-50 mt-2">
+      <main className="flex-1 pl-[58px] pr-6" style={{ paddingTop: '40px' }}>
+        <div className="max-w-[1150px]">
+          {/* Page Header - Position: y:110px (Overview), y:150px (Osun state) */}
+          <header>
+            <h1 className="text-2xl font-bold text-[#021C3E]" style={{ marginBottom: '8px' }}>Overview</h1>
+            <p className="text-base font-medium text-[#021C3E] opacity-50" style={{ marginBottom: '48px' }}>
               Osun state
             </p>
           </header>
 
-          {/* Filter Controls */}
-          <div className="mb-6 sm:mb-8">
+          {/* Filter Controls - Position: y:198px */}
+          <div style={{ marginBottom: '56px' }}>
             <FilterControls 
-              selectedPeriod={timePeriod as '12months' | '30days' | '7days' | '24hours'}
+              selectedPeriod={timePeriod as '12months' | '30days' | '7days' | '24hours' | null}
               onDateRangeChange={handleDateRangeChange}
               onPeriodChange={handleTimePeriodChange}
               onFilter={handleFilterClick}
             />
           </div>
 
-          {/* Statistics Section */}
+          {/* Statistics Section - First card at y:254px */}
           <section className="space-y-4 sm:space-y-6" aria-label="Dashboard statistics">
             {/* Top Statistics Card - 4 sections */}
             <div className="w-full max-w-[1091px]">
@@ -264,7 +286,7 @@ export default function SystemAdminDashboard() {
             id={`${activeTab}-panel`}
             aria-labelledby={`${activeTab}-tab`}
           >
-            <Table data={currentTabData} />
+            <Table data={currentTabData} tableType={activeTab} />
           </section>
         </div>
       </main>

@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { CalendarIcon } from '../icons/calendar-icon';
 import { FilterIcon } from '../icons/filter-icon';
 import DateRangePicker from './DateRangePicker';
 import { DateRange } from 'react-day-picker';
 
-type TimePeriod = '12months' | '30days' | '7days' | '24hours';
+type TimePeriod = '12months' | '30days' | '7days' | '24hours' | null;
 
 interface FilterControlsProps {
   selectedPeriod?: TimePeriod;
@@ -24,10 +24,34 @@ export default function FilterControls({
   const [activePeriod, setActivePeriod] = useState<TimePeriod>(selectedPeriod);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDateRange, setSelectedDateRange] = useState<DateRange | undefined>();
+  const periodGroupRef = useRef<HTMLDivElement>(null);
+
+  // Handle click outside to deselect period
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (periodGroupRef.current && !periodGroupRef.current.contains(event.target as Node)) {
+        if (activePeriod !== null) {
+          setActivePeriod(null);
+          onPeriodChange?.(null);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [activePeriod, onPeriodChange]);
 
   const handlePeriodClick = (period: TimePeriod) => {
-    setActivePeriod(period);
-    onPeriodChange?.(period);
+    // Toggle: if clicking the same period, deselect it
+    if (activePeriod === period) {
+      setActivePeriod(null);
+      onPeriodChange?.(null);
+    } else {
+      setActivePeriod(period);
+      onPeriodChange?.(period);
+    }
   };
 
   const handleDatePickerToggle = () => {
@@ -53,6 +77,7 @@ export default function FilterControls({
     <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 w-full max-w-[1091px]">
       {/* Time Period Button Group */}
       <div 
+        ref={periodGroupRef}
         className="inline-flex items-center border border-[#D0D5DD] rounded-lg bg-white overflow-x-auto"
         style={{
           boxShadow: '0px 1px 2px rgba(16, 24, 40, 0.05)',
