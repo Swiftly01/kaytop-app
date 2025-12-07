@@ -224,8 +224,8 @@ export default function CreateBranchModal({ isOpen, onClose, onSubmit }: CreateB
           <div className="px-6 pt-5 pb-8 space-y-4">
             {/* Branch Name Field */}
             <div className="flex items-start gap-8">
-              <label className="w-[160px] text-[14px] font-medium leading-[20px] text-[#344054] pt-[10px]">
-                Branch name <span className="text-[#E43535]">*</span>
+              <label className="w-[160px] text-[14px] font-medium leading-[20px] pt-[10px]" style={{ color: 'var(--color-text-medium)' }}>
+                Branch Name <span style={{ color: 'var(--color-error-500)' }}>*</span>
               </label>
               <div className="flex-1">
                 <input
@@ -252,8 +252,8 @@ export default function CreateBranchModal({ isOpen, onClose, onSubmit }: CreateB
 
             {/* State/Region Field */}
             <div className="flex items-start gap-8">
-              <label className="w-[160px] text-[14px] font-medium leading-[20px] text-[#344054] pt-[10px]">
-                State/Region <span className="text-[#E43535]">*</span>
+              <label className="w-[160px] text-[14px] font-medium leading-[20px] pt-[10px]" style={{ color: 'var(--color-text-medium)' }}>
+                State/Region <span style={{ color: 'var(--color-error-500)' }}>*</span>
               </label>
               <div className="flex-1">
                 <input
@@ -280,8 +280,8 @@ export default function CreateBranchModal({ isOpen, onClose, onSubmit }: CreateB
 
             {/* Assign Users Field */}
             <div className="flex items-start gap-8">
-              <label className="w-[160px] text-[14px] font-medium leading-[20px] text-[#344054] pt-[10px]">
-                Assign users
+              <label className="w-[160px] text-[14px] font-medium leading-[20px] pt-[10px]" style={{ color: 'var(--color-text-medium)' }}>
+                Assign Users
               </label>
               <div className="flex-1">
                 <MultiSelectDropdown
@@ -304,18 +304,30 @@ export default function CreateBranchModal({ isOpen, onClose, onSubmit }: CreateB
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 px-[18px] py-[10px] text-[16px] font-semibold leading-[24px] text-[#344054] bg-white border border-[#D0D5DD] rounded-lg shadow-[0px_1px_2px_rgba(16,24,40,0.05)] hover:bg-gray-50 transition-colors"
+                className="flex-1 px-[18px] py-[10px] text-[16px] font-semibold leading-[24px] bg-white rounded-lg shadow-[0px_1px_2px_rgba(16,24,40,0.05)] hover:bg-gray-50 transition-colors duration-200"
+                style={{ 
+                  color: 'var(--color-text-medium)',
+                  border: '1px solid var(--color-border-gray-300)'
+                }}
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={!isFormValid}
-                className={`flex-1 px-[18px] py-[10px] text-[16px] font-semibold leading-[24px] text-white rounded-lg shadow-[0px_1px_2px_rgba(16,24,40,0.05)] transition-colors ${
-                  isFormValid
-                    ? 'bg-[#7F56D9] border border-[#7F56D9] hover:bg-[#6941C6] cursor-pointer'
-                    : 'bg-[#D0D5DD] border border-[#D0D5DD] cursor-not-allowed opacity-60'
-                }`}
+                className="flex-1 px-[18px] py-[10px] text-[16px] font-semibold leading-[24px] text-white rounded-lg shadow-[0px_1px_2px_rgba(16,24,40,0.05)] transition-colors duration-200"
+                style={{
+                  backgroundColor: isFormValid ? 'var(--color-primary-600)' : 'var(--color-border-gray-300)',
+                  border: isFormValid ? '1px solid var(--color-primary-600)' : '1px solid var(--color-border-gray-300)',
+                  cursor: isFormValid ? 'pointer' : 'not-allowed',
+                  opacity: isFormValid ? 1 : 0.6
+                }}
+                onMouseEnter={(e) => {
+                  if (isFormValid) e.currentTarget.style.backgroundColor = '#6941C6';
+                }}
+                onMouseLeave={(e) => {
+                  if (isFormValid) e.currentTarget.style.backgroundColor = 'var(--color-primary-600)';
+                }}
               >
                 Create Branch
               </button>

@@ -2,6 +2,9 @@
 
 import { Toast, ToastType } from './Toast';
 
+// Re-export ToastType for use in other components
+export type { ToastType };
+
 export interface ToastData {
   id: string;
   type: ToastType;

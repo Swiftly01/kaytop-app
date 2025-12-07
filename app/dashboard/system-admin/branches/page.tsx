@@ -333,21 +333,24 @@ export default function BranchesPage() {
             {/* Page Header with Create Button */}
             <div className="mb-12 flex flex-col sm:flex-row items-start justify-between gap-4">
               <div>
-                <h1 className="text-2xl font-bold text-[#021C3E]" style={{ marginBottom: '8px' }}>
+                <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)', marginBottom: '8px' }}>
                   Overview
                 </h1>
-                <p className="text-base font-medium text-[#021C3E] opacity-50">
-                  Osun state
+                <p className="text-base font-medium" style={{ color: 'var(--color-text-primary)', opacity: 0.5 }}>
+                  Osun State
                 </p>
               </div>
 
               {/* Create New Branch Button */}
               <button
                 onClick={handleCreateBranch}
-                className="w-[265px] h-[44px] px-[18px] py-[10px] bg-[#7F56D9] text-white text-base font-semibold leading-[24px] rounded-lg shadow-[0px_1px_2px_rgba(16,24,40,0.05)] hover:bg-[#6941C6] transition-colors duration-200"
+                className="w-[265px] h-[44px] px-[18px] py-[10px] text-white text-base font-semibold leading-[24px] rounded-lg shadow-[0px_1px_2px_rgba(16,24,40,0.05)] transition-colors duration-200"
+                style={{ backgroundColor: 'var(--color-primary-600)' }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#6941C6'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--color-primary-600)'}
                 aria-label="Create new branch"
               >
-                Create new branch
+                Create New Branch
               </button>
             </div>
 
@@ -372,7 +375,7 @@ export default function BranchesPage() {
 
             {/* Branches Section Title and Search */}
             <div className="pl-4 flex items-center justify-between" style={{ marginBottom: '24px' }}>
-              <h2 className="text-lg font-semibold text-[#101828]">
+              <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-dark)' }}>
                 Branches
               </h2>
 
@@ -393,8 +396,12 @@ export default function BranchesPage() {
                   type="text"
                   value={searchQuery}
                   onChange={handleSearchChange}
-                  placeholder="Search by name or ID..."
-                  className="w-full pl-10 pr-10 py-2 text-sm border border-[#D0D5DD] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:border-[#7F56D9] transition-all"
+                  placeholder="Search by Name or ID..."
+                  className="w-full pl-10 pr-10 py-2 text-sm rounded-lg focus:outline-none focus:ring-2 transition-all"
+                  style={{ 
+                    border: '1px solid var(--color-border-gray-300)',
+                    '--tw-ring-color': 'var(--color-primary-600)'
+                  } as React.CSSProperties}
                   aria-label="Search branches"
                 />
                 {searchQuery && (

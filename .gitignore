@@ -48,7 +48,11 @@ next-env.d.ts
 # All markdown files in dashboard system-admin directory
 app/dashboard/system-admin/*.md
 app/dashboard/system-admin/branches/*.md
-app/dashboard/system-admin/branches/[id]/*.md
+app/dashboard/system-admin/branches/\[id\]/*.md
+
+# Library documentation
+lib/*_GUIDE.md
+lib/BRANCH_DATA_GENERATOR_GUIDE.md
 
 # Pattern-based exclusions for any location
 **/*_SUMMARY.md
@@ -60,5 +64,18 @@ app/dashboard/system-admin/branches/[id]/*.md
 **/*_INTEGRATION.md
 **/*_IMPROVEMENTS.md
 **/*_CHECKLIST.md
-**/*COMPLETION_REPORT.md
-**/*ENHANCEMENT_PLAN.md
+**/*_COMPARISON.md
+**/*_FIX.md
+**/*_COMPLETE.md
+**/*_REFERENCE.md
+**/COMPLETION_REPORT.md
+**/ENHANCEMENT_PLAN.md
+**/IMPLEMENTATION_COMPLETE.md
+**/QUICK_REFERENCE.md
+**/BEFORE_AFTER_COMPARISON.md
+**/UNIQUE_DATA_IMPLEMENTATION.md
+**/NEXTJS_15_FIX.md
+
+# Exclude all uppercase markdown files (typically documentation)
+**/[A-Z]*_[A-Z]*.md
+**/[A-Z][A-Z]*.md

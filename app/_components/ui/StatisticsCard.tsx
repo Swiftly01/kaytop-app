@@ -50,7 +50,7 @@ export const StatisticsCard: React.FC<StatisticsCardProps> = ({ sections }) => {
             <div
               className="text-xs sm:text-sm font-semibold mb-2"
               style={{
-                color: '#8B8F96',
+                color: 'var(--color-text-label)',
                 opacity: 0.9,
                 fontSize: '14px',
                 fontWeight: 600,
@@ -61,7 +61,7 @@ export const StatisticsCard: React.FC<StatisticsCardProps> = ({ sections }) => {
             <div
               className="text-base sm:text-lg font-semibold mb-1"
               style={{
-                color: '#021C3E',
+                color: 'var(--color-text-primary)',
                 fontSize: '18px',
                 fontWeight: 600,
                 letterSpacing: '0.013em',
@@ -79,7 +79,7 @@ export const StatisticsCard: React.FC<StatisticsCardProps> = ({ sections }) => {
               }}
             >
               {getChangePrefix(section.change)}
-              {Math.abs(section.change)}% this month
+              {Math.abs(section.change)}% This Month
             </div>
           </div>
         </React.Fragment>

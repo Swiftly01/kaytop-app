@@ -15,9 +15,10 @@ interface ReportsTableProps {
   data: Report[];
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
+  onViewDetails?: (id: string) => void;
 }
 
-export default function ReportsTable({ data, onEdit, onDelete }: ReportsTableProps) {
+export default function ReportsTable({ data, onEdit, onDelete, onViewDetails }: ReportsTableProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const handleSelectAll = (checked: boolean | 'indeterminate') => {
@@ -44,6 +45,11 @@ export default function ReportsTable({ data, onEdit, onDelete }: ReportsTablePro
   const handleDelete = (id: string) => {
     console.log('Delete Report:', id);
     onDelete?.(id);
+  };
+
+  const handleViewDetails = (id: string) => {
+    console.log('View Details:', id);
+    onViewDetails?.(id);
   };
 
   const allSelected = data.length > 0 && selectedIds.length === data.length;
@@ -134,6 +140,31 @@ export default function ReportsTable({ data, onEdit, onDelete }: ReportsTablePro
                 {/* Actions Cell */}
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2">
+                    {/* View Details Button */}
+                    <button
+                      onClick={() => handleViewDetails(report.id)}
+                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                      aria-label={`View details for report ${report.reportId}`}
+                      title="View Details"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path
+                          d="M10 12.5C11.3807 12.5 12.5 11.3807 12.5 10C12.5 8.61929 11.3807 7.5 10 7.5C8.61929 7.5 7.5 8.61929 7.5 10C7.5 11.3807 8.61929 12.5 10 12.5Z"
+                          stroke="#7F56D9"
+                          strokeWidth="1.66667"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                        <path
+                          d="M10 2.5C4.16667 2.5 1.66667 10 1.66667 10C1.66667 10 4.16667 17.5 10 17.5C15.8333 17.5 18.3333 10 18.3333 10C18.3333 10 15.8333 2.5 10 2.5Z"
+                          stroke="#7F56D9"
+                          strokeWidth="1.66667"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </button>
+
                     {/* Delete Button */}
                     <button
                       onClick={() => handleDelete(report.id)}

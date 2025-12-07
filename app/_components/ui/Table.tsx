@@ -97,8 +97,8 @@ export default function Table({
           showActions: false,
           showStatus: true,
           isBranchTable: false,
-          amountLabel: 'Amount to be paid',
-          dateLabel: 'Date to be paid',
+          amountLabel: 'Amount To Be Paid',
+          dateLabel: 'Date To Be Paid',
           ariaLabel: 'Loan re-collections table'
         };
       case 'savings':
@@ -109,8 +109,8 @@ export default function Table({
           showActions: false,
           showStatus: false,
           isBranchTable: false,
-          amountLabel: 'Amount saved',
-          dateLabel: 'Date to be paid',
+          amountLabel: 'Amount Saved',
+          dateLabel: 'Date To Be Paid',
           ariaLabel: 'Savings table'
         };
       case 'missed-payments':
@@ -135,7 +135,7 @@ export default function Table({
           showStatus: true,
           isBranchTable: false,
           amountLabel: 'Amount',
-          dateLabel: 'Date disbursed',
+          dateLabel: 'Date Disbursed',
           ariaLabel: 'Loan disbursements table'
         };
     }

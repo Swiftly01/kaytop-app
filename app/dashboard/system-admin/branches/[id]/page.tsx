@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import BranchDetailsStatistics from '@/app/_components/ui/BranchDetailsStatistics';
 import BranchInfoCard from '@/app/_components/ui/BranchInfoCard';
@@ -13,9 +13,13 @@ import DeleteConfirmationModal from '@/app/_components/ui/DeleteConfirmationModa
 import EditCreditOfficerModal from '@/app/_components/ui/EditCreditOfficerModal';
 import EditReportModal from '@/app/_components/ui/EditReportModal';
 import EditMissedReportModal from '@/app/_components/ui/EditMissedReportModal';
+import { LoanDetailsModal, LoanDetailsData } from '@/app/_components/ui/LoanDetailsModal';
+import { ConfirmationDialog } from '@/app/_components/ui/ConfirmationDialog';
 import { ToastContainer } from '@/app/_components/ui/ToastContainer';
 import { useToast } from '@/app/hooks/useToast';
 import { PageSkeleton } from '@/app/_components/ui/Skeleton';
+import AssignUsersModal from '@/app/_components/ui/AssignUsersModal';
+import { generateBranchData } from '@/lib/branchDataGenerator';
 
 // TypeScript Interfaces
 interface BranchDetails {
@@ -59,13 +63,19 @@ interface CreditOfficer {
   dateJoined: string;
 }
 
-export default function BranchDetailsPage({ params }: { params: { id: string } }) {
+export default function BranchDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  // Unwrap params Promise (Next.js 15+ requirement)
+  const { id } = use(params);
+  
   const router = useRouter();
   const { toasts, removeToast, success, error: showError } = useToast();
   const [activeTab, setActiveTab] = useState<'credit-officers' | 'reports' | 'missed-reports'>('credit-officers');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  
+  // Generate unique data for this branch based on ID
+  const branchData = generateBranchData(id);
   
   // Delete modal state
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -75,9 +85,13 @@ export default function BranchDetailsPage({ params }: { params: { id: string } }
   const [editCOModalOpen, setEditCOModalOpen] = useState(false);
   const [editReportModalOpen, setEditReportModalOpen] = useState(false);
   const [editMissedReportModalOpen, setEditMissedReportModalOpen] = useState(false);
-  const [selectedCO, setSelectedCO] = useState<typeof creditOfficersData[0] | null>(null);
-  const [selectedReport, setSelectedReport] = useState<typeof reportsData[0] | null>(null);
-  const [selectedMissedReport, setSelectedMissedReport] = useState<typeof missedReportsData[0] | null>(null);
+  const [selectedCO, setSelectedCO] = useState<typeof branchData.creditOfficers[0] | null>(null);
+  const [selectedReport, setSelectedReport] = useState<typeof branchData.reports[0] | null>(null);
+  const [selectedMissedReport, setSelectedMissedReport] = useState<typeof branchData.missedReports[0] | null>(null);
+  
+  // Loan Details Modal state
+  const [loanDetailsModalOpen, setLoanDetailsModalOpen] = useState(false);
+  const [selectedLoanData, setSelectedLoanData] = useState<LoanDetailsData | null>(null);
 
   const handleBack = () => {
     router.push('/dashboard/system-admin/branches');
@@ -96,7 +110,7 @@ export default function BranchDetailsPage({ params }: { params: { id: string } }
 
   // Delete handlers
   const handleDeleteCO = (id: string) => {
-    const officer = creditOfficersData.find(co => co.id === id);
+    const officer = branchData.creditOfficers.find(co => co.id === id);
     if (officer) {
       setItemToDelete({ id, name: officer.name, type: 'Credit Officer' });
       setDeleteModalOpen(true);
@@ -104,7 +118,7 @@ export default function BranchDetailsPage({ params }: { params: { id: string } }
   };
 
   const handleDeleteReport = (id: string) => {
-    const report = reportsData.find(r => r.id === id);
+    const report = branchData.reports.find(r => r.id === id);
     if (report) {
       setItemToDelete({ id, name: report.branchName, type: 'Report' });
       setDeleteModalOpen(true);
@@ -112,7 +126,7 @@ export default function BranchDetailsPage({ params }: { params: { id: string } }
   };
 
   const handleDeleteMissedReport = (id: string) => {
-    const report = missedReportsData.find(r => r.id === id);
+    const report = branchData.missedReports.find(r => r.id === id);
     if (report) {
       setItemToDelete({ id, name: report.branchName, type: 'Missed Report' });
       setDeleteModalOpen(true);
@@ -133,7 +147,7 @@ export default function BranchDetailsPage({ params }: { params: { id: string } }
 
   // Edit handlers
   const handleEditCO = (id: string) => {
-    const officer = creditOfficersData.find(co => co.id === id);
+    const officer = branchData.creditOfficers.find(co => co.id === id);
     if (officer) {
       setSelectedCO(officer);
       setEditCOModalOpen(true);
@@ -141,7 +155,7 @@ export default function BranchDetailsPage({ params }: { params: { id: string } }
   };
 
   const handleEditReport = (id: string) => {
-    const report = reportsData.find(r => r.id === id);
+    const report = branchData.reports.find(r => r.id === id);
     if (report) {
       setSelectedReport(report);
       setEditReportModalOpen(true);
@@ -149,7 +163,7 @@ export default function BranchDetailsPage({ params }: { params: { id: string } }
   };
 
   const handleEditMissedReport = (id: string) => {
-    const report = missedReportsData.find(r => r.id === id);
+    const report = branchData.missedReports.find(r => r.id === id);
     if (report) {
       setSelectedMissedReport(report);
       setEditMissedReportModalOpen(true);
@@ -157,7 +171,7 @@ export default function BranchDetailsPage({ params }: { params: { id: string } }
   };
 
   // Save handlers
-  const handleSaveCO = (officer: typeof creditOfficersData[0]) => {
+  const handleSaveCO = (officer: typeof branchData.creditOfficers[0]) => {
     console.log('Saving Credit Officer:', officer);
     // TODO: Implement actual update API call
     // Example: await updateCreditOfficer(officer.id, officer);
@@ -166,7 +180,7 @@ export default function BranchDetailsPage({ params }: { params: { id: string } }
     success(`Credit Officer "${officer.name}" updated successfully!`);
   };
 
-  const handleSaveReport = (report: typeof reportsData[0]) => {
+  const handleSaveReport = (report: typeof branchData.reports[0]) => {
     console.log('Saving Report:', report);
     // TODO: Implement actual update API call
     // Example: await updateReport(report.id, report);
@@ -175,13 +189,136 @@ export default function BranchDetailsPage({ params }: { params: { id: string } }
     success(`Report "${report.reportId}" updated successfully!`);
   };
 
-  const handleSaveMissedReport = (report: typeof missedReportsData[0]) => {
+  const handleSaveMissedReport = (report: typeof branchData.missedReports[0]) => {
     console.log('Saving Missed Report:', report);
     // TODO: Implement actual update API call
     // Example: await updateMissedReport(report.id, report);
     
     // Show success notification
     success(`Missed Report "${report.reportId}" updated successfully!`);
+  };
+
+  // Confirmation dialog state
+  const [showApproveConfirm, setShowApproveConfirm] = useState(false);
+  const [showDeclineConfirm, setShowDeclineConfirm] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  // Assign Users Modal state
+  const [showAssignUsersModal, setShowAssignUsersModal] = useState(false);
+  const [currentlyAssignedUsers, setCurrentlyAssignedUsers] = useState<string[]>([]);
+
+  // Loan Details Modal handlers
+  const handleViewLoanDetails = (id: string) => {
+    const report = branchData.reports.find(r => r.id === id);
+    if (report) {
+      // Transform report data to LoanDetailsData format
+      const loanData: LoanDetailsData = {
+        reportId: report.reportId,
+        creditOfficer: report.branchName, // Using branchName as credit officer for demo
+        branch: branchData.branchInfo.name, // Using actual branch name
+        loansDispursed: Math.floor(Math.random() * 50) + 10, // Sample data
+        loansValueDispursed: `₦${(Math.random() * 5000000 + 1000000).toLocaleString('en-NG', { maximumFractionDigits: 0 })}`,
+        savingsCollected: `₦${(Math.random() * 1000000 + 100000).toLocaleString('en-NG', { maximumFractionDigits: 0 })}`,
+        repaymentsCollected: Math.floor(Math.random() * 30) + 5,
+        dateSent: report.date,
+        timeSent: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+      };
+      
+      setSelectedLoanData(loanData);
+      setLoanDetailsModalOpen(true);
+    }
+  };
+
+  const handleApproveLoan = () => {
+    setShowApproveConfirm(true);
+  };
+
+  const handleDeclineLoan = () => {
+    setShowDeclineConfirm(true);
+  };
+
+  const confirmApproveLoan = async () => {
+    if (!selectedLoanData) return;
+    
+    setIsProcessing(true);
+    try {
+      console.log('Approving loan report:', selectedLoanData.reportId);
+      // TODO: Implement actual approve API call
+      // Example: await approveLoanReport(selectedLoanData.reportId);
+      
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      success(`Loan report "${selectedLoanData.reportId}" approved successfully!`);
+      setShowApproveConfirm(false);
+      setLoanDetailsModalOpen(false);
+      setSelectedLoanData(null);
+    } catch (error) {
+      showError('Failed to approve loan report. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const confirmDeclineLoan = async () => {
+    if (!selectedLoanData) return;
+    
+    setIsProcessing(true);
+    try {
+      console.log('Declining loan report:', selectedLoanData.reportId);
+      // TODO: Implement actual decline API call
+      // Example: await declineLoanReport(selectedLoanData.reportId);
+      
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      success(`Loan report "${selectedLoanData.reportId}" declined.`);
+      setShowDeclineConfirm(false);
+      setLoanDetailsModalOpen(false);
+      setSelectedLoanData(null);
+    } catch (error) {
+      showError('Failed to decline loan report. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Assign Users Handler
+  const handleAssignUsers = (selectedUserIds: string[]) => {
+    console.log('Assigning users to branch:', selectedUserIds);
+    // TODO: Implement actual API call to assign users
+    // Example: await assignUsersToBranch(params.id, selectedUserIds);
+    
+    setCurrentlyAssignedUsers(selectedUserIds);
+    
+    const userCount = selectedUserIds.length;
+    if (userCount === 0) {
+      success('All users unassigned from branch');
+    } else {
+      success(`${userCount} user${userCount > 1 ? 's' : ''} assigned to branch successfully!`);
+    }
+  };
+
+  // Missed Reports - View Details Handler
+  const handleViewMissedLoanDetails = (id: string) => {
+    const report = branchData.missedReports.find(r => r.id === id);
+    if (report) {
+      // Transform missed report data to LoanDetailsData format
+      const loanData: LoanDetailsData = {
+        reportId: report.reportId,
+        creditOfficer: report.branchName,
+        branch: branchData.branchInfo.name,
+        loansDispursed: Math.floor(Math.random() * 50) + 10,
+        loansValueDispursed: `₦${(Math.random() * 5000000 + 1000000).toLocaleString('en-NG', { maximumFractionDigits: 0 })}`,
+        savingsCollected: `₦${(Math.random() * 1000000 + 100000).toLocaleString('en-NG', { maximumFractionDigits: 0 })}`,
+        repaymentsCollected: Math.floor(Math.random() * 30) + 5,
+        dateSent: report.dateDue,
+        timeSent: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+      };
+      
+      setSelectedLoanData(loanData);
+      setLoanDetailsModalOpen(true);
+    }
   };
 
   const handleRetry = () => {
@@ -193,283 +330,40 @@ export default function BranchDetailsPage({ params }: { params: { id: string } }
     }, 1000);
   };
 
-  // Sample statistics data
+  // Transform generated data to component format
   const statisticsData = [
     {
       label: "All CO's",
-      value: 42094,
-      change: 6,
-      changeLabel: '+6% this month'
+      value: branchData.statistics.allCOs.value,
+      change: branchData.statistics.allCOs.change,
+      changeLabel: branchData.statistics.allCOs.changeLabel
     },
     {
       label: 'All Customers',
-      value: 15350,
-      change: 6,
-      changeLabel: '+6% this month'
+      value: branchData.statistics.allCustomers.value,
+      change: branchData.statistics.allCustomers.change,
+      changeLabel: branchData.statistics.allCustomers.changeLabel
     },
     {
       label: 'Active Loans',
-      value: 28350,
-      change: -26,
-      changeLabel: '-26% this month'
+      value: branchData.statistics.activeLoans.value,
+      change: branchData.statistics.activeLoans.change,
+      changeLabel: branchData.statistics.activeLoans.changeLabel
     },
     {
       label: 'Loans Processed',
-      value: 50350.00,
-      change: 40,
-      changeLabel: '+40% this month',
+      value: branchData.statistics.loansProcessed.amount,
+      change: branchData.statistics.loansProcessed.change,
+      changeLabel: branchData.statistics.loansProcessed.changeLabel,
       isCurrency: true
     }
   ];
 
-  // Sample branch info data
   const branchInfoFields = [
-    { label: 'Branch Name', value: 'Mike Salam' },
-    { label: 'Branch ID', value: '46729233' },
-    { label: 'Date Created', value: 'Jan 15, 2025' },
-    { label: 'Region', value: 'Lagos State' }
-  ];
-
-  // Sample Reports data
-  const reportsData = [
-    {
-      id: '1',
-      reportId: 'ID: 43756',
-      branchName: 'Ademola Jumoke',
-      timeSent: 'eltford@mac.com',
-      date: 'June 03, 2024'
-    },
-    {
-      id: '2',
-      reportId: 'ID: 43178',
-      branchName: 'Adegboyoga Precious',
-      timeSent: 'bradi@comcast.net',
-      date: 'Dec 24, 2023'
-    },
-    {
-      id: '3',
-      reportId: 'ID: 70668',
-      branchName: 'Nneka Chukwu',
-      timeSent: 'fwitness@yahoo.ca',
-      date: 'Nov 11, 2024'
-    },
-    {
-      id: '4',
-      reportId: 'ID: 97174',
-      branchName: 'Damilare Usman',
-      timeSent: 'plover@aol.com',
-      date: 'Feb 02, 2024'
-    },
-    {
-      id: '5',
-      reportId: 'ID: 39635',
-      branchName: 'Jide Kosoko',
-      timeSent: 'crusader@yahoo.com',
-      date: 'Aug 18, 2023'
-    },
-    {
-      id: '6',
-      reportId: 'ID: 97174',
-      branchName: 'Oladeji Israel',
-      timeSent: 'mccurley@yahoo.ca',
-      date: 'Sept 09, 2024'
-    },
-    {
-      id: '7',
-      reportId: 'ID: 22739',
-      branchName: 'Eze Chinedu',
-      timeSent: 'jginspace@mac.com',
-      date: 'July 27, 2023'
-    },
-    {
-      id: '8',
-      reportId: 'ID: 22739',
-      branchName: 'Adebanji Bolaji',
-      timeSent: 'amichalo@msn.com',
-      date: 'April 05, 2024'
-    },
-    {
-      id: '9',
-      reportId: 'ID: 43756',
-      branchName: 'Baba Kaothat',
-      timeSent: 'dieman@live.com',
-      date: 'Oct 14, 2023'
-    },
-    {
-      id: '10',
-      reportId: 'ID: 39635',
-      branchName: 'Adebayo Salami',
-      timeSent: 'smallpaul@me.com',
-      date: 'March 22, 2024'
-    }
-  ];
-
-  // Sample Missed Reports data
-  const missedReportsData = [
-    {
-      id: '1',
-      reportId: 'ID: 43756',
-      branchName: 'Ademola Jumoke',
-      status: 'Missed' as const,
-      dateDue: 'June 03, 2024'
-    },
-    {
-      id: '2',
-      reportId: 'ID: 43178',
-      branchName: 'Adegboyoga Precious',
-      status: 'Missed' as const,
-      dateDue: 'Dec 24, 2023'
-    },
-    {
-      id: '3',
-      reportId: 'ID: 70668',
-      branchName: 'Nneka Chukwu',
-      status: 'Missed' as const,
-      dateDue: 'Nov 11, 2024'
-    },
-    {
-      id: '4',
-      reportId: 'ID: 97174',
-      branchName: 'Damilare Usman',
-      status: 'Missed' as const,
-      dateDue: 'Feb 02, 2024'
-    },
-    {
-      id: '5',
-      reportId: 'ID: 39635',
-      branchName: 'Jide Kosoko',
-      status: 'Missed' as const,
-      dateDue: 'Aug 18, 2023'
-    },
-    {
-      id: '6',
-      reportId: 'ID: 97174',
-      branchName: 'Oladeji Israel',
-      status: 'Missed' as const,
-      dateDue: 'Sept 09, 2024'
-    },
-    {
-      id: '7',
-      reportId: 'ID: 22739',
-      branchName: 'Eze Chinedu',
-      status: 'Missed' as const,
-      dateDue: 'July 27, 2023'
-    },
-    {
-      id: '8',
-      reportId: 'ID: 22739',
-      branchName: 'Adebanji Bolaji',
-      status: 'Missed' as const,
-      dateDue: 'April 05, 2024'
-    },
-    {
-      id: '9',
-      reportId: 'ID: 43756',
-      branchName: 'Baba Kaothat',
-      status: 'Missed' as const,
-      dateDue: 'Oct 14, 2023'
-    },
-    {
-      id: '10',
-      reportId: 'ID: 39635',
-      branchName: 'Adebayo Salami',
-      status: 'Missed' as const,
-      dateDue: 'March 22, 2024'
-    }
-  ];
-
-  // Sample Credit Officers data
-  const creditOfficersData = [
-    {
-      id: '1',
-      name: 'Ademola Jumoke',
-      idNumber: '43766',
-      status: 'Active' as const,
-      phone: '+2348160006000',
-      email: 'etford@mac.com',
-      dateJoined: 'June 03, 2024'
-    },
-    {
-      id: '2',
-      name: 'Adegboyega Precious',
-      idNumber: '43178',
-      status: 'Active' as const,
-      phone: '+234812345678',
-      email: 'bradi@comcast.net',
-      dateJoined: 'Dec 24, 2023'
-    },
-    {
-      id: '3',
-      name: 'Nneka Chukwu',
-      idNumber: '70868',
-      status: 'In active' as const,
-      phone: '+234904449999',
-      email: 'fwitness@yahoo.ca',
-      dateJoined: 'Nov 11, 2024'
-    },
-    {
-      id: '4',
-      name: 'Damilare Usman',
-      idNumber: '97174',
-      status: 'Active' as const,
-      phone: '+234908008888',
-      email: 'plover@aol.com',
-      dateJoined: 'Feb 02, 2024'
-    },
-    {
-      id: '5',
-      name: 'Jide Kosoko',
-      idNumber: '39635',
-      status: 'Active' as const,
-      phone: '+234906123456',
-      email: 'crusader@yahoo.com',
-      dateJoined: 'Aug 18, 2023'
-    },
-    {
-      id: '6',
-      name: 'Oladeji Israel',
-      idNumber: '97174',
-      status: 'Active' as const,
-      phone: '+234805551234',
-      email: 'mccurley@yahoo.ca',
-      dateJoined: 'Sept 09, 2024'
-    },
-    {
-      id: '7',
-      name: 'Eze Chinedu',
-      idNumber: '22739',
-      status: 'Active' as const,
-      phone: '+234808785432',
-      email: 'jginspace@mac.com',
-      dateJoined: 'July 27, 2023'
-    },
-    {
-      id: '8',
-      name: 'Adebanji Bolaji',
-      idNumber: '22739',
-      status: 'Active' as const,
-      phone: '+234806001122',
-      email: 'amichalo@msn.com',
-      dateJoined: 'April 05, 2024'
-    },
-    {
-      id: '9',
-      name: 'Baba Kaothat',
-      idNumber: '43756',
-      status: 'Active' as const,
-      phone: '+234812345678',
-      email: 'diaman@live.com',
-      dateJoined: 'Oct 14, 2023'
-    },
-    {
-      id: '10',
-      name: 'Adebayo Salami',
-      idNumber: '39635',
-      status: 'Active' as const,
-      phone: '+234803345678',
-      email: 'smallpaul@me.com',
-      dateJoined: 'March 22, 2024'
-    }
+    { label: 'Branch Name', value: branchData.branchInfo.name },
+    { label: 'Branch ID', value: branchData.branchInfo.branchId },
+    { label: 'Date Created', value: branchData.branchInfo.dateCreated },
+    { label: 'Region', value: branchData.branchInfo.region }
   ];
 
   // Loading skeleton
@@ -500,7 +394,7 @@ export default function BranchDetailsPage({ params }: { params: { id: string } }
                   />
                 </svg>
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                  {params.id ? 'Branch Not Found' : 'Error Loading Branch'}
+                  {id ? 'Branch Not Found' : 'Error Loading Branch'}
                 </h2>
                 <p className="text-gray-600 mb-6">
                   {error || 'The branch you are looking for does not exist or has been removed.'}
@@ -529,7 +423,7 @@ export default function BranchDetailsPage({ params }: { params: { id: string } }
 
   return (
     <div className="drawer-content flex flex-col min-h-screen">
-      <main className="flex-1 pl-[58px] pr-6 pt-6">
+      <main className="flex-1 pl-[58px] pr-6" style={{ paddingTop: '40px' }}>
         {/* Container with proper max width */}
         <div className="w-full" style={{ maxWidth: '1200px' }}>
           {/* Header Section with Back and Title + Button */}
@@ -553,15 +447,18 @@ export default function BranchDetailsPage({ params }: { params: { id: string } }
 
             {/* Title and Button Row */}
             <div className="flex items-center justify-between">
-              <h1 className="text-2xl font-bold" style={{ color: '#021C3E' }}>
+              <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
                 Branch Details
               </h1>
 
               <button
-                className="px-6 py-2.5 bg-[#7F56D9] hover:bg-[#6941C6] text-white font-semibold rounded-lg transition-colors"
-                onClick={() => console.log('Assign users')}
+                className="px-[18px] py-[10px] text-white font-semibold rounded-lg transition-colors duration-200"
+                style={{ backgroundColor: 'var(--color-primary-600)' }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#6941C6')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--color-primary-600)')}
+                onClick={() => setShowAssignUsersModal(true)}
               >
-                Assign users to branch
+                Assign Users To Branch
               </button>
             </div>
           </div>
@@ -590,7 +487,7 @@ export default function BranchDetailsPage({ params }: { params: { id: string } }
                 aria-labelledby="credit-officers-tab"
               >
                 <CreditOfficersTable 
-                  data={creditOfficersData}
+                  data={branchData.creditOfficers}
                   onEdit={handleEditCO}
                   onDelete={handleDeleteCO}
                 />
@@ -609,9 +506,10 @@ export default function BranchDetailsPage({ params }: { params: { id: string } }
                 aria-labelledby="reports-tab"
               >
                 <ReportsTable 
-                  data={reportsData}
+                  data={branchData.reports}
                   onEdit={handleEditReport}
                   onDelete={handleDeleteReport}
+                  onViewDetails={handleViewLoanDetails}
                 />
                 
                 <Pagination 
@@ -628,9 +526,10 @@ export default function BranchDetailsPage({ params }: { params: { id: string } }
                 aria-labelledby="missed-reports-tab"
               >
                 <MissedReportsTable 
-                  data={missedReportsData}
+                  data={branchData.missedReports}
                   onEdit={handleEditMissedReport}
                   onDelete={handleDeleteMissedReport}
+                  onViewDetails={handleViewMissedLoanDetails}
                 />
                 
                 <Pagination 
@@ -690,8 +589,57 @@ export default function BranchDetailsPage({ params }: { params: { id: string } }
         report={selectedMissedReport}
       />
 
+      {/* Loan Details Modal */}
+      {selectedLoanData && (
+        <LoanDetailsModal
+          isOpen={loanDetailsModalOpen}
+          onClose={() => {
+            setLoanDetailsModalOpen(false);
+            setSelectedLoanData(null);
+          }}
+          loanData={selectedLoanData}
+          onApprove={handleApproveLoan}
+          onDecline={handleDeclineLoan}
+        />
+      )}
+
+      {/* Approve Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={showApproveConfirm}
+        onClose={() => setShowApproveConfirm(false)}
+        onConfirm={confirmApproveLoan}
+        title="Approve Loan Report"
+        message={`Are you sure you want to approve loan report "${selectedLoanData?.reportId}"? This action cannot be undone.`}
+        confirmText="Approve"
+        cancelText="Cancel"
+        confirmButtonStyle="success"
+        isLoading={isProcessing}
+      />
+
+      {/* Decline Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={showDeclineConfirm}
+        onClose={() => setShowDeclineConfirm(false)}
+        onConfirm={confirmDeclineLoan}
+        title="Decline Loan Report"
+        message={`Are you sure you want to decline loan report "${selectedLoanData?.reportId}"? This action cannot be undone.`}
+        confirmText="Decline"
+        cancelText="Cancel"
+        confirmButtonStyle="danger"
+        isLoading={isProcessing}
+      />
+
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onClose={removeToast} />
+
+      {/* Assign Users Modal */}
+      <AssignUsersModal
+        isOpen={showAssignUsersModal}
+        onClose={() => setShowAssignUsersModal(false)}
+        onSubmit={handleAssignUsers}
+        branchName={branchData.branchInfo.name}
+        currentlyAssignedUsers={currentlyAssignedUsers}
+      />
     </div>
   );
 }

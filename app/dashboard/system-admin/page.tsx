@@ -372,11 +372,11 @@ export default function SystemAdminDashboard() {
     <div className="drawer-content flex flex-col min-h-screen">
       <main className="flex-1 pl-[58px] pr-6" style={{ paddingTop: '40px' }}>
         <div className="max-w-[1150px]">
-          {/* Page Header - Position: y:110px (Overview), y:150px (Osun state) */}
+          {/* Page Header - Position: y:110px (Overview), y:150px (Osun State) */}
           <header>
-            <h1 className="text-2xl font-bold text-[#021C3E]" style={{ marginBottom: '8px' }}>Overview</h1>
-            <p className="text-base font-medium text-[#021C3E] opacity-50" style={{ marginBottom: '48px' }}>
-              Osun state
+            <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)', marginBottom: '8px' }}>Overview</h1>
+            <p className="text-base font-medium" style={{ color: 'var(--color-text-primary)', opacity: 0.5, marginBottom: '48px' }}>
+              Osun State
             </p>
           </header>
 
