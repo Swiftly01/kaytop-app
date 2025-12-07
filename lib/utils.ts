@@ -6,20 +6,33 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-
-
 export const ROUTES: Routes = {
-  Bm :{
+  Bm: {
     DASHBOARD: "/dashboard/bm",
     CREDIT: "/dashboard/bm/credit",
     CUSTOMERS: "/dashboard/bm/customer",
     LOAN: "/dashboard/bm/loan",
     REPORT: "/dashboard/bm/report",
-    SETTING: "/dashboard/bm/settings"
+    SETTING: "/dashboard/bm/setting",
+  },
+};
 
-  }
-  
-}
+export const reports: MetricProps[] = [
+  {
+    title: "Total Reports",
+    value: "42,094",
+    change: "+6% this month",
+    changeColor: "green",
+    border: false,
+  },
+  {
+    title: "Missed Reports",
+    value: "15,350",
+    change: "+6% this month",
+    changeColor: "green",
+    border: true,
+  },
+];
 
 export const loans: MetricProps[] = [
   {
@@ -44,9 +57,7 @@ export const loans: MetricProps[] = [
     changeColor: "green",
     border: true,
   },
-]
-
-
+];
 
 export const customer: MetricProps[] = [
   {
@@ -63,7 +74,7 @@ export const customer: MetricProps[] = [
     changeColor: "green",
     border: true,
   },
-]
+];
 
 export const creditOficcer: MetricProps[] = [
   {
