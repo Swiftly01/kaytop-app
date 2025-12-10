@@ -30,7 +30,7 @@ export default function Button({
   loading = false,
   ...props
 }: ButtonProps) {
-  const disabled = loading ? "cursor-not-allowed" : "cursor-pointer";
+  const disabled = loading ? "cursor-not-allowed opacity-60" : "cursor-pointer";
   return (
     <button
       {...props}
