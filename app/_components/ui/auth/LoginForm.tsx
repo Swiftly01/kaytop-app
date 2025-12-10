@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import z from "zod";
-import Error from "./Error";
+import Error from "../Error";
 import { useState } from "react";
 import { AuthService } from "@/app/services/authService";
 import { handleAxiosError } from "@/lib/errorHandler";
@@ -14,12 +14,10 @@ import { AxiosError } from "axios";
 import { useAuth } from "@/app/context/AuthContext";
 import { ROUTES } from "@/lib/utils";
 import { useRouter } from "next/navigation";
-import Spinner from "./Spinner";
-
-
+import Spinner from "../Spinner";
 
 const schema = z.object({
-  email: z.string().email("Invalid email address"),
+  email: z.string().email("Invalid email format"),
   password: z.string().min(8).max(32),
   // .refine((val) => /[A-Z]/.test(val), {
   //   message: "Password must contain at least one uppercase letter",
@@ -32,7 +30,7 @@ type LoginData = z.infer<typeof schema>;
 
 export default function LoginForm() {
   const [loading, setLoading] = useState(false);
-  const {login: auth} = useAuth();
+  const { login: auth } = useAuth();
   const router = useRouter();
   const {
     register,
@@ -44,7 +42,6 @@ export default function LoginForm() {
   });
 
   const onSubmit = async (data: LoginData) => {
-    
     setLoading(true);
 
     try {
@@ -54,10 +51,9 @@ export default function LoginForm() {
       const role = response.role;
       auth(accessToken, role);
       router.push(ROUTES.Bm.DASHBOARD);
-      
     } catch (error: AxiosError | unknown) {
       const err = error as AxiosError;
-    //  console.log(err);
+      //  console.log(err);
       handleAxiosError(err, setError);
     } finally {
       setLoading(false);
@@ -92,13 +88,16 @@ export default function LoginForm() {
           <Checkbox id="terms" />
           <label htmlFor="terms text-sm">Keep me signed in</label>
         </div>
-        <Link href="/" className="text-sm text-accent">
+        <Link
+          href={ROUTES.Bm.Auth.FORGOT_PASSWORD}
+          className="text-sm text-accent"
+        >
           Forgot password?
         </Link>
       </div>
 
       <Button fullWidth={true} variant="tertiary" loading={loading}>
-        {loading ? <Spinner/> : "Sign in"}
+        {loading ? <Spinner /> : "Sign in"}
       </Button>
     </form>
   );

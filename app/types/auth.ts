@@ -3,29 +3,23 @@ export interface LoginData {
   password: string;
 }
 
-// export interface LoginResponse {
-//    token: string;
-//   user: {
-//     id: number;
-//     name: string;
-//     email: string;
-//   }
-// }
+export interface ForgotPasswordData {
+  email: string;
+}
 
+export interface ForgotPasswordResponse {
+  message: string;
+}
 export interface LoginResponse {
   access_token: string;
-  role: string
- 
+  role: string;
 }
 
 //Generic response type
 export interface ApiResponse<T> {
   message: string;
   data: T;
-
 }
-
-
 
 export interface BackendValidationErrors {
   [field: string]: string[] | string;

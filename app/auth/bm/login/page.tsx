@@ -1,4 +1,4 @@
-import LoginForm from "@/app/_components/ui/LoginForm";
+import LoginForm from "@/app/_components/ui/auth/LoginForm";
 import { JSX } from "react";
 
 export const metadata = {
