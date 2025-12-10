@@ -1,4 +1,5 @@
-import { MetricProps, Routes } from "@/app/types/dashboard";
+import { MetricProps} from "@/app/types/dashboard";
+import { Routes } from "@/app/types/routes";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -8,6 +9,12 @@ export function cn(...inputs: ClassValue[]) {
 
 export const ROUTES: Routes = {
   Bm: {
+    Auth : {
+      LOGIN: "/auth/bm/login",
+      VERIFY_OTP: "/auth/bm/verify-otp",
+      FORGOT_PASSWORD: "/auth/bm/forgot-password",
+      RESET_PASSWORD: "/auth/bm/reset-password",
+    },
     DASHBOARD: "/dashboard/bm",
     CREDIT: "/dashboard/bm/credit",
     CUSTOMERS: "/dashboard/bm/customer",
