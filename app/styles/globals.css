@@ -25,7 +25,9 @@
 
 }
 
-
+.custom-spinner {
+  background-color: white !important;
+}
 .custom-progress::-webkit-progress-bar {
   background: #e5e7eb; /* gray-200 */
   border-radius: 8px;
