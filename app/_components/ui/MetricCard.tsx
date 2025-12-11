@@ -1,15 +1,9 @@
+import { MetricProps } from "@/app/types/dashboard";
 import React from "react";
 
-interface MetricData {
-  title: string;
-  value: string;
-  change: string;
-  changeColor: "green" | "red";
-  border: boolean;
-}
 
 interface MetricCardProps {
-  item: MetricData;
+  item: MetricProps;
   index: number;
 }
 
@@ -27,7 +21,7 @@ export default function MetricCard({ item, index }: MetricCardProps) {
     >
       <p className="text-sm text-gray-500">{item.title}</p>
       <h1 className="text-xl font-semibold">{item.value}</h1>
-      <p className={`text-sm text-${changeColorClass}-500`}>{item.change}</p>
+      <p className={`text-sm ${changeColorClass}`}>{item.change}</p>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import React, { JSX } from 'react';
 import Link from "next/link";
+import { ROUTES } from '@/lib/utils';
 
 interface MenuItem {
   icon: string;
@@ -8,12 +9,12 @@ interface MenuItem {
 }
 
 const data: MenuItem[] = [
-  { icon: "/dashboard.svg", label: "Dashboard", link: "/" },
-  { icon: "/credit.svg", label: "Credit Officers", link: "/" },
-  { icon: "/credit.svg", label: "Customers", link: "/customers" },
-  { icon: "/loans.svg", label: "Loans", link: "/loans" },
-  { icon: "/report.svg", label: "Reports", link: "/reports" },
-  { icon: "/settings.svg", label: "Settings", link: "/settings" },
+  { icon: "/dashboard.svg", label: "Dashboard", link: ROUTES.Bm.DASHBOARD },
+  { icon: "/credit.svg", label: "Credit Officers", link: ROUTES.Bm.CREDIT },
+  { icon: "/credit.svg", label: "Customers", link: ROUTES.Bm.CUSTOMERS },
+  { icon: "/loans.svg", label: "Loans", link: ROUTES.Bm.LOAN },
+  { icon: "/report.svg", label: "Reports", link: ROUTES.Bm.REPORT },
+  { icon: "/settings.svg", label: "Settings", link: ROUTES.Bm.SETTING },
 ];
 
 export default function Sidebar(): JSX.Element {
@@ -25,7 +26,7 @@ export default function Sidebar(): JSX.Element {
           ></label>
 
           <div className="w-64 min-h-full bg-white">
-            <ul className="flex flex-col w-full gap-6 px-5 pt-16 lg:pt-4">
+            <ul className="flex flex-col w-full gap-6 px-5 pt-20 lg:pt-4">
               {data.map((item, i) => (
                 <li key={i}>
                   <Link

@@ -50,6 +50,8 @@
   --color-neutral-100: #F4F6FA;
 
   --color-brand-purple: #7F56D9;
+  --color-brand-neutral: #FFF6ED;
+  --color-brand-orange: #FFA148;
 
   /* Dashboard Design Tokens - Colors */
   --color-primary-600: #7F56D9;
@@ -140,6 +142,24 @@
   --font-open-sauce-sans: 'Open Sauce Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
 
+}
+
+.custom-spinner {
+  background-color: white !important;
+}
+.custom-progress::-webkit-progress-bar {
+  background: #e5e7eb; /* gray-200 */
+  border-radius: 8px;
+}
+
+.custom-progress::-webkit-progress-value {
+  background: #6b21a8; /* brand purple */
+  border-radius: 8px;
+}
+
+.custom-progress {
+  height: 8px;
+  border-radius: 8px;
 }
 
 

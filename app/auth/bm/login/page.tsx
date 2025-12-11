@@ -1,39 +1,16 @@
-import Button from "@/app/_components/ui/Button";
-import { Checkbox } from "@/app/_components/ui/Checkbox";
-import Input from "@/app/_components/ui/Input"
-import Link from "next/link";
-import React, { JSX } from "react";
+import LoginForm from "@/app/_components/ui/auth/LoginForm";
+import { JSX } from "react";
+
+export const metadata = {
+  title: "Login",
+};
 
 export default function page(): JSX.Element {
   return (
     <div className="w-full max-w-lg p-10 mx-5 bg-white rounded-lg">
       <h1 className="text-3xl font-medium text-neutral-700">Hello,</h1>
       <p className="text-md text-neutral-700">Sign in to your account</p>
-
-      <form className="my-2" action="">
-        <label htmlFor="email">Email</label>
-        <Input type="email" placeholder="Enter your email" id="email" />
-
-        <label htmlFor="password">password</label>
-        <Input
-          type="password"
-          placeholder="Enter your password"
-          id="password"
-        />
-        <div className="flex justify-between my-4">
-          <div className="flex items-center gap-3">
-            <Checkbox id="terms" />
-            <label htmlFor="terms text-sm">Keep me signed in</label>
-          </div>
-          <Link href="/" className="text-sm text-accent">
-            Forgot password?
-          </Link>
-        </div>
-
-        <Button fullWidth={true} variant="tertiary">
-          Sign In
-        </Button>
-      </form>
+      <LoginForm />
     </div>
   );
 }

@@ -2,7 +2,11 @@ import Chart from "@/app/_components/ui/Chart";
 import FilterButton from "@/app/_components/ui/FilterButton";
 import Metric from "@/app/_components/ui/Metric";
 import Table from "@/app/_components/ui/Table";
+import { MetricProps } from "@/app/types/dashboard";
+import { data as dashboardData } from "@/lib/utils";
 import { JSX } from "react";
+
+const metricData: MetricProps[] = dashboardData;
 
 export default function page(): JSX.Element {
   return (
@@ -30,9 +34,8 @@ export default function page(): JSX.Element {
             </FilterButton>
           </div>
         </div>
-        <div className="grid grid-cols-2 px-4 py-5 my-5 bg-white rounded-md md:grid-cols-4 gap-y-4">
-          <Metric />
-        </div>
+        <Metric item={metricData} />
+
         <div className="grid grid-cols-2 px-4 py-5 bg-white rounded-md">
           <div className="flex flex-col items-start px-4">
             <p className="text-sm text-gray-500">Active Loan</p>

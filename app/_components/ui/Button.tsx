@@ -7,6 +7,7 @@ type ButtonProps = {
   fullWidth?: boolean;
   className?: string;
   onClick?: () => void;
+  loading?: boolean;
 };
 
 const variants = {
@@ -29,8 +30,10 @@ export default function Button({
   fullWidth = false,
   className = "",
   onClick,
+  loading = false,
   ...props
 }: ButtonProps) {
+  const disabled = loading ? "cursor-not-allowed opacity-60" : "cursor-pointer";
   return (
     <button
       {...props}
@@ -40,13 +43,15 @@ export default function Button({
                        before:content-[''] before:absolute before:top-0 before:left-0
                        before:w-0 before:h-full before:bg-white/30
                        before:transition-all before:duration-300
-                       hover:before:w-full  cursor-pointer
+                       hover:before:w-full  
                        ${variants[variant]}
                        ${sizes[size]}
                        ${fullWidth ? "w-full" : ""}
                        ${className}
+                       ${disabled}
                        
                        `}
+      disabled={loading}
     >
       {children}
     </button>
