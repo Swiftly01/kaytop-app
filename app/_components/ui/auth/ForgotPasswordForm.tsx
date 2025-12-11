@@ -3,7 +3,7 @@ import Link from "next/link";
 import Button from "../Button";
 import Input from "../Input";
 import { ROUTES } from "@/lib/utils";
-import z from "zod";
+import z, { email } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
@@ -14,6 +14,7 @@ import Spinner from "../Spinner";
 import Error from "../Error";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
+import { useLocalStorageState } from "@/app/hooks/useLocalStorage";
 
 const schema = z.object({
   email: z.string().email("Invalid email format"),
@@ -32,18 +33,20 @@ export default function ForgotPasswordForm() {
   } = useForm<Email>({
     resolver: zodResolver(schema),
   });
+  const [email, setEmail] = useLocalStorageState<string | null>(null, "email");
 
   const onSubmit = async (data: Email) => {
     setLoading(true);
 
     try {
       const response = await AuthService.forgotPassword(data);
+      setEmail(data.email)
       toast.success(response.message);
-      //console.log(response);
+      console.log(response);
       router.push(ROUTES.Bm.Auth.VERIFY_OTP);
     } catch (error: AxiosError | unknown) {
       const err = error as AxiosError;
-      //console.log(err);
+      console.log(err);
       handleAxiosError(err, setError);
     } finally {
       setLoading(false);
@@ -65,7 +68,7 @@ export default function ForgotPasswordForm() {
       </div>
 
       <div className="mt-6">
-        <Button fullWidth={true} variant="tertiary" loading={isLoading}>
+        <Button fullWidth={true} variant="tertiary" disabled={isLoading}>
           {isLoading ? <Spinner /> : "Submit"}
         </Button>
         <Link
