@@ -96,7 +96,7 @@ export default function LoginForm() {
         </Link>
       </div>
 
-      <Button fullWidth={true} variant="tertiary" loading={loading}>
+      <Button fullWidth={true} variant="tertiary"  disabled={loading}>
         {loading ? <Spinner /> : "Sign in"}
       </Button>
     </form>

@@ -10,6 +10,32 @@ export interface ForgotPasswordData {
 export interface ForgotPasswordResponse {
   message: string;
 }
+
+export enum Purpose {
+  Password_reset = "password_reset",
+  Email_verification = "email_verification",
+}
+
+ export interface OtpData {
+  email: string;
+  code?: string;
+  purpose: Purpose.Password_reset;
+}
+
+
+export interface VerifyOtpResponse {
+  message: string;
+}
+
+export interface ApiErrorResponse {
+  statusCode: number;
+  message: string;
+  error: string;
+
+}
+
+
+
 export interface LoginResponse {
   access_token: string;
   role: string;
