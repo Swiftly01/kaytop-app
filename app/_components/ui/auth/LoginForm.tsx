@@ -17,7 +17,7 @@ import { useRouter } from "next/navigation";
 import Spinner from "../Spinner";
 
 const schema = z.object({
-  email: z.string().email("Invalid email format"),
+  email: z.email("Invalid email format"),
   password: z.string().min(8).max(32),
   // .refine((val) => /[A-Z]/.test(val), {
   //   message: "Password must contain at least one uppercase letter",
@@ -29,7 +29,7 @@ const schema = z.object({
 type LoginData = z.infer<typeof schema>;
 
 export default function LoginForm() {
-  const [loading, setLoading] = useState(false);
+  const [isSubmitting, setisSubmitting] = useState(false);
   const { login: auth } = useAuth();
   const router = useRouter();
   const {
@@ -42,21 +42,21 @@ export default function LoginForm() {
   });
 
   const onSubmit = async (data: LoginData) => {
-    setLoading(true);
+    setisSubmitting(true);
 
     try {
       const response = await AuthService.login(data);
-      //console.log(response);
+
       const accessToken = response.access_token;
       const role = response.role;
       auth(accessToken, role);
       router.push(ROUTES.Bm.DASHBOARD);
     } catch (error: AxiosError | unknown) {
       const err = error as AxiosError;
-      //  console.log(err);
+
       handleAxiosError(err, setError);
     } finally {
-      setLoading(false);
+      setisSubmitting(false);
     }
   };
   return (
@@ -67,6 +67,7 @@ export default function LoginForm() {
           type="email"
           placeholder="Enter your email"
           id="email"
+          disabled={isSubmitting}
           {...register("email")}
         />
         {errors.email && <Error error={errors.email.message} />}
@@ -78,6 +79,7 @@ export default function LoginForm() {
           type="password"
           placeholder="Enter your password"
           id="password"
+          disabled={isSubmitting}
           {...register("password")}
         />
         {errors.password && <Error error={errors.password.message} />}
@@ -96,8 +98,8 @@ export default function LoginForm() {
         </Link>
       </div>
 
-      <Button fullWidth={true} variant="tertiary"  disabled={loading}>
-        {loading ? <Spinner /> : "Sign in"}
+      <Button fullWidth={true} variant="tertiary" disabled={isSubmitting}>
+        {isSubmitting ? <Spinner /> : "Sign in"}
       </Button>
     </form>
   );
