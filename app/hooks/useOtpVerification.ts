@@ -18,6 +18,7 @@ export function useOtpVerification(){
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isResending, setIsResending] = useState<boolean>(false);
 
+  const [otp, setOtp] = useLocalStorageState<string | null>(null, "otp");
   const router = useRouter();
 
   const disabled = isLoading || isResending;
@@ -52,6 +53,7 @@ export function useOtpVerification(){
     try {
       const response = await AuthService.verifyOtp(payload);
       toast.success(response.message);
+      setOtp(pin);
       router.push(ROUTES.Bm.Auth.RESET_PASSWORD)
     } catch (error: AxiosError | unknown) {
       const err = error as AxiosError<ApiErrorResponse>;
