@@ -16,25 +16,33 @@ export enum Purpose {
   Email_verification = "email_verification",
 }
 
- export interface OtpData {
+export interface OtpData {
   email: string;
   code?: string;
   purpose: Purpose.Password_reset;
 }
 
-
 export interface VerifyOtpResponse {
   message: string;
 }
 
-export interface ApiErrorResponse {
-  statusCode: number;
-  message: string;
-  error: string;
-
+export interface ResetPasswordData {
+  email: string;
+  newPassword: string;
+  otp: string | null;
 }
 
+export interface ResetPasswordResponse {
+  message: string;
+}
 
+export type ApiErrorMessage = string | string[];
+
+export interface ApiErrorResponse {
+  statusCode: number;
+  message: ApiErrorMessage;
+  error: string;
+}
 
 export interface LoginResponse {
   access_token: string;
@@ -55,3 +63,4 @@ export interface ValidationErrorResponse {
   message?: string;
   errors?: BackendValidationErrors;
 }
+

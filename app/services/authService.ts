@@ -6,6 +6,8 @@ import {
   LoginData,
   LoginResponse,
   OtpData,
+  ResetPasswordData,
+  ResetPasswordResponse,
   VerifyOtpResponse,
 } from "../types/auth";
 
@@ -43,5 +45,12 @@ export class AuthService {
     const response = await axios.post<VerifyOtpResponse>(`${apiBaseUrl}/otp/send`, data);
    // console.log(response);
     return response.data;
+  }
+
+  static async resetPassword(data: ResetPasswordData): Promise<ResetPasswordResponse>{
+    const response = await axios.post<ResetPasswordResponse>(`${apiBaseUrl}/auth/reset-password`, data);
+   // console.log(response);
+    return response.data;
+
   }
 }

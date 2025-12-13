@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "@/app/context/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -9,11 +10,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ROUTES } from "@/lib/utils";
 import { ChevronDown } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import toast from "react-hot-toast";
 
 export default function ProfileDropdown() {
   const [open, setOpen] = useState(false);
+  const { logOut } = useAuth();
+  const router = useRouter();
+  const handleLogout = () => {
+    console.log("logging out");
+    logOut();
+    toast.success("You have successfully logged out");
+    router.push(ROUTES.Bm.Auth.LOGIN);
+  };
 
   return (
     <DropdownMenu onOpenChange={setOpen}>
@@ -38,7 +50,12 @@ export default function ProfileDropdown() {
         <DropdownMenuItem className="cursor-pointer">Settings</DropdownMenuItem>
 
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="text-red-600 cursor-pointer">Logout</DropdownMenuItem>
+        <DropdownMenuItem
+          className="text-red-600 cursor-pointer"
+          onClick={handleLogout}
+        >
+          Logout
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

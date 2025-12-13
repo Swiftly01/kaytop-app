@@ -17,13 +17,13 @@ import { useRouter } from "next/navigation";
 import { useLocalStorageState } from "@/app/hooks/useLocalStorage";
 
 const schema = z.object({
-  email: z.string().email("Invalid email format"),
+  email: z.email("Invalid email format"),
 });
 
 type Email = z.infer<typeof schema>;
 
 export default function ForgotPasswordForm() {
-  const [isLoading, setLoading] = useState(false);
+  const [isSubmitting, setSubmitting] = useState(false);
   const router = useRouter();
   const {
     register,
@@ -36,7 +36,7 @@ export default function ForgotPasswordForm() {
   const [email, setEmail] = useLocalStorageState<string | null>(null, "email");
 
   const onSubmit = async (data: Email) => {
-    setLoading(true);
+    setSubmitting(true);
 
     try {
       const response = await AuthService.forgotPassword(data);
@@ -49,7 +49,7 @@ export default function ForgotPasswordForm() {
       console.log(err);
       handleAxiosError(err, setError);
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -62,14 +62,15 @@ export default function ForgotPasswordForm() {
           type="email"
           placeholder="Enter your email"
           id="email"
+          disabled={isSubmitting}
           {...register("email")}
         />
         {errors.email && <Error error={errors.email.message} />}
       </div>
 
       <div className="mt-6">
-        <Button fullWidth={true} variant="tertiary" disabled={isLoading}>
-          {isLoading ? <Spinner /> : "Submit"}
+        <Button fullWidth={true} variant="tertiary" disabled={isSubmitting}>
+          {isSubmitting ? <Spinner /> : "Submit"}
         </Button>
         <Link
           className="flex justify-center px-5 py-2 my-2 font-medium transition-all duration-300 rounded-md cursor-pointer text-brand-purple hover:bg-brand-purple hover:text-white"

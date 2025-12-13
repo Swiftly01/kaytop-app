@@ -2,6 +2,7 @@ import Image from "next/image";
 import React, { JSX } from "react";
 import ProfileDropdown from "../../ui/ProfileDropdown";
 import logo from "@/public/logo.png";
+import { AuthProvider } from "@/app/context/AuthContext";
 
 export default function Navbar(): JSX.Element {
   return (
@@ -35,8 +36,9 @@ export default function Navbar(): JSX.Element {
             </span>
           </div>
         </div>
-
-        <ProfileDropdown />
+        <AuthProvider>
+          <ProfileDropdown />
+        </AuthProvider>
       </div>
     </nav>
   );

@@ -1,12 +1,14 @@
-"use client"
+"use client";
 import { createContext, useContext } from "react";
 import { useLocalStorageState } from "../hooks/useLocalStorage";
+import { removeAuthCookies, setAuthCookies } from "@/lib/authCookies";
 
 
 interface AuthContextType {
-  session: {token: string} | null;
+  session: { token: string } | null;
   login: (token: string, role: string) => void;
   logOut: () => void;
+  setCookie: (token: string, role: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -16,7 +18,10 @@ function AuthProvider({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [session, setSession] = useLocalStorageState<{token: string, role: string} | null>(null, "auth_session");
+  const [session, setSession] = useLocalStorageState<{
+    token: string;
+    role: string;
+  } | null>(null, "auth_session");
 
   const login = (token: string, role: string): void => {
     setSession({ token, role });
@@ -24,10 +29,15 @@ function AuthProvider({
 
   const logOut = (): void => {
     setSession(null);
+    removeAuthCookies();
+  };
+
+  const setCookie = (token: string, role: string): void => {
+    setAuthCookies(token, role);
   };
 
   return (
-    <AuthContext.Provider value={{ session, login, logOut }}>
+    <AuthContext.Provider value={{ session, login, logOut, setCookie }}>
       {children}
     </AuthContext.Provider>
   );

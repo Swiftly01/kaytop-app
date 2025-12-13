@@ -4,6 +4,8 @@ import "../../styles/globals.css";
 
 import Sidebar from "@/app/_components/layouts/dashboard/Sidebar";
 import Navbar from "@/app/_components/layouts/dashboard/Navbar";
+import DashboardWrapper from "@/app/_components/ui/auth/DashboardWrapper";
+import { Toaster } from "react-hot-toast";
 
 export const metadata: Metadata = {
   title: {
@@ -33,7 +35,8 @@ export default function RootLayout({
             className="drawer-toggle lg:hidden"
           />
           <Sidebar />
-          {children}
+          <DashboardWrapper>{children}</DashboardWrapper>
+          <Toaster position="top-right" />
         </div>
       </body>
     </html>

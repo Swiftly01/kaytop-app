@@ -19,5 +19,9 @@ export function useLocalStorageState<T>(initialState: T, key: string) {
     [value, key]
   );
 
-  return [value, setValue];
+  const remove = () => {
+    setValue(null);
+  }
+
+  return [value, setValue, remove] as const;
 }
