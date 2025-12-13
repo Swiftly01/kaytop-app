@@ -15,6 +15,7 @@ import { useAuth } from "@/app/context/AuthContext";
 import { ROUTES } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import Spinner from "../Spinner";
+import toast from "react-hot-toast";
 
 const schema = z.object({
   email: z.email("Invalid email format"),
@@ -30,7 +31,7 @@ type LoginData = z.infer<typeof schema>;
 
 export default function LoginForm() {
   const [isSubmitting, setisSubmitting] = useState(false);
-  const { login: auth } = useAuth();
+  const { login: auth, setCookie } = useAuth();
   const router = useRouter();
   const {
     register,
@@ -50,6 +51,8 @@ export default function LoginForm() {
       const accessToken = response.access_token;
       const role = response.role;
       auth(accessToken, role);
+      setCookie(accessToken, role);
+      toast.success("You have logged in successfuly");
       router.push(ROUTES.Bm.DASHBOARD);
     } catch (error: AxiosError | unknown) {
       const err = error as AxiosError;
