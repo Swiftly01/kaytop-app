@@ -10,8 +10,9 @@ const roleDashboardRoutes: Record<string, string> = {
 export async function proxy(request: NextRequest) {
   const token = request.cookies.get("token")?.value;
   const role = request.cookies.get("role")?.value;
-
   const currentPath = request.nextUrl.pathname;
+
+
 
   if (!token) {
     if (currentPath.startsWith("/dashboard")) {
@@ -25,8 +26,9 @@ export async function proxy(request: NextRequest) {
     const targetDashboard = roleDashboardRoutes[role.toUpperCase()];
 
     if (
+      targetDashboard &&
       currentPath.startsWith("/dashboard") &&
-      currentPath !== targetDashboard
+      !currentPath.startsWith(targetDashboard)
     ) {
       return NextResponse.redirect(new URL(targetDashboard, request.url));
     }
