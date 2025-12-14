@@ -5,8 +5,7 @@
  * Displays comprehensive loan management dashboard for system administrators
  */
 
-import { useState, useMemo } from 'react';
-import { generateLoansData, calculateLoanStatistics } from '@/lib/loansDataGenerator';
+import { useState, useMemo, useEffect } from 'react';
 import SimpleStatisticsCard from '@/app/_components/ui/SimpleStatisticsCard';
 import LoansTabNavigation from '@/app/_components/ui/LoansTabNavigation';
 import LoansTable from '@/app/_components/ui/LoansTable';
@@ -15,11 +14,16 @@ import FilterControls from '@/app/_components/ui/FilterControls';
 import { DashboardFiltersModal, DashboardFilters } from '@/app/_components/ui/DashboardFiltersModal';
 import { ToastContainer } from '@/app/_components/ui/ToastContainer';
 import { useToast } from '@/app/hooks/useToast';
+import { StatisticsCardSkeleton, TableSkeleton } from '@/app/_components/ui/Skeleton';
 import { DateRange } from 'react-day-picker';
 import LoansPageLoanDetailsModal, { LoanDetailsData } from '@/app/_components/ui/LoansPageLoanDetailsModal';
 import PaymentScheduleModal from '@/app/_components/ui/PaymentScheduleModal';
 import EditLoanModal from '@/app/_components/ui/EditLoanModal';
 import DeleteConfirmationModal from '@/app/_components/ui/DeleteConfirmationModal';
+import { userService } from '@/lib/services/users';
+import { loanService } from '@/lib/services/loans';
+import { dashboardService } from '@/lib/services/dashboard';
+import type { User, Loan } from '@/lib/api/types';
 
 // Mock branch context - in production, this would come from route params or session
 const BRANCH_ID = 'igando-branch';
@@ -30,24 +34,113 @@ type TimePeriod = '12months' | '30days' | '7days' | '24hours' | null;
 
 const ITEMS_PER_PAGE = 10;
 
+interface LoanData {
+  id: string; // Unique identifier
+  loanId: string; // Display ID (5 digits)
+  borrowerName: string;
+  status: 'Active' | 'Scheduled' | 'Missed Payment';
+  amount: number; // In Naira
+  interestRate: number; // Percentage (e.g., 7.25)
+  nextRepaymentDate: Date;
+  disbursementDate: Date;
+  branchId: string;
+  missedPayments?: number; // Number of missed payments
+}
+
+interface LoanStatistics {
+  totalLoans: { count: number; growth: number };
+  activeLoans: { count: number; growth: number };
+  completedLoans: { count: number; growth: number };
+}
+
+// Transform API Loan to LoanData format
+const transformLoanToLoanData = async (loan: Loan): Promise<LoanData> => {
+  // Fetch customer details for the loan
+  let borrowerName = 'Unknown Customer';
+  try {
+    const customer = await userService.getUserById(loan.customerId);
+    borrowerName = `${customer.firstName} ${customer.lastName}`;
+  } catch (err) {
+    console.warn('Failed to fetch customer details for loan:', loan.id);
+  }
+
+  return {
+    id: loan.id,
+    loanId: loan.id.slice(-5).toUpperCase(), // Display ID (5 digits)
+    borrowerName,
+    status: loan.status === 'active' ? 'Active' : 
+            loan.status === 'disbursed' ? 'Scheduled' : 'Missed Payment',
+    amount: loan.amount,
+    interestRate: loan.interestRate,
+    nextRepaymentDate: loan.nextRepaymentDate ? new Date(loan.nextRepaymentDate) : new Date(),
+    disbursementDate: loan.disbursementDate ? new Date(loan.disbursementDate) : new Date(loan.createdAt),
+    branchId: BRANCH_ID,
+    missedPayments: 0 // Would need to be calculated from payment history
+  };
+};
+
+// Calculate loan statistics from API data
+const calculateLoanStatisticsFromAPI = (loans: LoanData[]): LoanStatistics => {
+  const totalLoans = loans.length;
+  const activeLoans = loans.filter(loan => loan.status === 'Active').length;
+  const scheduledLoans = loans.filter(loan => loan.status === 'Scheduled').length;
+
+  return {
+    totalLoans: { count: totalLoans, growth: 5 }, // Placeholder growth
+    activeLoans: { count: activeLoans, growth: 8 }, // Placeholder growth
+    completedLoans: { count: scheduledLoans, growth: 12 } // Using scheduled as "completed" for now
+  };
+};
+
 export default function LoansPage() {
-  // Generate loan data with error handling
-  const allLoans = useMemo(() => {
-    try {
-      if (!BRANCH_ID) {
-        console.error('Branch ID is missing');
-        return [];
-      }
-      return generateLoansData(BRANCH_ID, 100);
-    } catch (error) {
-      console.error('Error generating loan data:', error);
-      return [];
-    }
-  }, []);
-  
   // State management
-  const { toasts, removeToast, success } = useToast();
+  const { toasts, removeToast, success, error: showError } = useToast();
+  
+  // API data state
+  const [allLoans, setAllLoans] = useState<LoanData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [apiError, setApiError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('all');
+
+  // Fetch loans data from API
+  const fetchLoansData = async () => {
+    try {
+      setIsLoading(true);
+      setApiError(null);
+
+      // Get all customers first
+      const customersResponse = await userService.getAllUsers({ role: 'customer' });
+      const customers = customersResponse.data;
+
+      // Fetch loans for all customers
+      const allLoansPromises = customers.map(async (customer) => {
+        try {
+          const customerLoans = await loanService.getCustomerLoans(customer.id);
+          return Promise.all(customerLoans.map(loan => transformLoanToLoanData(loan)));
+        } catch (err) {
+          console.warn(`Failed to fetch loans for customer ${customer.id}:`, err);
+          return [];
+        }
+      });
+
+      const loansArrays = await Promise.all(allLoansPromises);
+      const flattenedLoans = loansArrays.flat();
+      
+      setAllLoans(flattenedLoans);
+
+    } catch (err) {
+      console.error('Failed to fetch loans data:', err);
+      setApiError(err instanceof Error ? err.message : 'Failed to load loans data');
+      showError('Failed to load loans data. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Load initial data
+  useEffect(() => {
+    fetchLoansData();
+  }, []);
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('12months');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedLoans, setSelectedLoans] = useState<string[]>([]);
@@ -147,7 +240,7 @@ export default function LoansPage() {
   }, [filteredByDate, currentPage]);
 
   // Calculate statistics
-  const statistics = useMemo(() => calculateLoanStatistics(allLoans), [allLoans]);
+  const statistics = useMemo(() => calculateLoanStatisticsFromAPI(allLoans), [allLoans]);
 
   // Selection handlers
   const handleSelectLoan = (loanId: string) => {
@@ -259,16 +352,40 @@ export default function LoansPage() {
     setSelectedLoanForSchedule(loanId);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (selectedLoanForDelete) {
-      success('Loan deleted successfully!');
-      setSelectedLoanForDelete(null);
+      try {
+        // In a real implementation, you would call a delete API
+        // await loanService.deleteLoan(selectedLoanForDelete);
+        
+        // For now, just remove from local state
+        setAllLoans(prev => prev.filter(loan => loan.id !== selectedLoanForDelete));
+        
+        success('Loan deleted successfully!');
+        setSelectedLoanForDelete(null);
+      } catch (err) {
+        console.error('Failed to delete loan:', err);
+        showError('Failed to delete loan. Please try again.');
+      }
     }
   };
 
-  const handleSaveEdit = () => {
-    success('Loan updated successfully!');
-    setSelectedLoanForEdit(null);
+  const handleSaveEdit = async (updatedLoan: any) => {
+    try {
+      // In a real implementation, you would call an update API
+      // await loanService.updateLoan(updatedLoan.id, updatedLoan);
+      
+      // For now, just update local state
+      setAllLoans(prev => prev.map(loan => 
+        loan.id === updatedLoan.id ? { ...loan, ...updatedLoan } : loan
+      ));
+      
+      success('Loan updated successfully!');
+      setSelectedLoanForEdit(null);
+    } catch (err) {
+      console.error('Failed to update loan:', err);
+      showError('Failed to update loan. Please try again.');
+    }
   };
 
   return (
@@ -329,24 +446,34 @@ export default function LoansPage() {
 
             {/* Statistics Cards */}
             <div className="grid grid-cols-3 gap-6 w-full max-w-[1091px]" style={{ marginBottom: '48px' }}>
-              <SimpleStatisticsCard
-                label="Total Loans"
-                value={statistics.totalLoans.count.toLocaleString()}
-                growth={statistics.totalLoans.growth}
-                showGrowth={true}
-              />
-              <SimpleStatisticsCard
-                label="Active Loans"
-                value={statistics.activeLoans.count.toLocaleString()}
-                growth={statistics.activeLoans.growth}
-                showGrowth={true}
-              />
-              <SimpleStatisticsCard
-                label="Completed Loans"
-                value={statistics.completedLoans.count.toLocaleString()}
-                growth={statistics.completedLoans.growth}
-                showGrowth={true}
-              />
+              {isLoading ? (
+                <>
+                  <div className="animate-pulse bg-gray-200 rounded-lg h-24"></div>
+                  <div className="animate-pulse bg-gray-200 rounded-lg h-24"></div>
+                  <div className="animate-pulse bg-gray-200 rounded-lg h-24"></div>
+                </>
+              ) : (
+                <>
+                  <SimpleStatisticsCard
+                    label="Total Loans"
+                    value={statistics.totalLoans.count.toLocaleString()}
+                    growth={statistics.totalLoans.growth}
+                    showGrowth={true}
+                  />
+                  <SimpleStatisticsCard
+                    label="Active Loans"
+                    value={statistics.activeLoans.count.toLocaleString()}
+                    growth={statistics.activeLoans.growth}
+                    showGrowth={true}
+                  />
+                  <SimpleStatisticsCard
+                    label="Completed Loans"
+                    value={statistics.completedLoans.count.toLocaleString()}
+                    growth={statistics.completedLoans.growth}
+                    showGrowth={true}
+                  />
+                </>
+              )}
             </div>
 
             {/* Tab Navigation */}
@@ -360,7 +487,9 @@ export default function LoansPage() {
 
             {/* Loans Table */}
             <div className="max-w-[1075px]">
-              {allLoans.length === 0 ? (
+              {isLoading ? (
+                <TableSkeleton rows={ITEMS_PER_PAGE} />
+              ) : allLoans.length === 0 ? (
                 <div 
                   className="bg-white rounded-[12px] border border-[#EAECF0] p-12 text-center"
                   role="status"
@@ -370,7 +499,7 @@ export default function LoansPage() {
                     className="text-base text-[#475467]"
                     style={{ fontFamily: "'Open Sauce Sans', sans-serif" }}
                   >
-                    {BRANCH_ID ? 'No loan data available for this branch.' : 'Please select a branch to view loans.'}
+                    {apiError ? 'Failed to load loan data. Please try again.' : 'No loan data available.'}
                   </p>
                 </div>
               ) : filteredByDate.length === 0 ? (

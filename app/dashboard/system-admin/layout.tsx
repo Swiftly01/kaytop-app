@@ -1,9 +1,9 @@
 import { Metadata } from "next";
 import React from "react";
-import "../../styles/globals.css";
 
 import SystemAdminSidebar from "@/app/_components/layouts/dashboard/SystemAdminSidebar";
 import Navbar from "@/app/_components/layouts/dashboard/Navbar";
+import { SystemAdminGuard } from "@/app/components/AuthGuard";
 
 export const metadata: Metadata = {
   title: {
@@ -23,8 +23,8 @@ export default function SystemAdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="h-full">
-      <body className="bg-[#F4F6FA]">
+    <div className="bg-[#F4F6FA] min-h-screen">
+      <SystemAdminGuard>
         <Navbar />
         <div className="drawer lg:drawer-open" style={{ paddingTop: '70px' }}>
           <input
@@ -36,7 +36,7 @@ export default function SystemAdminLayout({
           <SystemAdminSidebar />
           {children}
         </div>
-      </body>
-    </html>
+      </SystemAdminGuard>
+    </div>
   );
 }

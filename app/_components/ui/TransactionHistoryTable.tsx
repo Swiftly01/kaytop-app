@@ -8,10 +8,21 @@
 import { useState } from 'react';
 import { Checkbox } from './Checkbox';
 import Pagination from './Pagination';
-import { Transaction } from '@/lib/customerDetailsDataGenerator';
+import type { Transaction as ApiTransaction } from '@/lib/api/types';
+
+// Local Transaction interface for display purposes
+interface Transaction {
+  id: string;
+  transactionId: string;
+  type: 'Repayment' | 'Savings';
+  amount: number;
+  status: 'Successful' | 'Pending' | 'In Progress';
+  date: string;
+}
 
 interface TransactionHistoryTableProps {
   transactions: Transaction[];
+  onTransactionAction?: (transaction: ApiTransaction) => void;
 }
 
 // Transaction Type Badge Component
@@ -103,7 +114,7 @@ function TransactionStatusBadge({ status }: { status: 'Successful' | 'Pending' |
   );
 }
 
-export default function TransactionHistoryTable({ transactions }: TransactionHistoryTableProps) {
+export default function TransactionHistoryTable({ transactions, onTransactionAction }: TransactionHistoryTableProps) {
   const [selectedTransactions, setSelectedTransactions] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [sortColumn, setSortColumn] = useState<'type' | 'status' | null>(null);
@@ -256,6 +267,14 @@ export default function TransactionHistoryTable({ transactions }: TransactionHis
               >
                 Date
               </th>
+              {onTransactionAction && (
+                <th
+                  className="text-left text-xs font-medium"
+                  style={{ color: '#475467', padding: '12px 24px' }}
+                >
+                  Actions
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -298,6 +317,26 @@ export default function TransactionHistoryTable({ transactions }: TransactionHis
                 >
                   {transaction.date}
                 </td>
+                {onTransactionAction && (
+                  <td style={{ padding: '16px 24px' }}>
+                    {transaction.status === 'Pending' && (
+                      <button
+                        onClick={() => onTransactionAction({
+                          id: transaction.id,
+                          type: transaction.type === 'Savings' ? 'deposit' : 'withdrawal',
+                          amount: transaction.amount,
+                          description: `Transaction ${transaction.transactionId}`,
+                          status: 'pending',
+                          createdAt: new Date().toISOString(),
+                          updatedAt: new Date().toISOString()
+                        })}
+                        className="px-3 py-1 text-[12px] font-medium text-[#039855] bg-[#ECFDF3] border border-[#ABEFC6] rounded-md hover:bg-[#D1FADF] transition-colors focus:outline-none focus:ring-2 focus:ring-[#039855] focus:ring-offset-1"
+                      >
+                        Approve
+                      </button>
+                    )}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

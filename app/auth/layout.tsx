@@ -1,5 +1,4 @@
 import React from "react";
-import "../styles/globals.css";
 import patterns from "@/public/patterns.png";
 import { Metadata } from "next";
 
@@ -10,27 +9,22 @@ export const metadata: Metadata = {
   },
   description:
     "Kaytop is a modern multipurpose investment platform that enables users to invest confidently, access financing, and grow wealth with ease.",
-  // metadataBase: new URL('https://next-learn-dashboard.vercel.sh'),
   icons: {
     icon: "/logo.png",
   },
 };
 
-
-
-export default function RootLayout({
+export default function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="h-full">
-      <body
-        style={{ backgroundImage: `url(${patterns.src})` }}
-        className="flex items-center justify-center min-h-screen bg-no-repeat bg-bottom-right bg-neutral-100"
-      >
-        {children}
-      </body>
-    </html>
+    <div
+      style={{ backgroundImage: `url(${patterns.src})` }}
+      className="flex items-center justify-center min-h-screen bg-no-repeat bg-bottom-right bg-neutral-100"
+    >
+      {children}
+    </div>
   );
 }

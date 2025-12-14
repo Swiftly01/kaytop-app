@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import FilterControls from '@/app/_components/ui/FilterControls';
 import { StatisticsCard, StatSection } from '@/app/_components/ui/StatisticsCard';
@@ -12,6 +12,9 @@ import Pagination from '@/app/_components/ui/Pagination';
 import { StatisticsCardSkeleton, TableSkeleton } from '@/app/_components/ui/Skeleton';
 import AdvancedFiltersModal, { AdvancedFilters } from '@/app/_components/ui/AdvancedFiltersModal';
 import { DateRange } from 'react-day-picker';
+import { userService } from '@/lib/services/users';
+import { dashboardService } from '@/lib/services/dashboard';
+import type { User, PaginatedResponse } from '@/lib/api/types';
 
 type TimePeriod = '12months' | '30days' | '7days' | '24hours' | null;
 
@@ -21,114 +24,41 @@ interface BranchFormData {
   assignUsers: string[];
 }
 
-// Branch statistics data
-const branchStatistics: StatSection[] = [
-  {
-    label: 'All Branches',
-    value: 42094,
-    change: 6,
-  },
-  {
-    label: "All CO's",
-    value: 15350,
-    change: 6,
-  },
-  {
-    label: 'All Customers',
-    value: 28350,
-    change: -26,
-  },
-  {
-    label: 'Active Loans',
-    value: 50350.00,
-    change: 40,
-    isCurrency: true,
-  },
-];
+// Transform user data to branch records
+const transformUsersToBranchData = (users: User[]): BranchRecord[] => {
+  // Group users by branch
+  const branchGroups = users.reduce((acc, user) => {
+    if (!user.branch) return acc;
+    
+    if (!acc[user.branch]) {
+      acc[user.branch] = {
+        creditOfficers: 0,
+        customers: 0,
+        users: []
+      };
+    }
+    
+    acc[user.branch].users.push(user);
+    
+    if (user.role === 'credit_officer') {
+      acc[user.branch].creditOfficers++;
+    } else if (user.role === 'customer') {
+      acc[user.branch].customers++;
+    }
+    
+    return acc;
+  }, {} as Record<string, { creditOfficers: number; customers: number; users: User[] }>);
 
-// Branch table data - 10 records as specified in requirements
-const branchData: BranchRecord[] = [
-  { 
-    id: '1', 
-    branchId: 'ID: 43756', 
-    name: 'Ademola Jumoke', 
-    cos: '23', 
-    customers: 38, 
-    dateCreated: '2024-06-03' 
-  },
-  { 
-    id: '2', 
-    branchId: 'ID: 43178', 
-    name: 'Adegboyoga Precious', 
-    cos: '23', 
-    customers: 77, 
-    dateCreated: '2023-12-24' 
-  },
-  { 
-    id: '3', 
-    branchId: 'ID: 70668', 
-    name: 'Nneka Chukwu', 
-    cos: '23', 
-    customers: 12, 
-    dateCreated: '2024-11-11' 
-  },
-  { 
-    id: '4', 
-    branchId: 'ID: 97174', 
-    name: 'Damilare Usman', 
-    cos: '23', 
-    customers: 64, 
-    dateCreated: '2024-02-02' 
-  },
-  { 
-    id: '5', 
-    branchId: 'ID: 39635', 
-    name: 'Jide Kosoko', 
-    cos: '23', 
-    customers: 29, 
-    dateCreated: '2023-08-18' 
-  },
-  { 
-    id: '6', 
-    branchId: 'ID: 97174', 
-    name: 'Oladejo Israel', 
-    cos: '23', 
-    customers: 85, 
-    dateCreated: '2024-09-09' 
-  },
-  { 
-    id: '7', 
-    branchId: 'ID: 22739', 
-    name: 'Eze Chinedu', 
-    cos: '23%', 
-    customers: 51, 
-    dateCreated: '2023-07-27' 
-  },
-  { 
-    id: '8', 
-    branchId: 'ID: 22739', 
-    name: 'Adebanji Bolaji', 
-    cos: '95%', 
-    customers: 99, 
-    dateCreated: '2024-04-05' 
-  },
-  { 
-    id: '9', 
-    branchId: 'ID: 43756', 
-    name: 'Baba Kaothat', 
-    cos: '42%', 
-    customers: 44, 
-    dateCreated: '2023-10-14' 
-  },
-  { 
-    id: '10', 
-    branchId: 'ID: 39635', 
-    name: 'Adebayo Salami', 
-    cos: '58%', 
-    customers: 72, 
-    dateCreated: '2024-03-22' 
-  },
-];
+  // Convert to branch records
+  return Object.entries(branchGroups).map(([branchName, data], index) => ({
+    id: (index + 1).toString(),
+    branchId: `ID: ${Math.floor(Math.random() * 90000) + 10000}`, // Generate random ID
+    name: branchName,
+    cos: data.creditOfficers.toString(),
+    customers: data.customers,
+    dateCreated: data.users[0]?.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0]
+  }));
+};
 
 export default function BranchesPage() {
   const router = useRouter();
@@ -142,7 +72,7 @@ export default function BranchesPage() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isAdvancedFiltersOpen, setIsAdvancedFiltersOpen] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
     region: '',
@@ -153,6 +83,63 @@ export default function BranchesPage() {
     dateFrom: '',
     dateTo: '',
   });
+
+  // API data state
+  const [branchData, setBranchData] = useState<BranchRecord[]>([]);
+  const [branchStatistics, setBranchStatistics] = useState<StatSection[]>([]);
+  const [apiError, setApiError] = useState<string | null>(null);
+
+  // Fetch branch data from API
+  const fetchBranchData = async () => {
+    try {
+      setIsLoading(true);
+      setApiError(null);
+
+      // Fetch all users to group by branch
+      const usersResponse = await userService.getAllUsers({ limit: 1000 });
+      const branchRecords = transformUsersToBranchData(usersResponse.data);
+      setBranchData(branchRecords);
+
+      // Fetch dashboard statistics
+      const dashboardData = await dashboardService.getKPIs();
+      const stats: StatSection[] = [
+        {
+          label: 'All Branches',
+          value: dashboardData.branches.value,
+          change: dashboardData.branches.change,
+        },
+        {
+          label: "All CO's",
+          value: dashboardData.creditOfficers.value,
+          change: dashboardData.creditOfficers.change,
+        },
+        {
+          label: 'All Customers',
+          value: dashboardData.customers.value,
+          change: dashboardData.customers.change,
+        },
+        {
+          label: 'Active Loans',
+          value: dashboardData.activeLoans.value,
+          change: dashboardData.activeLoans.change,
+          isCurrency: false,
+        },
+      ];
+      setBranchStatistics(stats);
+
+    } catch (err) {
+      console.error('Failed to fetch branch data:', err);
+      setApiError(err instanceof Error ? err.message : 'Failed to load branch data');
+      error('Failed to load branch data. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Load initial data
+  useEffect(() => {
+    fetchBranchData();
+  }, []);
 
   const handleCreateBranch = () => {
     setIsModalOpen(true);
@@ -166,30 +153,39 @@ export default function BranchesPage() {
     setIsModalOpen(false);
   };
 
-  const handleModalSubmit = (data: BranchFormData) => {
-    console.log('Branch created:', data);
-    console.log('Assigned users:', data.assignUsers);
-    // TODO: Add API call to create branch
-    // TODO: Refresh branch list
-    
-    // Show success notification
-    const userCount = data.assignUsers.length;
-    const message = userCount > 0 
-      ? `Branch "${data.branchName}" created with ${userCount} user${userCount > 1 ? 's' : ''} assigned!`
-      : `Branch "${data.branchName}" created successfully!`;
-    success(message);
+  const handleModalSubmit = async (data: BranchFormData) => {
+    try {
+      console.log('Branch created:', data);
+      console.log('Assigned users:', data.assignUsers);
+      
+      // TODO: Add API call to create branch when endpoint is available
+      // For now, just refresh the data to show updated branch list
+      await fetchBranchData();
+      
+      // Show success notification
+      const userCount = data.assignUsers.length;
+      const message = userCount > 0 
+        ? `Branch "${data.branchName}" created with ${userCount} user${userCount > 1 ? 's' : ''} assigned!`
+        : `Branch "${data.branchName}" created successfully!`;
+      success(message);
+    } catch (err) {
+      console.error('Failed to create branch:', err);
+      error('Failed to create branch. Please try again.');
+    }
   };
 
   const handlePeriodChange = (period: TimePeriod) => {
     setSelectedPeriod(period);
     console.log('Time period changed:', period);
-    // TODO: Filter data based on period
+    // Refresh data with time filter - this would be used for statistics
+    fetchBranchData();
   };
 
   const handleDateRangeChange = (range: DateRange | undefined) => {
     setDateRange(range);
     console.log('Date range changed:', range);
-    // TODO: Filter data based on date range
+    // Refresh data with date range filter - this would be used for statistics
+    fetchBranchData();
   };
 
   const handleFilterClick = () => {
@@ -368,6 +364,18 @@ export default function BranchesPage() {
             <div className="w-full max-w-[1091px]" style={{ marginBottom: '48px' }}>
               {isLoading ? (
                 <StatisticsCardSkeleton />
+              ) : apiError ? (
+                <div className="bg-white rounded-lg border border-[#EAECF0] p-6">
+                  <div className="text-center">
+                    <p className="text-[#E43535] mb-2">Failed to load statistics</p>
+                    <button
+                      onClick={() => fetchBranchData()}
+                      className="text-[#7F56D9] hover:text-[#6941C6] font-medium"
+                    >
+                      Try again
+                    </button>
+                  </div>
+                </div>
               ) : (
                 <StatisticsCard sections={branchStatistics} />
               )}

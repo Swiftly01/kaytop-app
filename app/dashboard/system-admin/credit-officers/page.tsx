@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import FilterControls from '@/app/_components/ui/FilterControls';
 import { StatisticsCard, StatSection } from '@/app/_components/ui/StatisticsCard';
@@ -12,6 +12,9 @@ import EditCreditOfficerModal from '@/app/_components/ui/EditCreditOfficerModal'
 import DeleteConfirmationModal from '@/app/_components/ui/DeleteConfirmationModal';
 import { useToast } from '@/app/hooks/useToast';
 import { ToastContainer } from '@/app/_components/ui/ToastContainer';
+import { userService } from '@/lib/services/users';
+import { dashboardService } from '@/lib/services/dashboard';
+import type { User } from '@/lib/api/types';
 
 type TimePeriod = '12months' | '30days' | '7days' | '24hours' | null;
 
@@ -25,112 +28,24 @@ interface CreditOfficer {
   dateJoined: string;
 }
 
-// Credit Officers statistics data
-const creditOfficersStatistics: StatSection[] = [
-  {
-    label: 'Total Credit Officers',
-    value: 42094,
-    change: 6,
-  },
-];
-
-// Sample credit officers data
-const creditOfficersData: CreditOfficer[] = [
-  {
-    id: '1',
-    name: 'Ademola Jumoke',
-    idNumber: '43756',
-    status: 'Active',
-    phone: '+234816000600',
-    email: 'eltford@mac.com',
-    dateJoined: 'June 03, 2024'
-  },
-  {
-    id: '2',
-    name: 'Adegboyoga Precious',
-    idNumber: '43178',
-    status: 'Active',
-    phone: '+234812345678',
-    email: 'bradi@comcast.net',
-    dateJoined: 'Dec 24, 2023'
-  },
-  {
-    id: '3',
-    name: 'Nneka Chukwu',
-    idNumber: '70668',
-    status: 'Inactive',
-    phone: '+234904449999',
-    email: 'fwitness@yahoo.ca',
-    dateJoined: 'Nov 11, 2024'
-  },
-  {
-    id: '4',
-    name: 'Damilare Usman',
-    idNumber: '97174',
-    status: 'Active',
-    phone: '+234908008888',
-    email: 'plover@aol.com',
-    dateJoined: 'Feb 02, 2024'
-  },
-  {
-    id: '5',
-    name: 'Jide Kosoko',
-    idNumber: '39635',
-    status: 'Active',
-    phone: '+234906123456',
-    email: 'crusader@yahoo.com',
-    dateJoined: 'Aug 18, 2023'
-  },
-  {
-    id: '6',
-    name: 'Oladejo Israel',
-    idNumber: '97174',
-    status: 'Active',
-    phone: '+234805551234',
-    email: 'mccurley@yahoo.ca',
-    dateJoined: 'Sept 09, 2024'
-  },
-  {
-    id: '7',
-    name: 'Eze Chinedu',
-    idNumber: '22739',
-    status: 'Active',
-    phone: '+234808785432',
-    email: 'jginspace@mac.com',
-    dateJoined: 'July 27, 2023'
-  },
-  {
-    id: '8',
-    name: 'Adebanji Bolaji',
-    idNumber: '22739',
-    status: 'Active',
-    phone: '+234806001122',
-    email: 'amichalo@msn.com',
-    dateJoined: 'April 05, 2024'
-  },
-  {
-    id: '9',
-    name: 'Baba Kaothat',
-    idNumber: '43756',
-    status: 'Active',
-    phone: '+234812345678',
-    email: 'dieman@live.com',
-    dateJoined: 'Oct 14, 2023'
-  },
-  {
-    id: '10',
-    name: 'Adebayo Salami',
-    idNumber: '39635',
-    status: 'Active',
-    phone: '+234803345678',
-    email: 'smallpaul@me.com',
-    dateJoined: 'March 22, 2024'
-  },
-];
+// Transform User to CreditOfficer format
+const transformUserToCreditOfficer = (user: User): CreditOfficer => ({
+  id: user.id,
+  name: `${user.firstName} ${user.lastName}`,
+  idNumber: user.id.slice(-5), // Use last 5 chars of ID
+  status: user.verificationStatus === 'verified' ? 'Active' : 'Inactive',
+  phone: user.mobileNumber,
+  email: user.email,
+  dateJoined: new Date(user.createdAt).toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'short', 
+    day: '2-digit' 
+  })
+});
 
 export default function CreditOfficersPage() {
   const router = useRouter();
-  const { toasts, removeToast, success } = useToast();
+  const { toasts, removeToast, success, error } = useToast();
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('12months');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedOfficers, setSelectedOfficers] = useState<string[]>([]);
@@ -139,7 +54,12 @@ export default function CreditOfficersPage() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // API data state
+  const [creditOfficersData, setCreditOfficersData] = useState<CreditOfficer[]>([]);
+  const [creditOfficersStatistics, setCreditOfficersStatistics] = useState<StatSection[]>([]);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   // Edit modal state
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -148,6 +68,65 @@ export default function CreditOfficersPage() {
   // Delete modal state
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [officerToDelete, setOfficerToDelete] = useState<{ id: string; name: string } | null>(null);
+
+  // Fetch credit officers data from API
+  const fetchCreditOfficersData = async (searchTerm?: string) => {
+    try {
+      setIsLoading(true);
+      setApiError(null);
+
+      // Fetch staff members (credit officers)
+      const staffData = await userService.getMyStaff();
+      let creditOfficers = staffData
+        .filter(user => user.role === 'credit_officer')
+        .map(transformUserToCreditOfficer);
+
+      // Apply search filter if provided
+      if (searchTerm && searchTerm.trim()) {
+        const query = searchTerm.toLowerCase();
+        creditOfficers = creditOfficers.filter(officer => 
+          officer.name.toLowerCase().includes(query) ||
+          officer.idNumber.includes(query) ||
+          officer.email.toLowerCase().includes(query) ||
+          officer.phone.includes(query)
+        );
+      }
+
+      setCreditOfficersData(creditOfficers);
+
+      // Fetch dashboard statistics for credit officers count
+      const dashboardData = await dashboardService.getKPIs();
+      const stats: StatSection[] = [
+        {
+          label: 'Total Credit Officers',
+          value: dashboardData.creditOfficers.value,
+          change: dashboardData.creditOfficers.change,
+        },
+      ];
+      setCreditOfficersStatistics(stats);
+
+    } catch (err) {
+      console.error('Failed to fetch credit officers data:', err);
+      setApiError(err instanceof Error ? err.message : 'Failed to load credit officers data');
+      error('Failed to load credit officers data. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Load initial data
+  useEffect(() => {
+    fetchCreditOfficersData();
+  }, []);
+
+  // Handle search with debouncing
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      fetchCreditOfficersData(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
 
   const handlePeriodChange = (period: TimePeriod) => {
     setSelectedPeriod(period);
@@ -192,11 +171,32 @@ export default function CreditOfficersPage() {
     setEditModalOpen(true);
   };
 
-  const handleSave = (updatedOfficer: CreditOfficer) => {
-    console.log('Saving credit officer:', updatedOfficer);
-    // TODO: Implement actual save API call
-    // Example: await updateCreditOfficer(updatedOfficer);
-    success(`Credit Officer "${updatedOfficer.name}" updated successfully!`);
+  const handleSave = async (updatedOfficer: CreditOfficer) => {
+    try {
+      setIsLoading(true);
+      
+      // Transform CreditOfficer back to User format for API
+      const updateData = {
+        firstName: updatedOfficer.name.split(' ')[0],
+        lastName: updatedOfficer.name.split(' ').slice(1).join(' '),
+        email: updatedOfficer.email,
+        mobileNumber: updatedOfficer.phone,
+      };
+
+      await userService.updateUser(updatedOfficer.id, updateData);
+      
+      // Refresh the data
+      await fetchCreditOfficersData();
+      
+      success(`Credit Officer "${updatedOfficer.name}" updated successfully!`);
+      setEditModalOpen(false);
+      setSelectedOfficer(null);
+    } catch (err) {
+      console.error('Failed to update credit officer:', err);
+      error('Failed to update credit officer. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleDelete = (officer: CreditOfficer) => {
@@ -204,30 +204,30 @@ export default function CreditOfficersPage() {
     setDeleteModalOpen(true);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (officerToDelete) {
-      console.log('Deleting credit officer:', officerToDelete.id);
-      // TODO: Implement actual delete API call
-      // Example: await deleteCreditOfficer(officerToDelete.id);
-      success(`Credit Officer "${officerToDelete.name}" deleted successfully!`);
-      setOfficerToDelete(null);
+      try {
+        setIsLoading(true);
+        
+        await userService.deleteUser(officerToDelete.id);
+        
+        // Refresh the data
+        await fetchCreditOfficersData();
+        
+        success(`Credit Officer "${officerToDelete.name}" deleted successfully!`);
+        setDeleteModalOpen(false);
+        setOfficerToDelete(null);
+      } catch (err) {
+        console.error('Failed to delete credit officer:', err);
+        error('Failed to delete credit officer. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
-  // Filter and sort data
-  const filteredOfficers = creditOfficersData.filter((officer) => {
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      return (
-        officer.name.toLowerCase().includes(query) ||
-        officer.idNumber.includes(query) ||
-        officer.email.toLowerCase().includes(query)
-      );
-    }
-    return true;
-  });
-
-  const sortedOfficers = [...filteredOfficers].sort((a, b) => {
+  // Sort data (filtering is now done server-side)
+  const sortedOfficers = [...creditOfficersData].sort((a, b) => {
     if (!sortColumn) return 0;
 
     const aValue = a[sortColumn];
@@ -282,6 +282,34 @@ export default function CreditOfficersPage() {
               ) : (
                 <StatisticsCard sections={creditOfficersStatistics} />
               )}
+            </div>
+
+            {/* Search Input */}
+            <div className="max-w-[1041px] mb-6">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search credit officers by name, ID, email, or phone..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <svg
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                >
+                  <path
+                    d="M17.5 17.5L13.875 13.875M15.8333 9.16667C15.8333 12.8486 12.8486 15.8333 9.16667 15.8333C5.48477 15.8333 2.5 12.8486 2.5 9.16667C2.5 5.48477 5.48477 2.5 9.16667 2.5C12.8486 2.5 15.8333 5.48477 15.8333 9.16667Z"
+                    stroke="currentColor"
+                    strokeWidth="1.66667"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
             </div>
 
             {/* Credit Officers Table */}

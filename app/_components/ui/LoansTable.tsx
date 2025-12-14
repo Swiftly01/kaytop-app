@@ -5,9 +5,20 @@
  * Displays loan records in a table format with selection checkboxes
  */
 
-import { LoanRecord } from '@/lib/loansDataGenerator';
 import StatusBadge from './StatusBadge';
 import { Checkbox } from './Checkbox';
+
+// Local LoanRecord interface for display purposes
+interface LoanRecord {
+  id: string;
+  customerId: string;
+  customerName: string;
+  amount: number;
+  status: 'Active' | 'Completed' | 'Overdue' | 'Defaulted';
+  nextRepaymentDate: string;
+  interestRate: number;
+  term: number;
+}
 
 interface LoansTableProps {
   loans: LoanRecord[];

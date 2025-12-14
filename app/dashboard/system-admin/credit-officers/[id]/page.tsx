@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, use } from 'react';
+import { useState, use, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { StatisticsCard, StatSection } from '@/app/_components/ui/StatisticsCard';
 import Pagination from '@/app/_components/ui/Pagination';
 import { StatisticsCardSkeleton, TableSkeleton } from '@/app/_components/ui/Skeleton';
 import { useToast } from '@/app/hooks/useToast';
 import { ToastContainer } from '@/app/_components/ui/ToastContainer';
-import { generateCreditOfficerDetails, generateCollectionTransactions, generateDisbursedLoans } from '@/lib/creditOfficerDataGenerator';
 import CreditOfficerInfoCard from '@/app/_components/ui/CreditOfficerInfoCard';
 import CreditOfficerTabs from '@/app/_components/ui/CreditOfficerTabs';
 import CollectionsTable from '@/app/_components/ui/CollectionsTable';
@@ -15,19 +14,60 @@ import LoansDisbursedTable from '@/app/_components/ui/LoansDisbursedTable';
 import DeleteConfirmationModal from '@/app/_components/ui/DeleteConfirmationModal';
 import EditCollectionModal from '@/app/_components/ui/EditCollectionModal';
 import EditLoanModal from '@/app/_components/ui/EditLoanModal';
+import { userService } from '@/lib/services/users';
+import { loanService } from '@/lib/services/loans';
+import { savingsService } from '@/lib/services/savings';
+import type { User, Loan, Transaction } from '@/lib/api/types';
+
+interface CreditOfficerDetails {
+  id: string;
+  name: string;
+  coId: string;
+  dateJoined: string;
+  email: string;
+  phone: string;
+  gender: string;
+}
+
+interface CollectionTransaction {
+  id: string;
+  transactionId: string;
+  customerName: string;
+  amount: number;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  date: string;
+  type: string;
+}
+
+interface DisbursedLoan {
+  id: string;
+  loanId: string;
+  customerName: string;
+  amount: number;
+  status: 'Active' | 'Completed' | 'Defaulted';
+  disbursementDate: string;
+  nextPaymentDate: string;
+}
 
 export default function CreditOfficerDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   // Unwrap params Promise (Next.js 15+ requirement)
   const { id } = use(params);
   
   const router = useRouter();
-  const { toasts, removeToast, success } = useToast();
-  const [isLoading] = useState(false);
+  const { toasts, removeToast, success, error } = useToast();
+  const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'collections' | 'loans-disbursed'>('collections');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
   const [selectedLoans, setSelectedLoans] = useState<string[]>([]);
   const itemsPerPage = 10;
+
+  // API data state
+  const [creditOfficer, setCreditOfficer] = useState<CreditOfficerDetails | null>(null);
+  const [collectionsData, setCollectionsData] = useState<CollectionTransaction[]>([]);
+  const [loansData, setLoansData] = useState<DisbursedLoan[]>([]);
+  const [creditOfficerStatistics, setCreditOfficerStatistics] = useState<StatSection[]>([]);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   // Delete modal state
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -35,39 +75,126 @@ export default function CreditOfficerDetailsPage({ params }: { params: Promise<{
 
   // Edit modal state
   const [editCollectionModalOpen, setEditCollectionModalOpen] = useState(false);
-  const [selectedCollection, setSelectedCollection] = useState<typeof collectionsData[0] | null>(null);
+  const [selectedCollection, setSelectedCollection] = useState<CollectionTransaction | null>(null);
   const [editLoanModalOpen, setEditLoanModalOpen] = useState(false);
-  const [selectedLoan, setSelectedLoan] = useState<typeof loansData[0] | null>(null);
+  const [selectedLoan, setSelectedLoan] = useState<DisbursedLoan | null>(null);
 
-  // Generate credit officer details, collections, and loans
-  const creditOfficer = generateCreditOfficerDetails(id);
-  const collectionsData = generateCollectionTransactions(id, 50);
-  const loansData = generateDisbursedLoans(id, 50);
+  // Transform User to CreditOfficerDetails
+  const transformUserToCreditOfficerDetails = (user: User): CreditOfficerDetails => ({
+    id: user.id,
+    name: `${user.firstName} ${user.lastName}`,
+    coId: user.id.slice(-5), // Use last 5 chars of ID
+    dateJoined: new Date(user.createdAt).toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: '2-digit' 
+    }),
+    email: user.email,
+    phone: user.mobileNumber,
+    gender: 'Not specified' // This field might not be available in the API
+  });
 
-  // Sample statistics data
-  const creditOfficerStatistics: StatSection[] = [
-    {
-      label: 'All Customers',
-      value: 42094,
-      change: 6,
-    },
-    {
-      label: 'Active loans',
-      value: 15350,
-      change: 6,
-    },
-    {
-      label: 'Loans Processed',
-      value: 28350,
-      change: -26,
-    },
-    {
-      label: 'Loan Amount',
-      value: 50350.00,
-      change: 40,
-      isCurrency: true
-    },
-  ];
+  // Transform Transaction to CollectionTransaction
+  const transformTransactionToCollection = (transaction: Transaction, customerName: string): CollectionTransaction => ({
+    id: transaction.id,
+    transactionId: transaction.id.slice(-8).toUpperCase(),
+    customerName,
+    amount: transaction.amount,
+    status: transaction.status === 'approved' ? 'Approved' : 
+            transaction.status === 'rejected' ? 'Rejected' : 'Pending',
+    date: new Date(transaction.createdAt).toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: '2-digit' 
+    }),
+    type: transaction.type === 'deposit' ? 'Deposit' : 
+          transaction.type === 'withdrawal' ? 'Withdrawal' : 'Loan Coverage'
+  });
+
+  // Transform Loan to DisbursedLoan
+  const transformLoanToDisbursed = (loan: Loan, customerName: string): DisbursedLoan => ({
+    id: loan.id,
+    loanId: loan.id.slice(-8).toUpperCase(),
+    customerName,
+    amount: loan.amount,
+    status: loan.status === 'active' ? 'Active' : 
+            loan.status === 'completed' ? 'Completed' : 'Defaulted',
+    disbursementDate: loan.disbursementDate ? new Date(loan.disbursementDate).toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: '2-digit' 
+    }) : 'N/A',
+    nextPaymentDate: loan.nextRepaymentDate ? new Date(loan.nextRepaymentDate).toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: '2-digit' 
+    }) : 'N/A'
+  });
+
+  // Fetch credit officer data
+  const fetchCreditOfficerData = async () => {
+    try {
+      setIsLoading(true);
+      setApiError(null);
+
+      // Fetch credit officer details
+      const user = await userService.getUserById(id);
+      if (user.role !== 'credit_officer') {
+        throw new Error('User is not a credit officer');
+      }
+
+      const officerDetails = transformUserToCreditOfficerDetails(user);
+      setCreditOfficer(officerDetails);
+
+      // For now, we'll use placeholder data for collections and loans
+      // since we don't have specific endpoints to get credit officer's managed transactions
+      // In a real implementation, you would have endpoints like:
+      // - GET /admin/credit-officers/{id}/collections
+      // - GET /admin/credit-officers/{id}/loans
+
+      // Placeholder statistics
+      const stats: StatSection[] = [
+        {
+          label: 'All Customers',
+          value: 0, // Would come from API
+          change: 0,
+        },
+        {
+          label: 'Active loans',
+          value: 0, // Would come from API
+          change: 0,
+        },
+        {
+          label: 'Loans Processed',
+          value: 0, // Would come from API
+          change: 0,
+        },
+        {
+          label: 'Loan Amount',
+          value: 0, // Would come from API
+          change: 0,
+          isCurrency: true
+        },
+      ];
+      setCreditOfficerStatistics(stats);
+
+      // Set empty arrays for now - in real implementation these would be populated from API
+      setCollectionsData([]);
+      setLoansData([]);
+
+    } catch (err) {
+      console.error('Failed to fetch credit officer data:', err);
+      setApiError(err instanceof Error ? err.message : 'Failed to load credit officer data');
+      error('Failed to load credit officer data. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Load initial data
+  useEffect(() => {
+    fetchCreditOfficerData();
+  }, [id]);
 
   const handleTabChange = (tab: 'collections' | 'loans-disbursed') => {
     setActiveTab(tab);
@@ -89,11 +216,26 @@ export default function CreditOfficerDetailsPage({ params }: { params: Promise<{
     }
   };
 
-  const handleCollectionSave = (updatedCollection: typeof collectionsData[0]) => {
-    console.log('Saving collection:', updatedCollection);
-    // TODO: Implement actual save API call
-    // Example: await updateCollection(updatedCollection);
-    success(`Collection ${updatedCollection.transactionId} updated successfully!`);
+  const handleCollectionSave = async (updatedCollection: CollectionTransaction) => {
+    try {
+      setIsLoading(true);
+      
+      // In a real implementation, you would update the transaction via API
+      // For now, we'll just show success message
+      console.log('Saving collection:', updatedCollection);
+      
+      success(`Collection ${updatedCollection.transactionId} updated successfully!`);
+      setEditCollectionModalOpen(false);
+      setSelectedCollection(null);
+      
+      // Refresh data
+      await fetchCreditOfficerData();
+    } catch (err) {
+      console.error('Failed to update collection:', err);
+      error('Failed to update collection. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleCollectionDelete = (collectionId: string) => {
@@ -112,11 +254,26 @@ export default function CreditOfficerDetailsPage({ params }: { params: Promise<{
     }
   };
 
-  const handleLoanSave = (updatedLoan: typeof loansData[0]) => {
-    console.log('Saving loan:', updatedLoan);
-    // TODO: Implement actual save API call
-    // Example: await updateLoan(updatedLoan);
-    success(`Loan ${updatedLoan.loanId} updated successfully!`);
+  const handleLoanSave = async (updatedLoan: DisbursedLoan) => {
+    try {
+      setIsLoading(true);
+      
+      // In a real implementation, you would update the loan via API
+      // For now, we'll just show success message
+      console.log('Saving loan:', updatedLoan);
+      
+      success(`Loan ${updatedLoan.loanId} updated successfully!`);
+      setEditLoanModalOpen(false);
+      setSelectedLoan(null);
+      
+      // Refresh data
+      await fetchCreditOfficerData();
+    } catch (err) {
+      console.error('Failed to update loan:', err);
+      error('Failed to update loan. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleLoanDelete = (loanId: string) => {
@@ -127,15 +284,26 @@ export default function CreditOfficerDetailsPage({ params }: { params: Promise<{
     }
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (itemToDelete) {
-      console.log(`Deleting ${itemToDelete.type}:`, itemToDelete.id);
-      // TODO: Implement actual delete API call
-      // Example: await deleteItem(itemToDelete.id, itemToDelete.type);
-      
-      // Show success notification
-      success(`${itemToDelete.type} "${itemToDelete.name}" deleted successfully!`);
-      setItemToDelete(null);
+      try {
+        setIsLoading(true);
+        
+        // In a real implementation, you would delete via API
+        console.log(`Deleting ${itemToDelete.type}:`, itemToDelete.id);
+        
+        success(`${itemToDelete.type} "${itemToDelete.name}" deleted successfully!`);
+        setDeleteModalOpen(false);
+        setItemToDelete(null);
+        
+        // Refresh data
+        await fetchCreditOfficerData();
+      } catch (err) {
+        console.error(`Failed to delete ${itemToDelete.type}:`, err);
+        error(`Failed to delete ${itemToDelete.type}. Please try again.`);
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -198,16 +366,29 @@ export default function CreditOfficerDetailsPage({ params }: { params: Promise<{
 
             {/* Credit Officer Info Card */}
             <div className="w-full max-w-[1091px]" style={{ marginBottom: '48px' }}>
-              <CreditOfficerInfoCard
-                fields={[
-                  { label: 'Name', value: creditOfficer.name },
-                  { label: 'CO ID', value: creditOfficer.coId },
-                  { label: 'Date Joined', value: creditOfficer.dateJoined },
-                  { label: 'Email address', value: creditOfficer.email },
-                  { label: 'Phone number', value: creditOfficer.phone },
-                  { label: 'Gender', value: creditOfficer.gender }
-                ]}
-              />
+              {isLoading || !creditOfficer ? (
+                <div className="bg-white rounded-lg p-6 border border-gray-200">
+                  <div className="animate-pulse">
+                    <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
+                    <div className="space-y-3">
+                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                      <div className="h-3 bg-gray-200 rounded w-1/3"></div>
+                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <CreditOfficerInfoCard
+                  fields={[
+                    { label: 'Name', value: creditOfficer.name },
+                    { label: 'CO ID', value: creditOfficer.coId },
+                    { label: 'Date Joined', value: creditOfficer.dateJoined },
+                    { label: 'Email address', value: creditOfficer.email },
+                    { label: 'Phone number', value: creditOfficer.phone },
+                    { label: 'Gender', value: creditOfficer.gender }
+                  ]}
+                />
+              )}
             </div>
 
             {/* Statistics Card */}

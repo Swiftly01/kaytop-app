@@ -1,43 +1,151 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import FilterControls from '@/app/_components/ui/FilterControls';
 import { StatisticsCard, StatSection } from '@/app/_components/ui/StatisticsCard';
 import CustomersTable from '@/app/_components/ui/CustomersTable';
 import EditCustomerModal from '@/app/_components/ui/EditCustomerModal';
+import CustomersAdvancedFiltersModal, { CustomerAdvancedFilters } from '@/app/_components/ui/CustomersAdvancedFiltersModal';
 import { ToastContainer } from '@/app/_components/ui/ToastContainer';
 import { useToast } from '@/app/hooks/useToast';
 import Pagination from '@/app/_components/ui/Pagination';
-import { generateCustomers, Customer } from '@/lib/customerDataGenerator';
+import { StatisticsCardSkeleton, TableSkeleton } from '@/app/_components/ui/Skeleton';
+import { userService } from '@/lib/services/users';
+import { dashboardService } from '@/lib/services/dashboard';
+import type { User } from '@/lib/api/types';
 import { DateRange } from 'react-day-picker';
 
 type TimePeriod = '12months' | '30days' | '7days' | '24hours' | null;
 
-// Customer statistics data
-const customerStatistics: StatSection[] = [
-  {
-    label: 'Total Customers',
-    value: 42094,
-    change: 6,
-  },
-  {
-    label: 'Active Loans',
-    value: 15350,
-    change: 6,
-  },
-];
+interface Customer {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  status: 'Active' | 'Inactive' | 'Pending';
+  loanStatus: 'Active' | 'Completed' | 'No Loan' | 'Defaulted';
+  branch: string;
+  creditOfficer: string;
+  registrationDate: string;
+  loanAmount: number;
+  region: string;
+}
+
+// Transform User to Customer format
+const transformUserToCustomer = (user: User): Customer => ({
+  id: user.id,
+  name: `${user.firstName} ${user.lastName}`,
+  email: user.email,
+  phone: user.mobileNumber,
+  status: user.verificationStatus === 'verified' ? 'Active' : 
+          user.verificationStatus === 'pending' ? 'Pending' : 'Inactive',
+  loanStatus: 'No Loan', // This would come from loan data in a real implementation
+  branch: user.branch || 'N/A',
+  creditOfficer: 'N/A', // This would come from assignment data
+  registrationDate: new Date(user.createdAt).toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'short', 
+    day: '2-digit' 
+  }),
+  loanAmount: 0, // This would come from loan data
+  region: user.state || 'N/A'
+});
 
 export default function CustomersPage() {
-  const { toasts, removeToast, success } = useToast();
+  const { toasts, removeToast, success, error } = useToast();
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('12months');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [customers, setCustomers] = useState<Customer[]>(() => generateCustomers(100));
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState<CustomerAdvancedFilters>({
+    status: '',
+    loanStatus: '',
+    branch: '',
+    creditOfficer: '',
+    registrationDateFrom: '',
+    registrationDateTo: '',
+    loanAmountMin: '',
+    loanAmountMax: '',
+    region: '',
+  });
+
+  // API data state
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customerStatistics, setCustomerStatistics] = useState<StatSection[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [totalCustomers, setTotalCustomers] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
 
   const itemsPerPage = 10;
+
+  // Fetch customers data from API
+  const fetchCustomersData = async (page: number = 1, filters?: CustomerAdvancedFilters) => {
+    try {
+      setIsLoading(true);
+      setApiError(null);
+
+      // Build filter parameters for API call
+      const filterParams: any = {
+        role: 'customer',
+        page,
+        limit: itemsPerPage,
+      };
+
+      if (filters?.branch) {
+        filterParams.branch = filters.branch;
+      }
+
+      if (filters?.region) {
+        filterParams.state = filters.region;
+      }
+
+      // Fetch customers with pagination
+      const customersResponse = await userService.getAllUsers(filterParams);
+      const transformedCustomers = customersResponse.data.map(transformUserToCustomer);
+      setCustomers(transformedCustomers);
+      setTotalCustomers(customersResponse.pagination.total);
+      setTotalPages(customersResponse.pagination.totalPages);
+
+      // Fetch dashboard statistics for customers count
+      const dashboardData = await dashboardService.getKPIs();
+      const stats: StatSection[] = [
+        {
+          label: 'Total Customers',
+          value: dashboardData.customers.value,
+          change: dashboardData.customers.change,
+        },
+        {
+          label: 'Active Loans',
+          value: dashboardData.activeLoans.value,
+          change: dashboardData.activeLoans.change,
+        },
+      ];
+      setCustomerStatistics(stats);
+
+    } catch (err) {
+      console.error('Failed to fetch customers data:', err);
+      setApiError(err instanceof Error ? err.message : 'Failed to load customers data');
+      error('Failed to load customers data. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Load initial data
+  useEffect(() => {
+    fetchCustomersData(1, advancedFilters);
+  }, []);
+
+  // Refetch when page changes
+  useEffect(() => {
+    if (!isLoading) {
+      fetchCustomersData(currentPage, advancedFilters);
+    }
+  }, [currentPage]);
 
   const handlePeriodChange = (period: TimePeriod) => {
     setSelectedPeriod(period);
@@ -52,8 +160,18 @@ export default function CustomersPage() {
   };
 
   const handleFilterClick = () => {
-    console.log('Filters clicked');
-    // TODO: Open advanced filters modal
+    setShowAdvancedFilters(true);
+  };
+
+  const handleAdvancedFiltersApply = async (filters: CustomerAdvancedFilters) => {
+    setAdvancedFilters(filters);
+    setCurrentPage(1); // Reset to first page when applying filters
+    await fetchCustomersData(1, filters);
+    success('Advanced filters applied successfully!');
+  };
+
+  const handleAdvancedFiltersClose = () => {
+    setShowAdvancedFilters(false);
   };
 
   const handleSelectionChange = (selectedIds: string[]) => {
@@ -69,21 +187,39 @@ export default function CustomersPage() {
     }
   };
 
-  const handleSaveCustomer = (updatedCustomer: Customer) => {
-    setCustomers(prevCustomers =>
-      prevCustomers.map(c => c.id === updatedCustomer.id ? updatedCustomer : c)
-    );
-    success(`Customer "${updatedCustomer.name}" updated successfully!`);
+  const handleSaveCustomer = async (updatedCustomer: Customer) => {
+    try {
+      setIsLoading(true);
+      
+      // Transform Customer back to User format for API
+      const updateData = {
+        firstName: updatedCustomer.name.split(' ')[0],
+        lastName: updatedCustomer.name.split(' ').slice(1).join(' '),
+        email: updatedCustomer.email,
+        mobileNumber: updatedCustomer.phone,
+        branch: updatedCustomer.branch,
+        state: updatedCustomer.region,
+      };
+
+      await userService.updateUser(updatedCustomer.id, updateData);
+      
+      // Refresh the data
+      await fetchCustomersData(currentPage, advancedFilters);
+      
+      success(`Customer "${updatedCustomer.name}" updated successfully!`);
+      setEditModalOpen(false);
+      setSelectedCustomer(null);
+    } catch (err) {
+      console.error('Failed to update customer:', err);
+      error('Failed to update customer. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // Pagination
-  const totalPages = Math.ceil(customers.length / itemsPerPage);
+  // Pagination info (server-side pagination)
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedCustomers = useMemo(() => 
-    customers.slice(startIndex, endIndex),
-    [customers, startIndex, endIndex]
-  );
+  const endIndex = Math.min(startIndex + itemsPerPage, totalCustomers);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -138,6 +274,50 @@ export default function CustomersPage() {
                 onDateRangeChange={handleDateRangeChange}
                 onFilter={handleFilterClick}
               />
+              
+              {/* Active Filters Indicator */}
+              {Object.values(advancedFilters).some(value => value !== '') && (
+                <div className="mt-4 flex items-center gap-2">
+                  <span className="text-sm text-[#475467]">Active filters:</span>
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(advancedFilters).map(([key, value]) => {
+                      if (!value) return null;
+                      const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                      return (
+                        <span
+                          key={key}
+                          className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-[#F9F5FF] text-[#7F56D9] border border-[#E9D7FE]"
+                        >
+                          {label}: {value}
+                          <button
+                            onClick={() => setAdvancedFilters(prev => ({ ...prev, [key]: '' }))}
+                            className="ml-1 text-[#7F56D9] hover:text-[#6941C6]"
+                            aria-label={`Remove ${label} filter`}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      );
+                    })}
+                    <button
+                      onClick={() => setAdvancedFilters({
+                        status: '',
+                        loanStatus: '',
+                        branch: '',
+                        creditOfficer: '',
+                        registrationDateFrom: '',
+                        registrationDateTo: '',
+                        loanAmountMin: '',
+                        loanAmountMax: '',
+                        region: '',
+                      })}
+                      className="text-xs text-[#667085] hover:text-[#344054] underline"
+                    >
+                      Clear all
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Statistics Card */}
@@ -148,7 +328,11 @@ export default function CustomersPage() {
                 marginBottom: '48px'
               }}
             >
-              <StatisticsCard sections={customerStatistics} />
+              {isLoading ? (
+                <StatisticsCardSkeleton />
+              ) : (
+                <StatisticsCard sections={customerStatistics} />
+              )}
             </div>
 
             {/* Customers Section Title */}
@@ -170,27 +354,33 @@ export default function CustomersPage() {
 
             {/* Customers Table */}
             <div className="max-w-[1075px]">
-              <CustomersTable
-                customers={paginatedCustomers}
-                selectedCustomers={selectedCustomers}
-                onSelectionChange={handleSelectionChange}
-                onEdit={handleEdit}
-              />
+              {isLoading ? (
+                <TableSkeleton rows={itemsPerPage} />
+              ) : (
+                <>
+                  <CustomersTable
+                    customers={customers}
+                    selectedCustomers={selectedCustomers}
+                    onSelectionChange={handleSelectionChange}
+                    onEdit={handleEdit}
+                  />
 
-              {/* Pagination Controls */}
-              <div className="mt-4 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-[#475467]">
-                    Showing {startIndex + 1}-{Math.min(endIndex, customers.length)} of {customers.length} results
-                  </span>
-                </div>
+                  {/* Pagination Controls */}
+                  <div className="mt-4 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-[#475467]">
+                        Showing {startIndex + 1}-{endIndex} of {totalCustomers} results
+                      </span>
+                    </div>
 
-                <Pagination
-                  totalPages={totalPages}
-                  currentPage={currentPage}
-                  onPageChange={handlePageChange}
-                />
-              </div>
+                    <Pagination
+                      totalPages={totalPages}
+                      currentPage={currentPage}
+                      onPageChange={handlePageChange}
+                    />
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -202,6 +392,14 @@ export default function CustomersPage() {
         onClose={() => setEditModalOpen(false)}
         onSave={handleSaveCustomer}
         customer={selectedCustomer}
+      />
+
+      {/* Advanced Filters Modal */}
+      <CustomersAdvancedFiltersModal
+        isOpen={showAdvancedFilters}
+        onClose={handleAdvancedFiltersClose}
+        onApply={handleAdvancedFiltersApply}
+        currentFilters={advancedFilters}
       />
 
       {/* Toast Notifications */}
