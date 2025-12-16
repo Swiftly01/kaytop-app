@@ -10,6 +10,7 @@ export default function FilterButton({
   active = false,
   ...props
 }: ButtonProps) {
+
   
   const base =
     "px-2 py-0.5 font-medium rounded-sm cursor-pointer text-md transition-all";
@@ -23,8 +24,9 @@ export default function FilterButton({
       className={`${base} ${
         active ? activeStyles : inactiveStyles
       } ${className}`}
-    >
+    > 
       {children}
     </button>
   );
 }
+ 
