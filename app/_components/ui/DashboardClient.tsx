@@ -1,21 +1,40 @@
 "use client";
 import { useDashboard } from "@/app/dashboard/bm/useDashboard";
+import { MetricProps } from "@/app/types/dashboard";
 import { data as dashboardData } from "@/lib/utils";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import React from "react";
-import SpinnerLg from "./SpinnerLg";
+import { DateRange } from "react-day-picker";
+import Chart from "./Chart";
 import DashboardFilter from "./DashboardFilter";
+import Date from "./Date";
 import FilterButton from "./FilterButton";
 import Metric from "./Metric";
-import { MetricProps } from "@/app/types/dashboard";
-import Chart from "./Chart";
+import SpinnerLg from "./SpinnerLg";
 import Table from "./Table";
 
 const metricData: MetricProps[] = dashboardData;
 
-export default  function DashboardClient() {
-  
+export default function DashboardClient() {
   const { isLoading, error, data } = useDashboard();
   console.log(data);
+
+  const [open, setOpen] = React.useState(false);
+  const [range, setRange] = React.useState<DateRange | undefined>();
+
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  function handleClick() {
+    if (!range?.from || !range?.to) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("startDate", range.from.toISOString().split("T")[0]);
+    params.set("endDate", range.to.toISOString().split("T")[0]);
+
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
   return (
     <>
       {isLoading ? (
@@ -37,13 +56,27 @@ export default  function DashboardClient() {
               <DashboardFilter />
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              <FilterButton className="flex gap-1 px-1 py-1 bg-white rounded-sm">
-                <img src="/calendar.svg" alt="calendar" />
-                <span> Select dates</span>
-              </FilterButton>
-              <FilterButton className="flex gap-1 px-1 py-1 bg-white rounded-sm">
+              <Date
+                open={open}
+                setOpen={setOpen}
+                range={range}
+                setRange={setRange}
+              />
+              <FilterButton
+                onClick={handleClick}
+                className="flex gap-1 px-1 py-1 bg-white rounded-sm"
+              >
                 <img src="/filter.svg" alt="calendar" />
                 <span>Filter</span>
+              </FilterButton>
+              <FilterButton
+                onClick={() => {
+                  setRange(undefined);
+                  router.push(`${pathname}`);
+                }}
+                className="flex gap-1 px-1 py-1 bg-white rounded-sm"
+              >
+                <span>Reset</span>
               </FilterButton>
             </div>
           </div>
