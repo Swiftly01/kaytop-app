@@ -1,10 +1,18 @@
 /**
- * Authentication Service
- * Handles login, logout, token management, and authentication state
+ * Enhanced Authentication Service
+ * Handles unified login, logout, token management, and authentication state
+ * Supports role detection and role-based routing
  */
 
 import { apiClient } from '../api/client';
 import { API_ENDPOINTS } from '../api/config';
+import { 
+  detectUserRole, 
+  createUserProfile, 
+  getDefaultDashboard,
+  validateRoleAccess,
+  UserRole 
+} from '../utils/roleUtils';
 import type {
   LoginCredentials,
   AuthResponse,
@@ -17,6 +25,7 @@ import type {
 
 export interface AuthService {
   login(credentials: LoginCredentials): Promise<AuthResponse>;
+  loginUnified(credentials: LoginCredentials): Promise<AuthResponse>;
   logout(): Promise<void>;
   forgotPassword(email: string): Promise<void>;
   resetPassword(data: ResetPasswordData): Promise<void>;
@@ -27,11 +36,68 @@ export interface AuthService {
   getToken(): string | null;
   sendOTP(data: OTPSendData): Promise<void>;
   verifyOTP(data: OTPVerifyData): Promise<void>;
+  detectUserRole(credentials: LoginCredentials): Promise<UserRole>;
+  getDefaultDashboard(role: UserRole): string;
+  validateRoleAccess(role: UserRole, path: string): boolean;
 }
 
 class AuthenticationService implements AuthService {
   private readonly TOKEN_KEY = 'auth-token';
   private readonly USER_KEY = 'auth-user';
+
+  async loginUnified(credentials: LoginCredentials): Promise<AuthResponse> {
+    try {
+      const response = await apiClient.post<any>(
+        API_ENDPOINTS.AUTH.LOGIN,
+        credentials
+      );
+
+      // Backend returns direct format: { access_token: "jwt...", role: "system_admin" }
+      const responseData = response as any;
+
+      // Extract token from the direct response format
+      const token = responseData.access_token || responseData.token || responseData.accessToken;
+      
+      if (!token) {
+        console.error('No token found in response. Full response:', JSON.stringify(responseData, null, 2));
+        throw new Error('No authentication token received from server');
+      }
+
+      // Detect user role from response
+      const role = detectUserRole(responseData);
+      
+      // Create user profile with detected role
+      const user = createUserProfile(responseData, credentials);
+
+      const authData: AuthResponse = { token, user };
+
+      if (!authData || !authData.token) {
+        throw new Error('No authentication token received');
+      }
+
+      // Store token and user data
+      this.setToken(authData.token);
+      if (authData.user) {
+        this.setUser(authData.user);
+      }
+      
+      // Ensure cookies are set synchronously
+      if (typeof window !== 'undefined') {
+        const { setAuthCookies } = require('../authCookies');
+        setAuthCookies(authData.token, authData.user.role);
+      }
+      
+      // Add a small delay to ensure cookies are fully processed
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      return authData;
+    } catch (error) {
+      console.error('Unified login error details:', error);
+      // Clear any existing auth data on login failure
+      this.clearAuthData();
+      throw error;
+    }
+  }
 
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     try {
@@ -235,6 +301,7 @@ class AuthenticationService implements AuthService {
       const { setAuthCookies } = require('../authCookies');
       const token = localStorage.getItem(this.TOKEN_KEY);
       if (token && user.role) {
+        console.log('🔍 Setting auth cookies with token and role:', { hasToken: !!token, role: user.role });
         setAuthCookies(token, user.role);
       }
     }
@@ -249,6 +316,21 @@ class AuthenticationService implements AuthService {
       const { removeAuthCookies } = require('../authCookies');
       removeAuthCookies();
     }
+  }
+
+  async detectUserRole(credentials: LoginCredentials): Promise<UserRole> {
+    // This method would typically be used to detect role before login
+    // For now, we'll use the unified login which handles role detection
+    const authResponse = await this.loginUnified(credentials);
+    return authResponse.user.role as UserRole;
+  }
+
+  getDefaultDashboard(role: UserRole): string {
+    return getDefaultDashboard(role);
+  }
+
+  validateRoleAccess(role: UserRole, path: string): boolean {
+    return validateRoleAccess(role, path);
   }
 
   private parseJWTPayload(token: string): any {

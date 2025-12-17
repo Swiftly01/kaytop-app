@@ -1,0 +1,23 @@
+{
+  "workspace_id": "28542185-d0cd-44e4-8eec-f9d0d965d0b3",
+  "collection_id": "2b260fff-e267-4fca-9d75-b25c123b2e59",
+  "collection_uid": "50645954-2b260fff-e267-4fca-9d75-b25c123b2e59",
+  "environment_id": "882436f4-1117-4eb5-b0a4-876fd173fc8e",
+  "environment_uid": "50645954-882436f4-1117-4eb5-b0a4-876fd173fc8e",
+  "base_url": "https://kaytop-production.up.railway.app",
+  "created_at": "2024-12-17T10:30:00Z",
+  "description": "Postman collection for testing Kaytop API endpoints with focus on authentication system",
+  "test_results": {
+    "last_run": "2024-12-17T10:30:00Z",
+    "total_tests": 7,
+    "passed": 1,
+    "failed": 6,
+    "success_rate": "14.3%",
+    "issues_found": [
+      "All authentication endpoints returning 401 Unauthorized",
+      "Login endpoint not accepting credentials",
+      "Dashboard and profile endpoints require authentication",
+      "API may not be properly deployed or configured"
+    ]
+  }
+}

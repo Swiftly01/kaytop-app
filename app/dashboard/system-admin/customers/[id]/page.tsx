@@ -177,7 +177,7 @@ export default function CustomerDetailsPage({ params }: PageProps) {
       // Fetch user details
       const user = await userService.getUserById(id);
       if (user.role !== 'customer') {
-        throw new Error('User is not a customer');
+        throw new Error(`User is not a customer. Found role: "${user.role}". Expected role: "customer". This user appears to be a ${user.role.replace('_', ' ')}.`);
       }
 
       // Fetch customer loans

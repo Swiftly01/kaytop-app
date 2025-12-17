@@ -8,6 +8,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { authService } from '../../lib/services/auth';
+import { getDefaultDashboard, validateRoleAccess, UserRole } from '../../lib/utils/roleUtils';
 import type { LoginCredentials, AdminProfile, AuthResponse } from '../../lib/api/types';
 
 export interface AuthContextType {
@@ -16,9 +17,12 @@ export interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
+  loginUnified: (credentials: LoginCredentials) => Promise<void>;
   logout: () => void;
   refreshToken: () => Promise<void>;
   updateUser: (user: AdminProfile) => void;
+  getDefaultRoute: () => string;
+  canAccessRoute: (path: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -84,6 +88,38 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  const loginUnified = async (credentials: LoginCredentials): Promise<void> => {
+    setIsLoading(true);
+    try {
+      const authResponse: AuthResponse = await authService.loginUnified(credentials);
+      
+      setToken(authResponse.token);
+      setUser(authResponse.user);
+      
+      // Use role-based routing for unified login
+      const userRole = authResponse.user.role as UserRole;
+      const defaultDashboard = getDefaultDashboard(userRole);
+      
+      // Wait for cookies to be set properly
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Force a hard redirect to ensure middleware processes the request
+      if (typeof window !== 'undefined') {
+        window.location.href = defaultDashboard;
+      } else {
+        router.push(defaultDashboard);
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      // Clear any partial auth state
+      setToken(null);
+      setUser(null);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const logout = (): void => {
     setIsLoading(true);
     try {
@@ -91,14 +127,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setToken(null);
       setUser(null);
       
-      // Redirect to login page
-      router.push('/auth/system-admin/login');
+      // Redirect to unified login page
+      router.push('/auth/login');
     } catch (error) {
       console.error('Error during logout:', error);
       // Still clear local state even if service call fails
       setToken(null);
       setUser(null);
-      router.push('/auth/system-admin/login');
+      router.push('/auth/login');
     } finally {
       setIsLoading(false);
     }
@@ -125,6 +161,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  const getDefaultRoute = (): string => {
+    if (user && user.role) {
+      return getDefaultDashboard(user.role as UserRole);
+    }
+    return '/dashboard/system-admin';
+  };
+
+  const canAccessRoute = (path: string): boolean => {
+    if (user && user.role) {
+      return validateRoleAccess(user.role as UserRole, path);
+    }
+    return false;
+  };
+
   const isAuthenticated = Boolean(token && user && authService.isAuthenticated());
 
   const contextValue: AuthContextType = {
@@ -133,9 +183,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     isLoading,
     isAuthenticated,
     login,
+    loginUnified,
     logout,
     refreshToken,
     updateUser,
+    getDefaultRoute,
+    canAccessRoute,
   };
 
   return (
@@ -163,7 +216,7 @@ export function withAuth<P extends object>(
 
     useEffect(() => {
       if (!isLoading && !isAuthenticated) {
-        router.push('/auth/system-admin/login');
+        router.push('/auth/login');
       }
     }, [isAuthenticated, isLoading, router]);
 

@@ -9,21 +9,22 @@ import { useEffect, ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { LoadingSpinner } from '../_components/ui/LoadingSpinner';
+import { UserRole, validateRoleAccess, getDefaultDashboard } from '../../lib/utils/roleUtils';
 
 interface AuthGuardProps {
   children: ReactNode;
   requireAuth?: boolean;
   redirectTo?: string;
-  allowedRoles?: string[];
+  allowedRoles?: UserRole[];
 }
 
 export default function AuthGuard({
   children,
   requireAuth = true,
-  redirectTo = '/auth/system-admin/login',
+  redirectTo = '/auth/login',
   allowedRoles = [],
 }: AuthGuardProps) {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading, user, canAccessRoute, getDefaultRoute } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -42,23 +43,42 @@ export default function AuthGuard({
       return;
     }
 
-    if (requireAuth && isAuthenticated && allowedRoles.length > 0) {
-      // Check if user has required role
-      if (user && !allowedRoles.includes(user.role)) {
-        // Redirect to unauthorized page or dashboard
-        if (pathname !== '/dashboard/system-admin') {
-          router.push('/dashboard/system-admin');
+    if (requireAuth && isAuthenticated && user) {
+      const userRole = user.role as UserRole;
+      
+      // Check role-based access using utility functions
+      if (allowedRoles.length > 0) {
+        // Check if user has one of the allowed roles
+        if (!allowedRoles.includes(userRole)) {
+          // Redirect to user's default dashboard
+          const defaultDashboard = getDefaultDashboard(userRole);
+          if (pathname !== defaultDashboard) {
+            router.push(defaultDashboard);
+          }
+          return;
         }
-        return;
+      } else {
+        // Use general route validation if no specific roles provided
+        if (!canAccessRoute(pathname)) {
+          // Redirect to user's default dashboard
+          const defaultDashboard = getDefaultRoute();
+          if (pathname !== defaultDashboard) {
+            router.push(defaultDashboard);
+          }
+          return;
+        }
       }
     }
 
     // If user is authenticated and trying to access auth pages, redirect to dashboard
-    if (isAuthenticated && pathname.startsWith('/auth/') && pathname !== '/dashboard/system-admin') {
-      router.push('/dashboard/system-admin');
+    if (isAuthenticated && pathname.startsWith('/auth/') && user) {
+      const defaultDashboard = getDefaultRoute();
+      if (pathname !== defaultDashboard) {
+        router.push(defaultDashboard);
+      }
       return;
     }
-  }, [isAuthenticated, isLoading, user, requireAuth, allowedRoles, router, pathname, redirectTo]);
+  }, [isAuthenticated, isLoading, user, requireAuth, allowedRoles, router, pathname, redirectTo, canAccessRoute, getDefaultRoute]);
 
   // Show loading spinner while determining auth state
   if (isLoading) {
@@ -78,9 +98,18 @@ export default function AuthGuard({
   }
 
   // Don't render if user doesn't have required role
-  if (requireAuth && isAuthenticated && allowedRoles.length > 0) {
-    if (user && !allowedRoles.includes(user.role)) {
-      return null;
+  if (requireAuth && isAuthenticated && user) {
+    const userRole = user.role as UserRole;
+    
+    if (allowedRoles.length > 0) {
+      if (!allowedRoles.includes(userRole)) {
+        return null;
+      }
+    } else {
+      // Use general route validation if no specific roles provided
+      if (!canAccessRoute(pathname)) {
+        return null;
+      }
     }
   }
 
@@ -90,7 +119,7 @@ export default function AuthGuard({
 // Specific guards for different user types
 export function SystemAdminGuard({ children }: { children: ReactNode }) {
   return (
-    <AuthGuard allowedRoles={['system_admin']}>
+    <AuthGuard allowedRoles={[UserRole.SYSTEM_ADMIN]}>
       {children}
     </AuthGuard>
   );
@@ -98,7 +127,7 @@ export function SystemAdminGuard({ children }: { children: ReactNode }) {
 
 export function BranchManagerGuard({ children }: { children: ReactNode }) {
   return (
-    <AuthGuard allowedRoles={['system_admin', 'branch_manager']}>
+    <AuthGuard allowedRoles={[UserRole.SYSTEM_ADMIN, UserRole.BRANCH_MANAGER]}>
       {children}
     </AuthGuard>
   );
@@ -106,7 +135,15 @@ export function BranchManagerGuard({ children }: { children: ReactNode }) {
 
 export function CreditOfficerGuard({ children }: { children: ReactNode }) {
   return (
-    <AuthGuard allowedRoles={['system_admin', 'branch_manager', 'credit_officer']}>
+    <AuthGuard allowedRoles={[UserRole.SYSTEM_ADMIN, UserRole.BRANCH_MANAGER, UserRole.CREDIT_OFFICER]}>
+      {children}
+    </AuthGuard>
+  );
+}
+
+export function CustomerGuard({ children }: { children: ReactNode }) {
+  return (
+    <AuthGuard allowedRoles={[UserRole.CUSTOMER]}>
       {children}
     </AuthGuard>
   );

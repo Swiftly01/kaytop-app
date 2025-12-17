@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import FilterControls from '@/app/_components/ui/FilterControls';
 import { StatisticsCard, StatSection } from '@/app/_components/ui/StatisticsCard';
 import CustomersTable from '@/app/_components/ui/CustomersTable';
@@ -19,36 +19,27 @@ type TimePeriod = '12months' | '30days' | '7days' | '24hours' | null;
 
 interface Customer {
   id: string;
+  customerId: string;
   name: string;
+  status: 'Active' | 'Scheduled';
+  phoneNumber: string;
   email: string;
-  phone: string;
-  status: 'Active' | 'Inactive' | 'Pending';
-  loanStatus: 'Active' | 'Completed' | 'No Loan' | 'Defaulted';
-  branch: string;
-  creditOfficer: string;
-  registrationDate: string;
-  loanAmount: number;
-  region: string;
+  dateJoined: string;
 }
 
-// Transform User to Customer format
+// Transform User to Customer format (matching CustomersTable interface)
 const transformUserToCustomer = (user: User): Customer => ({
-  id: user.id,
+  id: user.id.toString(),
+  customerId: user.id.toString(),
   name: `${user.firstName} ${user.lastName}`,
   email: user.email,
-  phone: user.mobileNumber,
-  status: user.verificationStatus === 'verified' ? 'Active' : 
-          user.verificationStatus === 'pending' ? 'Pending' : 'Inactive',
-  loanStatus: 'No Loan', // This would come from loan data in a real implementation
-  branch: user.branch || 'N/A',
-  creditOfficer: 'N/A', // This would come from assignment data
-  registrationDate: new Date(user.createdAt).toLocaleDateString('en-US', { 
+  phoneNumber: user.mobileNumber,
+  status: user.verificationStatus === 'verified' ? 'Active' : 'Scheduled',
+  dateJoined: new Date(user.createdAt).toLocaleDateString('en-US', { 
     year: 'numeric', 
     month: 'short', 
     day: '2-digit' 
-  }),
-  loanAmount: 0, // This would come from loan data
-  region: user.state || 'N/A'
+  })
 });
 
 export default function CustomersPage() {
@@ -82,33 +73,45 @@ export default function CustomersPage() {
 
   const itemsPerPage = 10;
 
-  // Fetch customers data from API
+  // Fetch all users and filter customers on frontend
   const fetchCustomersData = async (page: number = 1, filters?: CustomerAdvancedFilters) => {
     try {
       setIsLoading(true);
       setApiError(null);
 
-      // Build filter parameters for API call
-      const filterParams: any = {
-        role: 'customer',
-        page,
-        limit: itemsPerPage,
-      };
-
-      if (filters?.branch) {
-        filterParams.branch = filters.branch;
+      // Fetch all users without role filter - let backend return all users
+      const allUsersResponse = await userService.getAllUsers({
+        page: 1,
+        limit: 1000, // Get all users to filter on frontend
+        ...(filters?.branch && { branch: filters.branch }),
+        ...(filters?.region && { state: filters.region }),
+      });
+      
+      // Frontend filtering: Only show users with role 'customer'
+      const customerUsers = allUsersResponse.data.filter(user => user.role === 'customer');
+      
+      // Apply additional frontend filters if needed
+      let filteredCustomers = customerUsers;
+      
+      if (filters?.status) {
+        filteredCustomers = filteredCustomers.filter(user => {
+          const status = user.verificationStatus === 'verified' ? 'Active' : 'Scheduled';
+          return status.toLowerCase() === filters.status.toLowerCase();
+        });
       }
 
-      if (filters?.region) {
-        filterParams.state = filters.region;
-      }
-
-      // Fetch customers with pagination
-      const customersResponse = await userService.getAllUsers(filterParams);
-      const transformedCustomers = customersResponse.data.map(transformUserToCustomer);
-      setCustomers(transformedCustomers);
-      setTotalCustomers(customersResponse.pagination.total);
-      setTotalPages(customersResponse.pagination.totalPages);
+      // Transform to customer format
+      const transformedCustomers = filteredCustomers.map(transformUserToCustomer);
+      
+      // Frontend pagination
+      const totalCustomers = transformedCustomers.length;
+      const totalPages = Math.ceil(totalCustomers / itemsPerPage);
+      const startIndex = (page - 1) * itemsPerPage;
+      const paginatedCustomers = transformedCustomers.slice(startIndex, startIndex + itemsPerPage);
+      
+      setCustomers(paginatedCustomers);
+      setTotalCustomers(totalCustomers);
+      setTotalPages(totalPages);
 
       // Fetch dashboard statistics for customers count
       const dashboardData = await dashboardService.getKPIs();
@@ -149,13 +152,11 @@ export default function CustomersPage() {
 
   const handlePeriodChange = (period: TimePeriod) => {
     setSelectedPeriod(period);
-    console.log('Time period changed:', period);
     // TODO: Filter data based on period
   };
 
   const handleDateRangeChange = (range: DateRange | undefined) => {
     setDateRange(range);
-    console.log('Date range changed:', range);
     // TODO: Filter data based on date range
   };
 
@@ -176,7 +177,6 @@ export default function CustomersPage() {
 
   const handleSelectionChange = (selectedIds: string[]) => {
     setSelectedCustomers(selectedIds);
-    console.log('Selected customers:', selectedIds);
   };
 
   const handleEdit = (customerId: string) => {
@@ -196,9 +196,7 @@ export default function CustomersPage() {
         firstName: updatedCustomer.name.split(' ')[0],
         lastName: updatedCustomer.name.split(' ').slice(1).join(' '),
         email: updatedCustomer.email,
-        mobileNumber: updatedCustomer.phone,
-        branch: updatedCustomer.branch,
-        state: updatedCustomer.region,
+        mobileNumber: updatedCustomer.phoneNumber,
       };
 
       await userService.updateUser(updatedCustomer.id, updateData);
@@ -290,7 +288,12 @@ export default function CustomersPage() {
                         >
                           {label}: {value}
                           <button
-                            onClick={() => setAdvancedFilters(prev => ({ ...prev, [key]: '' }))}
+                            onClick={async () => {
+                              const updatedFilters = { ...advancedFilters, [key]: '' };
+                              setAdvancedFilters(updatedFilters);
+                              setCurrentPage(1);
+                              await fetchCustomersData(1, updatedFilters);
+                            }}
                             className="ml-1 text-[#7F56D9] hover:text-[#6941C6]"
                             aria-label={`Remove ${label} filter`}
                           >
@@ -300,17 +303,22 @@ export default function CustomersPage() {
                       );
                     })}
                     <button
-                      onClick={() => setAdvancedFilters({
-                        status: '',
-                        loanStatus: '',
-                        branch: '',
-                        creditOfficer: '',
-                        registrationDateFrom: '',
-                        registrationDateTo: '',
-                        loanAmountMin: '',
-                        loanAmountMax: '',
-                        region: '',
-                      })}
+                      onClick={async () => {
+                        const clearedFilters = {
+                          status: '',
+                          loanStatus: '',
+                          branch: '',
+                          creditOfficer: '',
+                          registrationDateFrom: '',
+                          registrationDateTo: '',
+                          loanAmountMin: '',
+                          loanAmountMax: '',
+                          region: '',
+                        };
+                        setAdvancedFilters(clearedFilters);
+                        setCurrentPage(1);
+                        await fetchCustomersData(1, clearedFilters);
+                      }}
                       className="text-xs text-[#667085] hover:text-[#344054] underline"
                     >
                       Clear all
@@ -356,6 +364,24 @@ export default function CustomersPage() {
             <div className="max-w-[1075px]">
               {isLoading ? (
                 <TableSkeleton rows={itemsPerPage} />
+              ) : apiError ? (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+                  <div className="text-red-800 font-medium mb-2">Error Loading Customers</div>
+                  <div className="text-red-700 text-sm mb-4">{apiError}</div>
+                  <button
+                    onClick={() => fetchCustomersData(currentPage, advancedFilters)}
+                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              ) : customers.length === 0 ? (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
+                  <div className="text-gray-800 font-medium mb-2">No Customers Found</div>
+                  <div className="text-gray-600 text-sm">
+                    No customers match the current filters or there are no customers in the system.
+                  </div>
+                </div>
               ) : (
                 <>
                   <CustomersTable
