@@ -52,7 +52,7 @@ export const API_ENDPOINTS = {
     MY_STAFF: '/admin/staff/my-staff',
   },
   
-  // Loans
+  // Loans (Staff endpoints)
   LOANS: {
     CREATE: (customerId: string) => `/loans/customer/${customerId}`,
     DISBURSE: (loanId: string) => `/loans/${loanId}/disburse`,
@@ -93,5 +93,32 @@ export const API_ENDPOINTS = {
   // Dashboard
   DASHBOARD: {
     KPI: '/dashboard/kpi',
+    // Note: /dashboard/loan-statistics doesn't exist, use KPI endpoint instead
+  },
+  
+  // Reports
+  REPORTS: {
+    LIST: '/reports',
+    BY_ID: (id: string) => `/reports/${id}`,
+    APPROVE: (id: string) => `/reports/${id}/approve`,
+    DECLINE: (id: string) => `/reports/${id}/decline`,
+    STATISTICS: '/reports/statistics',
+  },
+  
+  // Activity Logs
+  ACTIVITY_LOGS: {
+    LIST: '/admin/activity-logs',
+    BY_USER: (userId: string) => `/admin/activity-logs/user/${userId}`,
+  },
+  
+  // System Settings
+  SYSTEM_SETTINGS: {
+    GET: '/admin/system-settings',
+    UPDATE: '/admin/system-settings',
+  },
+  
+  // Bulk Operations (Note: /loans/bulk doesn't exist on backend)
+  BULK: {
+    USERS: '/admin/users/bulk', // This may not exist either, needs verification
   },
 } as const;

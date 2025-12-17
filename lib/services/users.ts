@@ -28,6 +28,21 @@ export interface UserService {
 }
 
 class UserAPIService implements UserService {
+  // Helper function to create paginated response structure
+  private createPaginatedResponse<T>(data: T[], total: number, params?: { page?: number; limit?: number }): PaginatedResponse<T> {
+    const page = parseInt(params?.page?.toString() || '1');
+    const limit = parseInt(params?.limit?.toString() || '1000');
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    };
+  }
+
   async getAllUsers(params?: UserFilterParams): Promise<PaginatedResponse<User>> {
     try {
       // Build query parameters
@@ -55,13 +70,26 @@ class UserAPIService implements UserService {
 
       const url = `${API_ENDPOINTS.ADMIN.USERS}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
       
-      const response = await apiClient.get<PaginatedResponse<User>>(url);
+      const response = await apiClient.get<any>(url);
 
-      if (response.success && response.data) {
-        return response.data;
+      // Backend returns direct data format, not wrapped in success/data
+      if (response && typeof response === 'object') {
+        // Check if it's wrapped in success/data format
+        if (response.success && response.data) {
+          return response.data;
+        }
+        // Check if it's direct array format (users list)
+        else if (Array.isArray(response)) {
+          // Backend returns direct array, create paginated response structure
+          return this.createPaginatedResponse(response, response.length, params);
+        }
+        // Check if it's already a paginated response object
+        else if (response.data && Array.isArray(response.data)) {
+          return response;
+        }
       }
 
-      throw new Error(response.message || 'Failed to fetch users');
+      throw new Error('Failed to fetch users - invalid response format');
     } catch (error) {
       console.error('Users fetch error:', error);
       throw error;
@@ -72,11 +100,19 @@ class UserAPIService implements UserService {
     try {
       const response = await apiClient.get<User>(API_ENDPOINTS.ADMIN.USER_BY_ID(id));
 
-      if (response.success && response.data) {
-        return response.data;
+      // Backend returns direct data format, not wrapped in success/data
+      if (response && typeof response === 'object') {
+        // Check if it's wrapped in success/data format
+        if (response.success && response.data) {
+          return response.data;
+        }
+        // Check if it's direct data format (has user fields)
+        else if (response.id || response.email || response.firstName) {
+          return response as User;
+        }
       }
 
-      throw new Error(response.message || 'Failed to fetch user');
+      throw new Error('Failed to fetch user - invalid response format');
     } catch (error) {
       console.error('User fetch error:', error);
       throw error;
@@ -87,11 +123,19 @@ class UserAPIService implements UserService {
     try {
       const response = await apiClient.get<User>(API_ENDPOINTS.ADMIN.USER_BY_EMAIL(email));
 
-      if (response.success && response.data) {
-        return response.data;
+      // Backend returns direct data format, not wrapped in success/data
+      if (response && typeof response === 'object') {
+        // Check if it's wrapped in success/data format
+        if (response.success && response.data) {
+          return response.data;
+        }
+        // Check if it's direct data format (has user fields)
+        else if (response.id || response.email || response.firstName) {
+          return response as User;
+        }
       }
 
-      throw new Error(response.message || 'Failed to fetch user');
+      throw new Error('Failed to fetch user - invalid response format');
     } catch (error) {
       console.error('User fetch by email error:', error);
       throw error;
@@ -102,11 +146,19 @@ class UserAPIService implements UserService {
     try {
       const response = await apiClient.post<User>(API_ENDPOINTS.ADMIN.CREATE_STAFF, data);
 
-      if (response.success && response.data) {
-        return response.data;
+      // Backend returns direct data format, not wrapped in success/data
+      if (response && typeof response === 'object') {
+        // Check if it's wrapped in success/data format
+        if (response.success && response.data) {
+          return response.data;
+        }
+        // Check if it's direct data format (has user fields)
+        else if (response.id || response.email || response.firstName) {
+          return response as User;
+        }
       }
 
-      throw new Error(response.message || 'Failed to create staff user');
+      throw new Error('Failed to create staff user - invalid response format');
     } catch (error) {
       console.error('Staff user creation error:', error);
       throw error;
@@ -117,11 +169,19 @@ class UserAPIService implements UserService {
     try {
       const response = await apiClient.patch<User>(API_ENDPOINTS.ADMIN.UPDATE_USER(id), data);
 
-      if (response.success && response.data) {
-        return response.data;
+      // Backend returns direct data format, not wrapped in success/data
+      if (response && typeof response === 'object') {
+        // Check if it's wrapped in success/data format
+        if (response.success && response.data) {
+          return response.data;
+        }
+        // Check if it's direct data format (has user fields)
+        else if (response.id || response.email || response.firstName) {
+          return response as User;
+        }
       }
 
-      throw new Error(response.message || 'Failed to update user');
+      throw new Error('Failed to update user - invalid response format');
     } catch (error) {
       console.error('User update error:', error);
       throw error;
@@ -132,9 +192,22 @@ class UserAPIService implements UserService {
     try {
       const response = await apiClient.delete(API_ENDPOINTS.ADMIN.DELETE_USER(id));
 
-      if (!response.success) {
-        throw new Error(response.message || 'Failed to delete user');
+      // Backend may return direct success format or wrapped format
+      if (response && typeof response === 'object') {
+        // Check if it's wrapped format with success field
+        if (response.success === false) {
+          throw new Error(response.message || 'Failed to delete user');
+        }
+        // If response exists and no explicit failure, consider it successful
+        return;
       }
+
+      // If response is truthy (not null/undefined), consider it successful
+      if (response) {
+        return;
+      }
+
+      throw new Error('Failed to delete user - no response');
     } catch (error) {
       console.error('User deletion error:', error);
       throw error;
@@ -145,11 +218,19 @@ class UserAPIService implements UserService {
     try {
       const response = await apiClient.patch<User>(API_ENDPOINTS.ADMIN.UPDATE_ROLE(id), { role });
 
-      if (response.success && response.data) {
-        return response.data;
+      // Backend returns direct data format, not wrapped in success/data
+      if (response && typeof response === 'object') {
+        // Check if it's wrapped in success/data format
+        if (response.success && response.data) {
+          return response.data;
+        }
+        // Check if it's direct data format (has user fields)
+        else if (response.id || response.email || response.firstName) {
+          return response as User;
+        }
       }
 
-      throw new Error(response.message || 'Failed to update user role');
+      throw new Error('Failed to update user role - invalid response format');
     } catch (error) {
       console.error('User role update error:', error);
       throw error;
@@ -171,13 +252,30 @@ class UserAPIService implements UserService {
 
       const url = `${API_ENDPOINTS.ADMIN.USERS_BY_BRANCH(branch)}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
       
-      const response = await apiClient.get<PaginatedResponse<User>>(url);
+      const response = await apiClient.get<any>(url);
 
-      if (response.success && response.data) {
-        return response.data;
+      // Backend returns direct data format, not wrapped in success/data
+      if (response && typeof response === 'object') {
+        // Check if it's wrapped in success/data format
+        if (response.success && response.data) {
+          return response.data;
+        }
+        // Check if it's direct array format (users list)
+        else if (Array.isArray(response)) {
+          // Backend returns direct array, create paginated response structure
+          return this.createPaginatedResponse(response, response.length, params);
+        }
+        // Check if it's already a paginated response object
+        else if (response.data && Array.isArray(response.data)) {
+          return response;
+        }
+        // Check if it has users array (branch-specific format)
+        else if (response.users && Array.isArray(response.users)) {
+          return this.createPaginatedResponse(response.users, response.total || response.users.length, params);
+        }
       }
 
-      throw new Error(response.message || 'Failed to fetch users by branch');
+      throw new Error('Failed to fetch users by branch - invalid response format');
     } catch (error) {
       console.error('Users by branch fetch error:', error);
       throw error;
@@ -199,13 +297,30 @@ class UserAPIService implements UserService {
 
       const url = `${API_ENDPOINTS.ADMIN.USERS_BY_STATE(state)}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
       
-      const response = await apiClient.get<PaginatedResponse<User>>(url);
+      const response = await apiClient.get<any>(url);
 
-      if (response.success && response.data) {
-        return response.data;
+      // Backend returns direct data format, not wrapped in success/data
+      if (response && typeof response === 'object') {
+        // Check if it's wrapped in success/data format
+        if (response.success && response.data) {
+          return response.data;
+        }
+        // Check if it's direct array format (users list)
+        else if (Array.isArray(response)) {
+          // Backend returns direct array, create paginated response structure
+          return this.createPaginatedResponse(response, response.length, params);
+        }
+        // Check if it's already a paginated response object
+        else if (response.data && Array.isArray(response.data)) {
+          return response;
+        }
+        // Check if it has users array (state-specific format)
+        else if (response.users && Array.isArray(response.users)) {
+          return this.createPaginatedResponse(response.users, response.total || response.users.length, params);
+        }
       }
 
-      throw new Error(response.message || 'Failed to fetch users by state');
+      throw new Error('Failed to fetch users by state - invalid response format');
     } catch (error) {
       console.error('Users by state fetch error:', error);
       throw error;
@@ -214,13 +329,21 @@ class UserAPIService implements UserService {
 
   async getMyStaff(): Promise<User[]> {
     try {
-      const response = await apiClient.get<User[]>(API_ENDPOINTS.ADMIN.MY_STAFF);
+      const response = await apiClient.get<any>(API_ENDPOINTS.ADMIN.MY_STAFF);
 
-      if (response.success && response.data) {
-        return response.data;
+      // Backend returns direct data format, not wrapped in success/data
+      if (response && typeof response === 'object') {
+        // Check if it's wrapped in success/data format
+        if (response.success && response.data) {
+          return response.data;
+        }
+        // Check if it's direct array format (staff list)
+        else if (Array.isArray(response)) {
+          return response;
+        }
       }
 
-      throw new Error(response.message || 'Failed to fetch staff');
+      throw new Error('Failed to fetch staff - invalid response format');
     } catch (error) {
       console.error('Staff fetch error:', error);
       throw error;

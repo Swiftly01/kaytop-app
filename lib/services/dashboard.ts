@@ -8,12 +8,14 @@ import { API_ENDPOINTS } from '../api/config';
 import type {
   DashboardParams,
   DashboardKPIs,
+  LoanStatistics,
   StatisticValue,
   BranchPerformance,
 } from '../api/types';
 
 export interface DashboardService {
   getKPIs(params?: DashboardParams): Promise<DashboardKPIs>;
+  getLoanStatistics(params?: DashboardParams): Promise<LoanStatistics>;
 }
 
 class DashboardAPIService implements DashboardService {
@@ -42,13 +44,56 @@ class DashboardAPIService implements DashboardService {
       
       const response = await apiClient.get<any>(url);
 
-      if (response.success && response.data) {
-        return this.transformDashboardData(response.data);
+      // Backend returns direct data format, not wrapped in success/data
+      if (response && typeof response === 'object') {
+        // Check if it's wrapped in success/data format
+        if (response.success && response.data) {
+          return this.transformDashboardData(response.data);
+        }
+        // Check if it's direct data format (has dashboard fields)
+        else if (response.totalLoans !== undefined || response.activeLoans !== undefined) {
+          return this.transformDashboardData(response);
+        }
       }
 
-      throw new Error(response.message || 'Failed to fetch dashboard KPIs');
+      throw new Error('Failed to fetch dashboard KPIs - invalid response format');
     } catch (error) {
       console.error('Dashboard KPI fetch error:', error);
+      throw error;
+    }
+  }
+
+  async getLoanStatistics(params: DashboardParams = {}): Promise<LoanStatistics> {
+    try {
+      const queryParams = new URLSearchParams();
+      
+      if (params.timeFilter) {
+        queryParams.append('timeFilter', params.timeFilter);
+      }
+      
+      if (params.startDate) {
+        queryParams.append('startDate', params.startDate);
+      }
+      
+      if (params.endDate) {
+        queryParams.append('endDate', params.endDate);
+      }
+      
+      if (params.branch) {
+        queryParams.append('branch', params.branch);
+      }
+
+      const url = `${API_ENDPOINTS.DASHBOARD.LOAN_STATISTICS}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      
+      const response = await apiClient.get<LoanStatistics>(url);
+
+      if (response.success && response.data) {
+        return response.data;
+      }
+
+      throw new Error(response.message || 'Failed to fetch loan statistics');
+    } catch (error) {
+      console.error('Loan statistics fetch error:', error);
       throw error;
     }
   }

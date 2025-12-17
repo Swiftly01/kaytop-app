@@ -14,7 +14,7 @@ interface LoanRecord {
   customerId: string;
   customerName: string;
   amount: number;
-  status: 'Active' | 'Completed' | 'Overdue' | 'Defaulted';
+  status: 'pending' | 'approved' | 'disbursed' | 'active' | 'completed' | 'defaulted' | 'overdue';
   nextRepaymentDate: string;
   interestRate: number;
   term: number;
@@ -53,8 +53,15 @@ function formatInterestRate(rate: number): string {
 /**
  * Format date as "Month DD, YYYY"
  */
-function formatDate(date: Date): string {
-  return date.toLocaleDateString('en-US', {
+function formatDate(date: Date | string): string {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  
+  // Check if the date is valid
+  if (isNaN(dateObj.getTime())) {
+    return 'Invalid Date';
+  }
+  
+  return dateObj.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: '2-digit'
@@ -120,14 +127,14 @@ export default function LoansTable({
                   <Checkbox
                     checked={isSelected}
                     onChange={() => onSelectLoan(loan.id)}
-                    aria-label={`Select loan ${loan.loanId}`}
+                    aria-label={`Select loan ${loan.id}`}
                   />
                 </td>
                 <td className="px-6 py-4 text-sm text-[#475467]">
-                  {formatLoanId(loan.loanId)}
+                  {formatLoanId(loan.id)}
                 </td>
                 <td className="px-6 py-4 text-sm font-medium text-[#101828]">
-                  {loan.borrowerName}
+                  {loan.customerName}
                 </td>
                 <td className="px-6 py-4">
                   <StatusBadge status={loan.status} />

@@ -30,11 +30,19 @@ class LoanAPIService implements LoanService {
         data
       );
 
-      if (response.success && response.data) {
-        return response.data;
+      // Backend returns direct data format, not wrapped in success/data
+      if (response && typeof response === 'object') {
+        // Check if it's wrapped in success/data format
+        if (response.success && response.data) {
+          return response.data;
+        }
+        // Check if it's direct data format (has loan fields)
+        else if (response.id || response.loanId || response.customerId) {
+          return response as Loan;
+        }
       }
 
-      throw new Error(response.message || 'Failed to create loan');
+      throw new Error('Failed to create loan - invalid response format');
     } catch (error) {
       console.error('Loan creation error:', error);
       throw error;
@@ -56,11 +64,19 @@ class LoanAPIService implements LoanService {
         }
       );
 
-      if (response.success && response.data) {
-        return response.data;
+      // Backend returns direct data format, not wrapped in success/data
+      if (response && typeof response === 'object') {
+        // Check if it's wrapped in success/data format
+        if (response.success && response.data) {
+          return response.data;
+        }
+        // Check if it's direct data format (has loan fields)
+        else if (response.id || response.loanId || response.customerId) {
+          return response as Loan;
+        }
       }
 
-      throw new Error(response.message || 'Failed to disburse loan');
+      throw new Error('Failed to disburse loan - invalid response format');
     } catch (error) {
       console.error('Loan disbursement error:', error);
       throw error;
@@ -84,11 +100,19 @@ class LoanAPIService implements LoanService {
         }
       );
 
-      if (response.success && response.data) {
-        return response.data;
+      // Backend returns direct data format, not wrapped in success/data
+      if (response && typeof response === 'object') {
+        // Check if it's wrapped in success/data format
+        if (response.success && response.data) {
+          return response.data;
+        }
+        // Check if it's direct data format (has repayment fields)
+        else if (response.id || response.amount || response.loanId) {
+          return response;
+        }
       }
 
-      throw new Error(response.message || 'Failed to record repayment');
+      throw new Error('Failed to record repayment - invalid response format');
     } catch (error) {
       console.error('Repayment recording error:', error);
       throw error;
@@ -101,11 +125,19 @@ class LoanAPIService implements LoanService {
         API_ENDPOINTS.LOANS.LOAN_SUMMARY(customerId)
       );
 
-      if (response.success && response.data) {
-        return response.data;
+      // Backend returns direct data format, not wrapped in success/data
+      if (response && typeof response === 'object') {
+        // Check if it's wrapped in success/data format
+        if (response.success && response.data) {
+          return response.data;
+        }
+        // Check if it's direct data format (has summary fields)
+        else if (response.totalLoans !== undefined || response.activeLoans !== undefined) {
+          return response as LoanSummary;
+        }
       }
 
-      throw new Error(response.message || 'Failed to fetch loan summary');
+      throw new Error('Failed to fetch loan summary - invalid response format');
     } catch (error) {
       console.error('Loan summary fetch error:', error);
       throw error;
@@ -118,11 +150,19 @@ class LoanAPIService implements LoanService {
         API_ENDPOINTS.LOANS.DISBURSEMENT_SUMMARY(customerId)
       );
 
-      if (response.success && response.data) {
-        return response.data;
+      // Backend returns direct data format, not wrapped in success/data
+      if (response && typeof response === 'object') {
+        // Check if it's wrapped in success/data format
+        if (response.success && response.data) {
+          return response.data;
+        }
+        // Check if it's direct data format (has disbursement fields)
+        else if (response.totalDisbursed !== undefined || response.pendingDisbursements !== undefined) {
+          return response as DisbursementSummary;
+        }
       }
 
-      throw new Error(response.message || 'Failed to fetch disbursement summary');
+      throw new Error('Failed to fetch disbursement summary - invalid response format');
     } catch (error) {
       console.error('Disbursement summary fetch error:', error);
       throw error;
@@ -131,17 +171,50 @@ class LoanAPIService implements LoanService {
 
   async getCustomerLoans(customerId: string): Promise<Loan[]> {
     try {
-      const response = await apiClient.get<Loan[]>(
+      const response = await apiClient.get<any>(
         API_ENDPOINTS.LOANS.CUSTOMER_LOANS(customerId)
       );
 
-      if (response.success && response.data) {
-        return response.data;
+      // Backend returns direct data format, not wrapped in success/data
+      if (response && typeof response === 'object') {
+        // Check if it's wrapped in success/data format
+        if (response.success && response.data) {
+          return response.data;
+        }
+        // Check if it's direct array format (loans list)
+        else if (Array.isArray(response)) {
+          return response;
+        }
       }
 
-      throw new Error(response.message || 'Failed to fetch customer loans');
+      throw new Error('Failed to fetch customer loans - invalid response format');
     } catch (error) {
       console.error('Customer loans fetch error:', error);
+      throw error;
+    }
+  }
+
+  async getLoanRepayments(loanId: string): Promise<RepaymentData[]> {
+    try {
+      const response = await apiClient.get<any>(
+        API_ENDPOINTS.LOANS.REPAYMENTS(loanId)
+      );
+
+      // Backend returns direct data format, not wrapped in success/data
+      if (response && typeof response === 'object') {
+        // Check if it's wrapped in success/data format
+        if (response.success && response.data) {
+          return response.data;
+        }
+        // Check if it's direct array format (repayments list)
+        else if (Array.isArray(response)) {
+          return response;
+        }
+      }
+
+      throw new Error('Failed to fetch loan repayments - invalid response format');
+    } catch (error) {
+      console.error('Loan repayments fetch error:', error);
       throw error;
     }
   }

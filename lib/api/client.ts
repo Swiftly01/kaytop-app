@@ -114,7 +114,36 @@ class HttpClient implements ApiClient {
         throw await this.createApiError(response);
       }
 
-      const responseData = await response.json();
+      let responseData;
+      const contentType = response.headers.get('content-type');
+      
+      if (contentType && contentType.includes('application/json')) {
+        responseData = await response.json();
+      } else {
+        // Handle non-JSON responses
+        const text = await response.text();
+        console.log('Non-JSON response received:', {
+          status: response.status,
+          contentType,
+          textLength: text.length,
+          text: text.substring(0, 200) + (text.length > 200 ? '...' : '')
+        });
+        
+        // If response is empty, this indicates a backend issue
+        if (!text || text.trim() === '') {
+          responseData = {
+            success: false,
+            data: null,
+            message: `Backend returned empty response (Status: ${response.status}). This indicates a backend deployment issue.`
+          };
+        } else {
+          responseData = {
+            success: response.ok,
+            data: text,
+            message: response.ok ? 'Success' : 'Request failed'
+          };
+        }
+      }
       
       // Execute response interceptors
       interceptorManager.executeResponseInterceptors(responseData);

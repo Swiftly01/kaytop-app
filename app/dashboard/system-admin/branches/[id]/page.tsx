@@ -21,6 +21,8 @@ import { PageSkeleton } from '@/app/_components/ui/Skeleton';
 import AssignUsersModal from '@/app/_components/ui/AssignUsersModal';
 import { userService } from '@/lib/services/users';
 import { dashboardService } from '@/lib/services/dashboard';
+import { branchService } from '@/lib/services/branches';
+import { reportsService } from '@/lib/services/reports';
 
 // TypeScript Interfaces
 interface BranchDetails {
@@ -101,6 +103,9 @@ export default function BranchDetailsPage({ params }: { params: Promise<{ id: st
         setIsLoading(true);
         setError(null);
 
+        // Fetch branch details from API
+        const branchDetails = await branchService.getBranchById(id);
+        
         // Fetch users by branch (credit officers and customers)
         const branchUsers = await userService.getUsersByBranch(id, { page: 1, limit: 100 });
         
@@ -110,64 +115,136 @@ export default function BranchDetailsPage({ params }: { params: Promise<{ id: st
         
         setCreditOfficers(officers);
         
-        // Create mock reports and missed reports for now (these would come from a reports API)
-        const mockReports = officers.map((officer, index) => ({
-          id: `report-${officer.id}-${index}`,
-          creditOfficer: `${officer.firstName} ${officer.lastName}`,
-          reportType: 'Monthly Report',
-          status: 'Submitted',
-          dateSubmitted: new Date().toISOString(),
-          branch: id
-        }));
+        // Fetch real reports data from API
+        try {
+          const reportsResponse = await reportsService.getAllReports({
+            branchId: id,
+            page: 1,
+            limit: 100
+          });
+          
+          // Transform API reports to component format
+          const apiReports = reportsResponse.data.map(report => ({
+            id: report.id,
+            reportId: report.reportId,
+            creditOfficer: report.creditOfficer,
+            creditOfficerId: report.creditOfficerId,
+            branch: report.branch,
+            branchId: report.branchId,
+            email: report.email,
+            reportType: report.reportType,
+            status: report.status,
+            dateSubmitted: report.createdAt,
+            dateSent: report.dateSent,
+            timeSent: report.timeSent,
+            loansDispursed: report.loansDispursed,
+            loansValueDispursed: report.loansValueDispursed,
+            savingsCollected: report.savingsCollected,
+            repaymentsCollected: report.repaymentsCollected,
+            createdAt: report.createdAt,
+            updatedAt: report.updatedAt
+          }));
+          
+          // Filter submitted reports and missed reports
+          const submittedReports = apiReports.filter(report => 
+            report.status === 'submitted' || report.status === 'approved' || report.status === 'declined'
+          );
+          
+          const missedReports = apiReports.filter(report => 
+            report.status === 'pending'
+          ).map(report => ({
+            ...report,
+            dueDate: report.createdAt,
+            dateDue: new Date(report.createdAt).toLocaleDateString(),
+            daysMissed: Math.max(1, Math.floor((Date.now() - new Date(report.createdAt).getTime()) / (1000 * 60 * 60 * 24))),
+            status: 'Overdue'
+          }));
+          
+          setReports(submittedReports);
+          setMissedReports(missedReports);
+          
+        } catch (reportsError) {
+          console.warn('Reports API not available, using fallback data:', reportsError);
+          
+          // Fallback: Create minimal reports based on credit officers if API fails
+          const fallbackReports = officers.slice(0, Math.min(5, officers.length)).map((officer, index) => ({
+            id: `report-${officer.id}-${index}`,
+            reportId: `RPT-${Date.now()}-${index}`,
+            creditOfficer: `${officer.firstName} ${officer.lastName}`,
+            creditOfficerId: officer.id.toString(),
+            branch: branchDetails.name,
+            branchId: id,
+            email: officer.email,
+            reportType: 'monthly' as const,
+            status: 'submitted' as const,
+            dateSubmitted: new Date().toISOString(),
+            dateSent: new Date().toLocaleDateString(),
+            timeSent: new Date().toLocaleTimeString(),
+            loansDispursed: 0,
+            loansValueDispursed: '₦0',
+            savingsCollected: '₦0',
+            repaymentsCollected: 0,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }));
+          
+          const fallbackMissedReports = officers.slice(0, Math.min(2, officers.length)).map((officer, index) => ({
+            id: `missed-${officer.id}-${index}`,
+            reportId: `MRP-${Date.now()}-${index}`,
+            creditOfficer: `${officer.firstName} ${officer.lastName}`,
+            creditOfficerId: officer.id.toString(),
+            branch: branchDetails.name,
+            branchId: id,
+            email: officer.email,
+            reportType: 'weekly' as const,
+            dueDate: new Date().toISOString(),
+            dateDue: new Date().toLocaleDateString(),
+            daysMissed: 1,
+            status: 'Overdue'
+          }));
+          
+          setReports(fallbackReports);
+          setMissedReports(fallbackMissedReports);
+        }
         
-        const mockMissedReports = officers.slice(0, 2).map((officer, index) => ({
-          id: `missed-${officer.id}-${index}`,
-          creditOfficer: `${officer.firstName} ${officer.lastName}`,
-          reportType: 'Weekly Report',
-          dueDate: new Date().toISOString(),
-          daysMissed: Math.floor(Math.random() * 7) + 1,
-          branch: id
-        }));
-        
-        setReports(mockReports);
-        setMissedReports(mockMissedReports);
-        
-        // Create branch statistics
+        // Transform branch statistics to component format
         const branchStats = {
           allCOs: {
-            value: officers.length,
-            change: 5.2,
-            changeLabel: '+5.2% this month'
+            value: branchDetails.statistics.totalCreditOfficers,
+            change: branchDetails.statistics.creditOfficersGrowth,
+            changeLabel: `${branchDetails.statistics.creditOfficersGrowth >= 0 ? '+' : ''}${branchDetails.statistics.creditOfficersGrowth}% this month`
           },
           allCustomers: {
-            value: customers.length,
-            change: 12.8,
-            changeLabel: '+12.8% this month'
+            value: branchDetails.statistics.totalCustomers,
+            change: branchDetails.statistics.customersGrowth,
+            changeLabel: `${branchDetails.statistics.customersGrowth >= 0 ? '+' : ''}${branchDetails.statistics.customersGrowth}% this month`
           },
           activeLoans: {
-            value: Math.floor(customers.length * 0.7), // Assume 70% have active loans
-            change: -2.1,
-            changeLabel: '-2.1% this month'
+            value: branchDetails.statistics.activeLoans,
+            change: branchDetails.statistics.activeLoansGrowth,
+            changeLabel: `${branchDetails.statistics.activeLoansGrowth >= 0 ? '+' : ''}${branchDetails.statistics.activeLoansGrowth}% this month`
           },
           totalDisbursed: {
-            value: customers.length * 50000, // Mock calculation
-            change: 8.5,
-            changeLabel: '+8.5% this month'
+            value: branchDetails.statistics.totalDisbursed,
+            change: branchDetails.statistics.totalDisbursedGrowth,
+            changeLabel: `${branchDetails.statistics.totalDisbursedGrowth >= 0 ? '+' : ''}${branchDetails.statistics.totalDisbursedGrowth}% this month`
           }
         };
         
         setStatistics(branchStats);
         
-        // Set branch data
+        // Set branch data (reports and missedReports are set separately above)
         setBranchData({
-          id,
-          name: `Branch ${id}`,
-          region: 'Lagos State',
-          dateCreated: new Date(),
+          id: branchDetails.id,
+          name: branchDetails.name,
+          code: branchDetails.code,
+          address: branchDetails.address,
+          region: branchDetails.region,
+          state: branchDetails.state,
+          status: branchDetails.status,
+          dateCreated: new Date(branchDetails.dateCreated),
           statistics: branchStats,
-          creditOfficers: officers,
-          reports: mockReports,
-          missedReports: mockMissedReports
+          creditOfficers: officers
         });
         
       } catch (err) {
@@ -306,17 +383,17 @@ export default function BranchDetailsPage({ params }: { params: Promise<{ id: st
   const handleViewLoanDetails = (id: string) => {
     const report = reports.find((r: any) => r.id === id);
     if (report) {
-      // Transform report data to LoanDetailsData format
+      // Transform report data to LoanDetailsData format using real report data
       const loanData: LoanDetailsData = {
         reportId: report.reportId,
-        creditOfficer: report.branchName, // Using branchName as credit officer for demo
-        branch: branchData.branchInfo.name, // Using actual branch name
-        loansDispursed: Math.floor(Math.random() * 50) + 10, // Sample data
-        loansValueDispursed: `₦${(Math.random() * 5000000 + 1000000).toLocaleString('en-NG', { maximumFractionDigits: 0 })}`,
-        savingsCollected: `₦${(Math.random() * 1000000 + 100000).toLocaleString('en-NG', { maximumFractionDigits: 0 })}`,
-        repaymentsCollected: Math.floor(Math.random() * 30) + 5,
-        dateSent: report.date,
-        timeSent: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+        creditOfficer: report.creditOfficer || 'Unknown Officer',
+        branch: branchData?.name || 'Unknown Branch',
+        loansDispursed: report.loansDispursed || 0, // Use real report data
+        loansValueDispursed: report.loansValueDispursed || '₦0',
+        savingsCollected: report.savingsCollected || '₦0',
+        repaymentsCollected: report.repaymentsCollected || 0,
+        dateSent: report.dateSent || new Date().toLocaleDateString(),
+        timeSent: report.timeSent || new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
       };
       
       setSelectedLoanData(loanData);
@@ -398,17 +475,17 @@ export default function BranchDetailsPage({ params }: { params: Promise<{ id: st
   const handleViewMissedLoanDetails = (id: string) => {
     const report = missedReports.find((r: any) => r.id === id);
     if (report) {
-      // Transform missed report data to LoanDetailsData format
+      // Transform missed report data to LoanDetailsData format using real data
       const loanData: LoanDetailsData = {
         reportId: report.reportId,
-        creditOfficer: report.branchName,
+        creditOfficer: report.creditOfficer || 'Unknown Officer',
         branch: branchData?.name || `Branch ${id}`,
-        loansDispursed: Math.floor(Math.random() * 50) + 10,
-        loansValueDispursed: `₦${(Math.random() * 5000000 + 1000000).toLocaleString('en-NG', { maximumFractionDigits: 0 })}`,
-        savingsCollected: `₦${(Math.random() * 1000000 + 100000).toLocaleString('en-NG', { maximumFractionDigits: 0 })}`,
-        repaymentsCollected: Math.floor(Math.random() * 30) + 5,
-        dateSent: report.dateDue,
-        timeSent: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+        loansDispursed: report.loansDispursed || 0, // Use real report data or default to 0
+        loansValueDispursed: report.loansValueDispursed || '₦0',
+        savingsCollected: report.savingsCollected || '₦0',
+        repaymentsCollected: report.repaymentsCollected || 0,
+        dateSent: report.dateDue || new Date().toLocaleDateString(),
+        timeSent: report.timeSent || new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
       };
       
       setSelectedLoanData(loanData);
@@ -456,9 +533,12 @@ export default function BranchDetailsPage({ params }: { params: Promise<{ id: st
 
   const branchInfoFields = branchData ? [
     { label: 'Branch Name', value: branchData.name },
-    { label: 'Branch ID', value: branchData.id },
+    { label: 'Branch Code', value: branchData.code || branchData.id },
     { label: 'Date Created', value: branchData.dateCreated.toLocaleDateString() },
-    { label: 'Region', value: branchData.region }
+    { label: 'Region', value: branchData.region },
+    { label: 'State', value: branchData.state || 'N/A' },
+    { label: 'Status', value: branchData.status || 'Active' },
+    { label: 'Address', value: branchData.address || 'Address not available' }
   ] : [];
 
   // Loading skeleton
@@ -734,7 +814,7 @@ export default function BranchDetailsPage({ params }: { params: Promise<{ id: st
         isOpen={showAssignUsersModal}
         onClose={() => setShowAssignUsersModal(false)}
         onSubmit={handleAssignUsers}
-        branchName={branchData.branchInfo.name}
+        branchName={branchData?.name || 'this branch'}
         currentlyAssignedUsers={currentlyAssignedUsers}
       />
     </div>

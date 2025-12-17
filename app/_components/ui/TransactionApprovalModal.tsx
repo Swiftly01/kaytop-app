@@ -142,7 +142,7 @@ export default function TransactionApprovalModal({
                 <div className="flex justify-between items-center">
                   <span className="text-[14px] text-[#475467]">Transaction ID:</span>
                   <span className="text-[14px] font-medium text-[#101828]">
-                    #{transaction.id.slice(-8).toUpperCase()}
+                    #{String(transaction.id).slice(-8).toUpperCase()}
                   </span>
                 </div>
                 

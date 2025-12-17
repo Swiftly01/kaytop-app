@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import FilterControls from '@/app/_components/ui/FilterControls';
 import { StatisticsCard, StatSection } from '@/app/_components/ui/StatisticsCard';
 import ReportsTable from '@/app/_components/ui/ReportsTable';
@@ -11,25 +11,15 @@ import EditReportModal from '@/app/_components/ui/EditReportModal';
 import DeleteConfirmationModal from '@/app/_components/ui/DeleteConfirmationModal';
 import ReportsFiltersModal, { ReportsFilters } from '@/app/_components/ui/ReportsFiltersModal';
 import ReportDetailsModal, { ReportDetailsData } from '@/app/_components/ui/ReportDetailsModal';
-// Local Report interface for display purposes
-interface Report {
-  id: string;
-  reportId: string;
-  creditOfficer: string;
-  branch: string;
-  dateSent: string;
-  status: 'Approved' | 'Pending' | 'Rejected';
-  loansDispursed: number;
-  loansValueDispursed: string;
-  savingsCollected: string;
-  repaymentsCollected: number;
-}
+import { StatisticsCardSkeleton, TableSkeleton } from '@/app/_components/ui/Skeleton';
+import { reportsService } from '@/lib/services/reports';
+import type { Report, ReportStatistics, ReportFilters as APIReportFilters } from '@/lib/api/types';
 import { DateRange } from 'react-day-picker';
 
 type TimePeriod = '12months' | '30days' | '7days' | '24hours' | null;
 
 export default function ReportsPage() {
-  const { toasts, removeToast, success } = useToast();
+  const { toasts, removeToast, success, error } = useToast();
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('12months');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedReports, setSelectedReports] = useState<string[]>([]);
@@ -38,7 +28,7 @@ export default function ReportsPage() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [appliedFilters, setAppliedFilters] = useState<ReportsFilters>({
     creditOfficer: '',
@@ -49,83 +39,127 @@ export default function ReportsPage() {
   });
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [selectedReportForDetails, setSelectedReportForDetails] = useState<Report | null>(null);
+  
+  // API data state
+  const [reportStatistics, setReportStatistics] = useState<ReportStatistics | null>(null);
+  const [totalReports, setTotalReports] = useState(0);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const itemsPerPage = 10;
 
-  // Filter reports based on selected period, date range, and advanced filters
-  const filteredReports = useMemo(() => {
-    let filtered = reports;
+  // Fetch reports data from API
+  const fetchReportsData = async (filters?: APIReportFilters) => {
+    try {
+      setLoading(true);
+      setApiError(null);
 
-    // Apply period filter
-    if (selectedPeriod) {
-      filtered = filterReportsByPeriod(filtered, selectedPeriod);
+      // Build API filters from current state
+      const apiFilters: APIReportFilters = {
+        page: currentPage,
+        limit: itemsPerPage,
+        ...filters,
+      };
+
+      // Apply period filter
+      if (selectedPeriod) {
+        const now = new Date();
+        let startDate: Date;
+
+        switch (selectedPeriod) {
+          case '24hours':
+            startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+            break;
+          case '7days':
+            startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            break;
+          case '30days':
+            startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            break;
+          case '12months':
+          default:
+            startDate = new Date(now);
+            startDate.setMonth(now.getMonth() - 12);
+            break;
+        }
+
+        apiFilters.dateFrom = startDate.toISOString().split('T')[0];
+      }
+
+      // Apply custom date range filter
+      if (dateRange?.from) {
+        apiFilters.dateFrom = dateRange.from.toISOString().split('T')[0];
+        if (dateRange.to) {
+          apiFilters.dateTo = dateRange.to.toISOString().split('T')[0];
+        }
+      }
+
+      // Apply advanced filters
+      if (appliedFilters.creditOfficer) {
+        apiFilters.creditOfficerId = appliedFilters.creditOfficer;
+      }
+      if (appliedFilters.reportStatus) {
+        apiFilters.status = appliedFilters.reportStatus.toLowerCase();
+      }
+      if (appliedFilters.reportType) {
+        apiFilters.reportType = appliedFilters.reportType.toLowerCase() as 'daily' | 'weekly' | 'monthly';
+      }
+
+      // Fetch reports and statistics
+      const [reportsResponse, statisticsResponse] = await Promise.all([
+        reportsService.getAllReports(apiFilters),
+        reportsService.getReportStatistics({
+          dateFrom: apiFilters.dateFrom,
+          dateTo: apiFilters.dateTo,
+          branchId: apiFilters.branchId,
+        }),
+      ]);
+
+      setReports(reportsResponse.data);
+      setTotalReports(reportsResponse.pagination.total);
+      setReportStatistics(statisticsResponse);
+
+    } catch (err) {
+      console.error('Failed to fetch reports data:', err);
+      setApiError(err instanceof Error ? err.message : 'Failed to load reports data');
+      error('Failed to load reports data. Please try again.');
+    } finally {
+      setLoading(false);
     }
+  };
 
-    // Apply custom date range filter
-    if (dateRange?.from) {
-      filtered = filtered.filter(report => {
-        const reportDate = new Date(report.date);
-        const fromDate = dateRange.from!;
-        const toDate = dateRange.to || new Date();
-        return reportDate >= fromDate && reportDate <= toDate;
-      });
+  // Load initial data
+  useEffect(() => {
+    fetchReportsData();
+  }, [currentPage]);
+
+  // Reload data when filters change
+  useEffect(() => {
+    if (currentPage === 1) {
+      fetchReportsData();
+    } else {
+      setCurrentPage(1);
     }
+  }, [selectedPeriod, dateRange, appliedFilters]);
 
-    // Apply advanced filters
-    if (appliedFilters.creditOfficer) {
-      filtered = filtered.filter(report => 
-        report.creditOfficer === appliedFilters.creditOfficer
-      );
-    }
-
-    if (appliedFilters.reportStatus) {
-      filtered = filtered.filter(report => {
-        if (appliedFilters.reportStatus === 'Submitted') return report.status === 'submitted';
-        if (appliedFilters.reportStatus === 'Missed') return report.status === 'missed';
-        if (appliedFilters.reportStatus === 'Pending') return report.status === 'pending';
-        return true;
-      });
-    }
-
-    if (appliedFilters.reportType) {
-      filtered = filtered.filter(report => 
-        report.reportType === appliedFilters.reportType
-      );
-    }
-
-    // Apply advanced date range filter (overrides the date picker if both are set)
-    if (appliedFilters.dateFrom || appliedFilters.dateTo) {
-      filtered = filtered.filter(report => {
-        const reportDate = new Date(report.date);
-        const fromDate = appliedFilters.dateFrom ? new Date(appliedFilters.dateFrom) : new Date('1900-01-01');
-        const toDate = appliedFilters.dateTo ? new Date(appliedFilters.dateTo) : new Date();
-        return reportDate >= fromDate && reportDate <= toDate;
-      });
-    }
-
-    return filtered;
-  }, [reports, selectedPeriod, dateRange, appliedFilters]);
-
-  // Calculate statistics from filtered data
+  // Convert API statistics to StatSection format
   const statistics = useMemo(() => {
-    const stats = calculateReportStatistics(filteredReports);
+    if (!reportStatistics) return [];
     
-    // Convert to StatSection format
     const statSections: StatSection[] = [
       {
         label: 'Total Reports',
-        value: stats.totalReports.count,
-        change: stats.totalReports.growth,
+        value: reportStatistics.totalReports.count,
+        change: reportStatistics.totalReports.growth,
       },
       {
         label: 'Missed Reports',
-        value: stats.missedReports.count,
-        change: stats.missedReports.growth,
+        value: reportStatistics.missedReports.count,
+        change: reportStatistics.missedReports.growth,
       },
     ];
 
     return statSections;
-  }, [filteredReports]);
+  }, [reportStatistics]);
 
   const handlePeriodChange = (period: TimePeriod) => {
     setSelectedPeriod(period);
@@ -159,32 +193,83 @@ export default function ReportsPage() {
     setDetailsModalOpen(true);
   };
 
-  const handleApproveReport = () => {
+  const handleApproveReport = async () => {
     if (selectedReportForDetails) {
-      // Update the report in the reports state to mark it as approved
-      setReports(prevReports => 
-        prevReports.map(report => 
-          report.id === selectedReportForDetails.id 
-            ? { ...report, isApproved: true }
-            : report
-        )
-      );
-      
-      // Update the selected report for details to show the approval status
-      setSelectedReportForDetails(prev => 
-        prev ? { ...prev, isApproved: true } : null
-      );
-      
-      success(`Report "${selectedReportForDetails.reportId}" approved successfully!`);
-      // Keep modal open to show the approval status label
+      try {
+        setLoading(true);
+        
+        const approvalData = {
+          status: 'approved' as const,
+          approvedBy: 'current-admin-id', // This should come from auth context
+          approvedAt: new Date().toISOString(),
+        };
+
+        const updatedReport = await reportsService.approveReport(
+          selectedReportForDetails.id,
+          approvalData
+        );
+
+        // Update the report in the reports state
+        setReports(prevReports => 
+          prevReports.map(report => 
+            report.id === selectedReportForDetails.id ? updatedReport : report
+          )
+        );
+        
+        // Update the selected report for details
+        setSelectedReportForDetails(updatedReport);
+        
+        success(`Report "${selectedReportForDetails.reportId}" approved successfully!`);
+        
+        // Refresh statistics
+        await fetchReportsData();
+        
+      } catch (err) {
+        console.error('Failed to approve report:', err);
+        error('Failed to approve report. Please try again.');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
-  const handleDeclineReport = () => {
+  const handleDeclineReport = async () => {
     if (selectedReportForDetails) {
-      success(`Report "${selectedReportForDetails.reportId}" declined.`);
-      setDetailsModalOpen(false);
-      setSelectedReportForDetails(null);
+      try {
+        setLoading(true);
+        
+        const declineData = {
+          status: 'declined' as const,
+          approvedBy: 'current-admin-id', // This should come from auth context
+          approvedAt: new Date().toISOString(),
+          comments: 'Report declined by system admin',
+        };
+
+        const updatedReport = await reportsService.declineReport(
+          selectedReportForDetails.id,
+          declineData
+        );
+
+        // Update the report in the reports state
+        setReports(prevReports => 
+          prevReports.map(report => 
+            report.id === selectedReportForDetails.id ? updatedReport : report
+          )
+        );
+        
+        success(`Report "${selectedReportForDetails.reportId}" declined.`);
+        setDetailsModalOpen(false);
+        setSelectedReportForDetails(null);
+        
+        // Refresh statistics
+        await fetchReportsData();
+        
+      } catch (err) {
+        console.error('Failed to decline report:', err);
+        error('Failed to decline report. Please try again.');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -250,14 +335,10 @@ export default function ReportsPage() {
     }
   };
 
-  // Pagination
-  const totalPages = Math.ceil(filteredReports.length / itemsPerPage);
+  // Pagination (now handled by API)
+  const totalPages = Math.ceil(totalReports / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedReports = useMemo(() => 
-    filteredReports.slice(startIndex, endIndex),
-    [filteredReports, startIndex, endIndex]
-  );
+  const endIndex = Math.min(startIndex + itemsPerPage, totalReports);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -313,7 +394,11 @@ export default function ReportsPage() {
                 marginBottom: '48px'
               }}
             >
-              <StatisticsCard sections={statistics} />
+              {loading ? (
+                <StatisticsCardSkeleton />
+              ) : (
+                <StatisticsCard sections={statistics} />
+              )}
             </div>
 
             {/* Reports Section Title */}
@@ -335,35 +420,49 @@ export default function ReportsPage() {
 
             {/* Reports Table */}
             <div className="max-w-[1075px]">
-              {loading && (
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#7F56D9]"></div>
+              {loading ? (
+                <TableSkeleton rows={itemsPerPage} />
+              ) : reports.length === 0 ? (
+                <div 
+                  className="bg-white rounded-[12px] border border-[#EAECF0] p-12 text-center"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <p 
+                    className="text-base text-[#475467]"
+                    style={{ fontFamily: "'Open Sauce Sans', sans-serif" }}
+                  >
+                    {apiError ? 'Failed to load reports data. Please try again.' : 'No reports found matching the selected filters.'}
+                  </p>
                 </div>
-              )}
-              <ReportsTable
-                reports={paginatedReports}
-                selectedReports={selectedReports}
-                onSelectionChange={handleSelectionChange}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                onReportClick={handleReportClick}
-              />
-
-              {/* Pagination Controls */}
-              {totalPages > 1 && (
-                <div className="mt-4 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-[#475467]">
-                      Showing {startIndex + 1}-{Math.min(endIndex, filteredReports.length)} of {filteredReports.length} results
-                    </span>
-                  </div>
-
-                  <Pagination
-                    totalPages={totalPages}
-                    currentPage={currentPage}
-                    onPageChange={handlePageChange}
+              ) : (
+                <>
+                  <ReportsTable
+                    reports={reports}
+                    selectedReports={selectedReports}
+                    onSelectionChange={handleSelectionChange}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onReportClick={handleReportClick}
                   />
-                </div>
+
+                  {/* Pagination Controls */}
+                  {totalPages > 1 && (
+                    <div className="mt-4 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-[#475467]">
+                          Showing {startIndex + 1}-{endIndex} of {totalReports} results
+                        </span>
+                      </div>
+
+                      <Pagination
+                        totalPages={totalPages}
+                        currentPage={currentPage}
+                        onPageChange={handlePageChange}
+                      />
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>

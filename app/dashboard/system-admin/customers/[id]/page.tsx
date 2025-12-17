@@ -100,9 +100,9 @@ export default function CustomerDetailsPage({ params }: PageProps) {
     const activeLoan = loans.find(loan => loan.status === 'active') || loans[0];
     
     return {
-      id: user.id,
+      id: String(user.id), // Ensure ID is string
       name: `${user.firstName} ${user.lastName}`,
-      userId: user.id.slice(-8).toUpperCase(),
+      userId: String(user.id).slice(-8).toUpperCase(),
       dateJoined: new Date(user.createdAt).toLocaleDateString('en-US', { 
         year: 'numeric', 
         month: 'long', 
@@ -127,7 +127,7 @@ export default function CustomerDetailsPage({ params }: PageProps) {
         chartData: [25, 30, 20, 25] // Placeholder chart data
       },
       activeLoan: activeLoan ? {
-        loanId: activeLoan.id.slice(-8).toUpperCase(),
+        loanId: String(activeLoan.id).slice(-8).toUpperCase(),
         amount: activeLoan.amount,
         outstanding: activeLoan.amount * 0.7, // Placeholder - 70% outstanding
         monthlyPayment: activeLoan.amount * 0.1, // Placeholder - 10% monthly
@@ -153,8 +153,8 @@ export default function CustomerDetailsPage({ params }: PageProps) {
         paymentSchedule: []
       },
       transactions: savings?.transactions.map(transaction => ({
-        id: transaction.id,
-        transactionId: transaction.id.slice(-8).toUpperCase(),
+        id: String(transaction.id), // Ensure ID is string
+        transactionId: String(transaction.id).slice(-8).toUpperCase(),
         type: transaction.type === 'deposit' ? 'Savings' : 'Repayment',
         amount: transaction.amount,
         status: transaction.status === 'approved' ? 'Successful' : 

@@ -20,10 +20,9 @@ import LoansPageLoanDetailsModal, { LoanDetailsData } from '@/app/_components/ui
 import PaymentScheduleModal from '@/app/_components/ui/PaymentScheduleModal';
 import EditLoanModal from '@/app/_components/ui/EditLoanModal';
 import DeleteConfirmationModal from '@/app/_components/ui/DeleteConfirmationModal';
-import { userService } from '@/lib/services/users';
-import { loanService } from '@/lib/services/loans';
+import { bulkLoansService } from '@/lib/services/bulkLoans';
 import { dashboardService } from '@/lib/services/dashboard';
-import type { User, Loan } from '@/lib/api/types';
+import type { BulkLoansFilters, LoanStatistics } from '@/lib/api/types';
 
 // Mock branch context - in production, this would come from route params or session
 const BRANCH_ID = 'igando-branch';
@@ -37,58 +36,54 @@ const ITEMS_PER_PAGE = 10;
 interface LoanData {
   id: string; // Unique identifier
   loanId: string; // Display ID (5 digits)
-  borrowerName: string;
-  status: 'Active' | 'Scheduled' | 'Missed Payment';
+  customerId: string; // Customer ID
+  customerName: string; // Customer name (renamed from borrowerName)
   amount: number; // In Naira
   interestRate: number; // Percentage (e.g., 7.25)
-  nextRepaymentDate: Date;
+  status: 'Active' | 'Completed' | 'Overdue' | 'Defaulted'; // Updated status options
+  nextRepaymentDate: string; // Changed to string for consistency
   disbursementDate: Date;
+  term: number; // Loan term in days/months
   branchId: string;
   missedPayments?: number; // Number of missed payments
 }
 
-interface LoanStatistics {
+interface LocalLoanStatistics {
   totalLoans: { count: number; growth: number };
   activeLoans: { count: number; growth: number };
   completedLoans: { count: number; growth: number };
 }
 
-// Transform API Loan to LoanData format
-const transformLoanToLoanData = async (loan: Loan): Promise<LoanData> => {
-  // Fetch customer details for the loan
-  let borrowerName = 'Unknown Customer';
-  try {
-    const customer = await userService.getUserById(loan.customerId);
-    borrowerName = `${customer.firstName} ${customer.lastName}`;
-  } catch (err) {
-    console.warn('Failed to fetch customer details for loan:', loan.id);
+// Transform API Loan to LoanData format (now handled by bulk API)
+const transformBulkLoanToLoanData = (loan: any): LoanData => {
+  // Map status to expected values
+  let status: 'Active' | 'Completed' | 'Overdue' | 'Defaulted' = 'Active';
+  if (loan.status) {
+    const lowerStatus = loan.status.toLowerCase();
+    if (lowerStatus.includes('completed') || lowerStatus.includes('paid')) {
+      status = 'Completed';
+    } else if (lowerStatus.includes('overdue') || lowerStatus.includes('missed')) {
+      status = 'Overdue';
+    } else if (lowerStatus.includes('defaulted') || lowerStatus.includes('default')) {
+      status = 'Defaulted';
+    } else {
+      status = 'Active';
+    }
   }
 
   return {
-    id: loan.id,
-    loanId: loan.id.slice(-5).toUpperCase(), // Display ID (5 digits)
-    borrowerName,
-    status: loan.status === 'active' ? 'Active' : 
-            loan.status === 'disbursed' ? 'Scheduled' : 'Missed Payment',
+    id: String(loan.id), // Ensure ID is string
+    loanId: String(loan.id).slice(-5).toUpperCase(), // Convert to string before slicing
+    customerId: String(loan.customerId || loan.customer_id || ''),
+    customerName: loan.customerName || 'Unknown Customer',
+    status,
     amount: loan.amount,
     interestRate: loan.interestRate,
-    nextRepaymentDate: loan.nextRepaymentDate ? new Date(loan.nextRepaymentDate) : new Date(),
+    nextRepaymentDate: loan.nextRepaymentDate || loan.dueDate || new Date().toISOString(),
     disbursementDate: loan.disbursementDate ? new Date(loan.disbursementDate) : new Date(loan.createdAt),
+    term: loan.term || loan.repaymentPeriod || loan.duration || 30,
     branchId: BRANCH_ID,
-    missedPayments: 0 // Would need to be calculated from payment history
-  };
-};
-
-// Calculate loan statistics from API data
-const calculateLoanStatisticsFromAPI = (loans: LoanData[]): LoanStatistics => {
-  const totalLoans = loans.length;
-  const activeLoans = loans.filter(loan => loan.status === 'Active').length;
-  const scheduledLoans = loans.filter(loan => loan.status === 'Scheduled').length;
-
-  return {
-    totalLoans: { count: totalLoans, growth: 5 }, // Placeholder growth
-    activeLoans: { count: activeLoans, growth: 8 }, // Placeholder growth
-    completedLoans: { count: scheduledLoans, growth: 12 } // Using scheduled as "completed" for now
+    missedPayments: loan.missedPayments || 0
   };
 };
 
@@ -98,35 +93,95 @@ export default function LoansPage() {
   
   // API data state
   const [allLoans, setAllLoans] = useState<LoanData[]>([]);
+  const [loanStatistics, setLoanStatistics] = useState<LoanStatistics | null>(null);
+  const [totalLoans, setTotalLoans] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('all');
 
-  // Fetch loans data from API
-  const fetchLoansData = async () => {
+  // Fetch loans data from API using bulk operations
+  const fetchLoansData = async (filters?: BulkLoansFilters) => {
     try {
       setIsLoading(true);
       setApiError(null);
 
-      // Get all customers first
-      const customersResponse = await userService.getAllUsers({ role: 'customer' });
-      const customers = customersResponse.data;
+      // Build API filters from current state
+      const apiFilters: BulkLoansFilters = {
+        page: currentPage,
+        limit: ITEMS_PER_PAGE,
+        ...filters,
+      };
 
-      // Fetch loans for all customers
-      const allLoansPromises = customers.map(async (customer) => {
-        try {
-          const customerLoans = await loanService.getCustomerLoans(customer.id);
-          return Promise.all(customerLoans.map(loan => transformLoanToLoanData(loan)));
-        } catch (err) {
-          console.warn(`Failed to fetch loans for customer ${customer.id}:`, err);
-          return [];
+      // Apply tab filter
+      if (activeTab !== 'all') {
+        const statusMap = {
+          'active': ['active'],
+          'completed': ['completed', 'disbursed'],
+          'missed': ['overdue', 'defaulted']
+        };
+        apiFilters.status = statusMap[activeTab] || [];
+      }
+
+      // Apply period filter
+      if (selectedPeriod) {
+        const now = new Date();
+        let startDate: Date;
+
+        switch (selectedPeriod) {
+          case '24hours':
+            startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+            break;
+          case '7days':
+            startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            break;
+          case '30days':
+            startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            break;
+          case '12months':
+          default:
+            startDate = new Date(now);
+            startDate.setMonth(now.getMonth() - 12);
+            break;
         }
-      });
 
-      const loansArrays = await Promise.all(allLoansPromises);
-      const flattenedLoans = loansArrays.flat();
+        apiFilters.dateFrom = startDate.toISOString().split('T')[0];
+      }
+
+      // Apply custom date range filter
+      if (dateRange?.from) {
+        apiFilters.dateFrom = dateRange.from.toISOString().split('T')[0];
+        if (dateRange.to) {
+          apiFilters.dateTo = dateRange.to.toISOString().split('T')[0];
+        }
+      }
+
+      // Apply advanced filters
+      if (appliedFilters.loanStatus.length > 0) {
+        apiFilters.status = appliedFilters.loanStatus.map(status => status.toLowerCase());
+      }
+
+      if (appliedFilters.amountRange.min > 0 || appliedFilters.amountRange.max < 1000000) {
+        apiFilters.amountMin = appliedFilters.amountRange.min;
+        apiFilters.amountMax = appliedFilters.amountRange.max;
+      }
+
+      // Fetch bulk loans and statistics
+      const [loansResponse, statisticsResponse] = await Promise.all([
+        bulkLoansService.getBulkLoans(apiFilters),
+        bulkLoansService.getLoanStatistics({
+          branchId: apiFilters.branchId,
+          creditOfficerId: apiFilters.creditOfficerId,
+          dateFrom: apiFilters.dateFrom,
+          dateTo: apiFilters.dateTo,
+        }),
+      ]);
+
+      // Transform loans data
+      const transformedLoans = loansResponse.loans.map(transformBulkLoanToLoanData);
       
-      setAllLoans(flattenedLoans);
+      setAllLoans(transformedLoans);
+      setTotalLoans(loansResponse.pagination.total);
+      setLoanStatistics(statisticsResponse);
 
     } catch (err) {
       console.error('Failed to fetch loans data:', err);
@@ -137,10 +192,7 @@ export default function LoansPage() {
     }
   };
 
-  // Load initial data
-  useEffect(() => {
-    fetchLoansData();
-  }, []);
+  // Additional state variables (moved from below)
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('12months');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedLoans, setSelectedLoans] = useState<string[]>([]);
@@ -160,6 +212,20 @@ export default function LoansPage() {
   const [selectedLoanForDelete, setSelectedLoanForDelete] = useState<string | null>(null);
   const [selectedLoanForSchedule, setSelectedLoanForSchedule] = useState<string | null>(null);
 
+  // Load initial data
+  useEffect(() => {
+    fetchLoansData();
+  }, [currentPage]);
+
+  // Reload data when filters change
+  useEffect(() => {
+    if (currentPage === 1) {
+      fetchLoansData();
+    } else {
+      setCurrentPage(1);
+    }
+  }, [activeTab, selectedPeriod, dateRange, appliedFilters]);
+
   // Tab configuration
   const tabs = [
     { id: 'all', label: 'All Loans' },
@@ -168,79 +234,19 @@ export default function LoansPage() {
     { id: 'missed', label: 'Missed Payments' }
   ];
 
-  // Filter loans by tab
-  const filteredByTab = useMemo(() => {
-    if (activeTab === 'all') return allLoans;
-    if (activeTab === 'active') return allLoans.filter(loan => loan.status === 'Active');
-    if (activeTab === 'completed') return allLoans.filter(loan => loan.status === 'Scheduled');
-    if (activeTab === 'missed') return allLoans.filter(loan => loan.status === 'Missed Payment');
-    return allLoans;
-  }, [allLoans, activeTab]);
+  // Pagination (now handled by API)
+  const totalPages = Math.ceil(totalLoans / ITEMS_PER_PAGE);
 
-  // Filter loans by date range
-  const filteredByDate = useMemo(() => {
-    let filtered = filteredByTab;
-
-    // Apply period filter
-    if (selectedPeriod) {
-      const now = new Date();
-      let startDate: Date;
-
-      switch (selectedPeriod) {
-        case '24hours':
-          startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-          break;
-        case '7days':
-          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          break;
-        case '30days':
-          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-          break;
-        case '12months':
-        default:
-          startDate = new Date(now);
-          startDate.setMonth(now.getMonth() - 12);
-          break;
-      }
-
-      filtered = filtered.filter(loan => loan.disbursementDate >= startDate);
-    }
-
-    // Apply custom date range filter
-    if (dateRange?.from) {
-      filtered = filtered.filter(loan => {
-        const loanDate = loan.disbursementDate.getTime();
-        const fromDate = dateRange.from!.getTime();
-        const toDate = dateRange.to ? dateRange.to.getTime() : Date.now();
-        return loanDate >= fromDate && loanDate <= toDate;
-      });
-    }
-
-    // Apply advanced filters
-    if (appliedFilters.loanStatus.length > 0) {
-      filtered = filtered.filter(loan => appliedFilters.loanStatus.includes(loan.status));
-    }
-
-    if (appliedFilters.amountRange.min > 0 || appliedFilters.amountRange.max < 1000000) {
-      filtered = filtered.filter(loan => 
-        loan.amount >= appliedFilters.amountRange.min && 
-        loan.amount <= appliedFilters.amountRange.max
-      );
-    }
-
-    return filtered;
-  }, [filteredByTab, selectedPeriod, dateRange, appliedFilters]);
-
-  // Pagination
-  const totalPages = Math.ceil(filteredByDate.length / ITEMS_PER_PAGE);
-  const paginatedLoans = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
-    return filteredByDate.slice(startIndex, endIndex);
-  }, [filteredByDate, currentPage]);
-
-  // Calculate statistics
-  const statistics = useMemo(() => calculateLoanStatisticsFromAPI(allLoans), [allLoans]);
+  // Convert API statistics to display format
+  const statistics = useMemo((): LocalLoanStatistics => {
+    if (!loanStatistics) return { totalLoans: { count: 0, growth: 0 }, activeLoans: { count: 0, growth: 0 }, completedLoans: { count: 0, growth: 0 } };
+    
+    return {
+      totalLoans: { count: loanStatistics.totalLoans.count, growth: loanStatistics.totalLoans.growth },
+      activeLoans: { count: loanStatistics.activeLoans.count, growth: loanStatistics.activeLoans.growth },
+      completedLoans: { count: loanStatistics.completedLoans.count, growth: loanStatistics.completedLoans.growth }
+    };
+  }, [loanStatistics]);
 
   // Selection handlers
   const handleSelectLoan = (loanId: string) => {
@@ -252,14 +258,14 @@ export default function LoansPage() {
   };
 
   const handleSelectAll = () => {
-    if (selectedLoans.length === paginatedLoans.length) {
+    if (selectedLoans.length === allLoans.length) {
       setSelectedLoans([]);
     } else {
-      setSelectedLoans(paginatedLoans.map(loan => loan.id));
+      setSelectedLoans(allLoans.map(loan => loan.id));
     }
   };
 
-  const allSelected = paginatedLoans.length > 0 && selectedLoans.length === paginatedLoans.length;
+  const allSelected = allLoans.length > 0 && selectedLoans.length === allLoans.length;
 
   // Reset to page 1 when filters change
   const handleTabChange = (tabId: string) => {
@@ -499,51 +505,40 @@ export default function LoansPage() {
                     className="text-base text-[#475467]"
                     style={{ fontFamily: "'Open Sauce Sans', sans-serif" }}
                   >
-                    {apiError ? 'Failed to load loan data. Please try again.' : 'No loan data available.'}
-                  </p>
-                </div>
-              ) : filteredByDate.length === 0 ? (
-                <div 
-                  className="bg-white rounded-[12px] border border-[#EAECF0] p-12 text-center"
-                  role="status"
-                  aria-live="polite"
-                >
-                  <p 
-                    className="text-base text-[#475467]"
-                    style={{ fontFamily: "'Open Sauce Sans', sans-serif" }}
-                  >
-                    No loans found matching the selected filters. Try adjusting your filters.
+                    {apiError ? 'Failed to load loan data. Please try again.' : 'No loans found matching the selected filters.'}
                   </p>
                 </div>
               ) : (
-                <LoansTable
-                  loans={paginatedLoans}
-                  selectedLoans={selectedLoans}
-                  onSelectLoan={handleSelectLoan}
-                  onSelectAll={handleSelectAll}
-                  allSelected={allSelected}
-                  onLoanClick={handleLoanClick}
-                />
-              )}
-
-              {/* Pagination */}
-              {totalPages > 1 && filteredByDate.length > 0 && (
-                <div className="mt-4 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span 
-                      className="text-sm text-[#475467]"
-                      style={{ fontFamily: "'Open Sauce Sans', sans-serif" }}
-                    >
-                      Showing <span style={{ fontWeight: 600 }}>{((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, filteredByDate.length)}</span> of <span style={{ fontWeight: 600 }}>{filteredByDate.length}</span> results
-                    </span>
-                  </div>
-
-                  <Pagination
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    onPageChange={handlePageChange}
+                <>
+                  <LoansTable
+                    loans={allLoans}
+                    selectedLoans={selectedLoans}
+                    onSelectLoan={handleSelectLoan}
+                    onSelectAll={handleSelectAll}
+                    allSelected={allSelected}
+                    onLoanClick={handleLoanClick}
                   />
-                </div>
+
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <div className="mt-4 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span 
+                          className="text-sm text-[#475467]"
+                          style={{ fontFamily: "'Open Sauce Sans', sans-serif" }}
+                        >
+                          Showing <span style={{ fontWeight: 600 }}>{((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, totalLoans)}</span> of <span style={{ fontWeight: 600 }}>{totalLoans}</span> results
+                        </span>
+                      </div>
+
+                      <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={handlePageChange}
+                      />
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>

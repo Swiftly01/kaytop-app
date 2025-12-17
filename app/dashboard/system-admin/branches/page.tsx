@@ -50,14 +50,21 @@ const transformUsersToBranchData = (users: User[]): BranchRecord[] => {
   }, {} as Record<string, { creditOfficers: number; customers: number; users: User[] }>);
 
   // Convert to branch records
-  return Object.entries(branchGroups).map(([branchName, data], index) => ({
-    id: (index + 1).toString(),
-    branchId: `ID: ${Math.floor(Math.random() * 90000) + 10000}`, // Generate random ID
-    name: branchName,
-    cos: data.creditOfficers.toString(),
-    customers: data.customers,
-    dateCreated: data.users[0]?.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0]
-  }));
+  return Object.entries(branchGroups).map(([branchName, data], index) => {
+    // Use the first user's ID as a base for branch ID, or create from branch name
+    const branchId = data.users[0]?.id 
+      ? `BR-${String(data.users[0].id).padStart(4, '0')}` 
+      : `BR-${branchName.replace(/\s+/g, '').substring(0, 4).toUpperCase()}-${(index + 1).toString().padStart(3, '0')}`;
+    
+    return {
+      id: (index + 1).toString(),
+      branchId: `ID: ${branchId}`, // Use real data-based ID
+      name: branchName,
+      cos: data.creditOfficers.toString(),
+      customers: data.customers,
+      dateCreated: data.users[0]?.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0]
+    };
+  });
 };
 
 export default function BranchesPage() {

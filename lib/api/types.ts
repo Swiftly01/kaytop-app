@@ -48,7 +48,7 @@ export interface AuthResponse {
 }
 
 export interface AdminProfile {
-  id: string;
+  id: string | number; // Backend returns numeric IDs but we handle both
   firstName: string;
   lastName: string;
   email: string;
@@ -75,7 +75,7 @@ export interface ChangePasswordData {
 
 // User Types
 export interface User {
-  id: string;
+  id: string | number; // Backend returns numeric IDs but we handle both
   firstName: string;
   lastName: string;
   email: string;
@@ -122,7 +122,7 @@ export interface UpdateUserData {
 
 // Loan Types
 export interface Loan {
-  id: string;
+  id: string | number; // Backend returns numeric IDs but we handle both
   customerId: string;
   amount: number;
   term: number;
@@ -164,14 +164,14 @@ export interface DisbursementSummary {
 
 // Savings Types
 export interface SavingsAccount {
-  id: string;
+  id: string | number; // Backend returns numeric IDs but we handle both
   customerId: string;
   balance: number;
   transactions: Transaction[];
 }
 
 export interface Transaction {
-  id: string;
+  id: string | number; // Backend returns numeric IDs but we handle both
   type: 'deposit' | 'withdrawal' | 'loan_coverage';
   amount: number;
   description: string;
@@ -257,4 +257,167 @@ export interface AuthError extends ApiError {
 
 export interface ServerError extends ApiError {
   type: 'server';
+}
+
+// Reports Management Types
+export interface Report {
+  id: string;
+  reportId: string;
+  creditOfficer: string;
+  creditOfficerId: string;
+  branch: string;
+  branchId: string;
+  email: string;
+  dateSent: string;
+  timeSent: string;
+  reportType: 'daily' | 'weekly' | 'monthly';
+  status: 'submitted' | 'pending' | 'approved' | 'declined';
+  isApproved?: boolean;
+  loansDispursed: number;
+  loansValueDispursed: string;
+  savingsCollected: string;
+  repaymentsCollected: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReportStatistics {
+  totalReports: { count: number; growth: number };
+  submittedReports: { count: number; growth: number };
+  pendingReports: { count: number; growth: number };
+  approvedReports: { count: number; growth: number };
+  missedReports: { count: number; growth: number };
+}
+
+export interface ReportApprovalData {
+  status: 'approved' | 'declined';
+  comments?: string;
+  approvedBy: string;
+  approvedAt: string;
+}
+
+export interface ReportFilters {
+  creditOfficerId?: string;
+  branchId?: string;
+  status?: string;
+  reportType?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  page?: number;
+  limit?: number;
+}
+
+// Activity Logs Types
+export interface ActivityLog {
+  id: string;
+  userId: string;
+  userFullName: string;
+  userRole: string;
+  action: string;
+  actionType: 'create' | 'update' | 'delete' | 'login' | 'logout' | 'approve' | 'decline';
+  entityType: 'user' | 'loan' | 'report' | 'savings' | 'system';
+  entityId?: string;
+  details: Record<string, any>;
+  ipAddress: string;
+  userAgent: string;
+  timestamp: string;
+  createdAt: string;
+}
+
+export interface ActivityLogFilters {
+  userId?: string;
+  userRole?: string;
+  actionType?: string;
+  entityType?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+// System Settings Types
+export interface SystemSettings {
+  id: string;
+  globalDefaults: {
+    interestRate: number;
+    loanDuration: number;
+    maxLoanAmount: number;
+    minSavingsBalance: number;
+  };
+  reportTemplate: {
+    requiredFields: string[];
+    customParameters: string[];
+    submissionDeadline: string;
+  };
+  alertRules: {
+    missedPayments: boolean;
+    missedReports: boolean;
+    dailyEmailSummary: boolean;
+    customAlerts: string[];
+  };
+  notifications: {
+    emailNotifications: boolean;
+    smsNotifications: boolean;
+    pushNotifications: boolean;
+  };
+  security: {
+    sessionTimeout: number;
+    passwordPolicy: {
+      minLength: number;
+      requireSpecialChars: boolean;
+      requireNumbers: boolean;
+      requireUppercase: boolean;
+    };
+    twoFactorAuth: {
+      enabled: boolean;
+      methods: ('sms' | 'email')[];
+    };
+  };
+  updatedAt: string;
+  updatedBy: string;
+}
+
+// Bulk Operations Types
+export interface BulkLoansResponse {
+  loans: Loan[];
+  statistics: {
+    totalLoans: number;
+    activeLoans: number;
+    completedLoans: number;
+    totalValue: number;
+    averageAmount: number;
+  };
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export interface BulkLoansFilters {
+  status?: string[];
+  branchId?: string;
+  creditOfficerId?: string;
+  customerId?: string;
+  amountMin?: number;
+  amountMax?: number;
+  dateFrom?: string;
+  dateTo?: string;
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface LoanStatistics {
+  totalLoans: { count: number; value: number; growth: number };
+  activeLoans: { count: number; value: number; growth: number };
+  completedLoans: { count: number; value: number; growth: number };
+  overdueLoans: { count: number; value: number; growth: number };
+  disbursedThisMonth: { count: number; value: number; growth: number };
+  collectedThisMonth: { count: number; value: number; growth: number };
+  averageLoanAmount: { value: number; growth: number };
+  averageRepaymentPeriod: { value: number; growth: number };
 }

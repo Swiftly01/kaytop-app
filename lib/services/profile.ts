@@ -21,15 +21,24 @@ export interface ProfileService {
 class ProfileManagementService implements ProfileService {
   async getProfile(): Promise<AdminProfile> {
     try {
+      // Use the working admin profile endpoint
       const response = await apiClient.get<AdminProfile>(
         API_ENDPOINTS.ADMIN.PROFILE
       );
 
-      if (response.success && response.data) {
-        return response.data;
+      // Backend returns direct data format, not wrapped in success/data
+      if (response && typeof response === 'object') {
+        // Check if it's wrapped in success/data format
+        if (response.success && response.data) {
+          return response.data;
+        }
+        // Check if it's direct data format (has profile fields)
+        else if (response.id || response.email || response.firstName) {
+          return response as AdminProfile;
+        }
       }
 
-      throw new Error(response.message || 'Failed to fetch profile');
+      throw new Error('Failed to fetch profile - invalid response format');
     } catch (error) {
       console.error('Profile fetch error:', error);
       throw error;
@@ -43,11 +52,19 @@ class ProfileManagementService implements ProfileService {
         data
       );
 
-      if (response.success && response.data) {
-        return response.data;
+      // Backend returns direct data format, not wrapped in success/data
+      if (response && typeof response === 'object') {
+        // Check if it's wrapped in success/data format
+        if (response.success && response.data) {
+          return response.data;
+        }
+        // Check if it's direct data format (has profile fields)
+        else if (response.id || response.email || response.firstName) {
+          return response as AdminProfile;
+        }
       }
 
-      throw new Error(response.message || 'Failed to update profile');
+      throw new Error('Failed to update profile - invalid response format');
     } catch (error) {
       console.error('Profile update error:', error);
       throw error;
@@ -70,11 +87,19 @@ class ProfileManagementService implements ProfileService {
         }
       );
 
-      if (response.success && response.data) {
-        return response.data;
+      // Backend returns direct data format, not wrapped in success/data
+      if (response && typeof response === 'object') {
+        // Check if it's wrapped in success/data format
+        if (response.success && response.data) {
+          return response.data;
+        }
+        // Check if it's direct data format (has profile fields)
+        else if (response.id || response.email || response.firstName) {
+          return response as AdminProfile;
+        }
       }
 
-      throw new Error(response.message || 'Failed to upload profile picture');
+      throw new Error('Failed to upload profile picture - invalid response format');
     } catch (error) {
       console.error('Profile picture upload error:', error);
       throw error;
@@ -88,9 +113,22 @@ class ProfileManagementService implements ProfileService {
         data
       );
 
-      if (!response.success) {
-        throw new Error(response.message || 'Failed to change password');
+      // Backend may return direct success format or wrapped format
+      if (response && typeof response === 'object') {
+        // Check if it's wrapped format with success field
+        if (response.success === false) {
+          throw new Error(response.message || 'Failed to change password');
+        }
+        // If response exists and no explicit failure, consider it successful
+        return;
       }
+
+      // If response is truthy (not null/undefined), consider it successful
+      if (response) {
+        return;
+      }
+
+      throw new Error('Failed to change password - no response');
     } catch (error) {
       console.error('Password change error:', error);
       throw error;

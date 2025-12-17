@@ -30,9 +30,9 @@ interface CreditOfficer {
 
 // Transform User to CreditOfficer format
 const transformUserToCreditOfficer = (user: User): CreditOfficer => ({
-  id: user.id,
+  id: String(user.id), // Ensure ID is string
   name: `${user.firstName} ${user.lastName}`,
-  idNumber: user.id.slice(-5), // Use last 5 chars of ID
+  idNumber: String(user.id).slice(-5), // Convert to string before slicing
   status: user.verificationStatus === 'verified' ? 'Active' : 'Inactive',
   phone: user.mobileNumber,
   email: user.email,

@@ -2,6 +2,8 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { userService } from '@/lib/services/users';
+import { activityLogsService } from '@/lib/services/activityLogs';
+import { systemSettingsService } from '@/lib/services/systemSettings';
 import { ToastContainer } from '@/app/_components/ui/ToastContainer';
 import { useToast } from '@/app/hooks/useToast';
 import { Checkbox } from '@/app/_components/ui/Checkbox';
@@ -11,6 +13,7 @@ import GlobalSettingsModal from '@/app/_components/ui/GlobalSettingsModal';
 import AlertRulesModal from '@/app/_components/ui/AlertRulesModal';
 import ReportTemplateModal from '@/app/_components/ui/ReportTemplateModal';
 import FileUpload from '@/app/_components/ui/FileUpload';
+import type { ActivityLog, SystemSettings } from '@/lib/api/types';
 
 type SettingsTab = 'account-information' | 'security-login' | 'activity-log' | 'permissions-users' | 'configuration';
 
@@ -92,63 +95,57 @@ export default function SettingsPage() {
   // Activity log state
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [activityLogs, setActivityLogs] = useState<ActivityLogEntry[]>([
-    {
-      id: '1',
-      fullName: 'Jane Cooper',
-      actionPerformed: 'Added a new client and created a new subscription',
-      timeAndDate: '20 May 2018, 12:11:08 PM'
-    },
-    {
-      id: '2',
-      fullName: 'Cameron Williamson',
-      actionPerformed: 'Blacklisted an old client',
-      timeAndDate: '28 May 2018, 1:11:08 PM'
-    },
-    {
-      id: '3',
-      fullName: 'Brooklyn Simmons',
-      actionPerformed: 'Upgraded an existing subscription',
-      timeAndDate: '10 Jun 2018, 1:11:08 PM'
-    },
-    {
-      id: '4',
-      fullName: 'Guy Hawkins',
-      actionPerformed: 'Added a new client and created a new subscription',
-      timeAndDate: '17 Jul 2018, 1:11:08 PM'
-    },
-    {
-      id: '5',
-      fullName: 'Jacob Jones',
-      actionPerformed: 'Upgraded an existing subscription',
-      timeAndDate: '19 Jul 2018, 1:11:08 PM'
-    },
-    {
-      id: '6',
-      fullName: 'Leslie Alexander',
-      actionPerformed: 'Added a new client and created a new subscription',
-      timeAndDate: '23 Jul 2018, 1:11:08 PM'
-    },
-    {
-      id: '7',
-      fullName: 'Ralph Edwards',
-      actionPerformed: 'Renewed a client\'s subscription',
-      timeAndDate: '30 Aug 2018, 1:11:08 PM'
-    },
-    {
-      id: '8',
-      fullName: 'Darlene Robertson',
-      actionPerformed: 'Edited a service provider\'s profile',
-      timeAndDate: '17 Sep 2018, 1:11:08 PM'
-    },
-    {
-      id: '9',
-      fullName: 'Marvin McKinney',
-      actionPerformed: 'Added a new service provider',
-      timeAndDate: '17 Sep 2018, 1:11:08 PM'
-    }
-  ]);
+  const [activityLogs, setActivityLogs] = useState<ActivityLogEntry[]>([]);
+  const [totalActivityLogs, setTotalActivityLogs] = useState(0);
+  const [activityLogsLoading, setActivityLogsLoading] = useState(false);
   const [selectAll, setSelectAll] = useState(false);
+
+  // Transform API ActivityLog to ActivityLogEntry format
+  const transformActivityLog = (log: ActivityLog): ActivityLogEntry => ({
+    id: log.id,
+    fullName: log.userFullName,
+    actionPerformed: log.action,
+    timeAndDate: new Date(log.timestamp).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    }),
+    selected: false
+  });
+
+  // Fetch activity logs from API
+  const fetchActivityLogs = async () => {
+    try {
+      setActivityLogsLoading(true);
+      
+      const response = await activityLogsService.getActivityLogs({
+        search: searchQuery || undefined,
+        page: currentPage,
+        limit: 10,
+      });
+
+      const transformedLogs = response.data.map(transformActivityLog);
+      setActivityLogs(transformedLogs);
+      setTotalActivityLogs(response.pagination.total);
+
+    } catch (err) {
+      console.error('Failed to fetch activity logs:', err);
+      error('Failed to load activity logs. Please try again.');
+    } finally {
+      setActivityLogsLoading(false);
+    }
+  };
+
+  // Load activity logs when component mounts or search/page changes
+  useEffect(() => {
+    if (activeTab === 'activity-log') {
+      fetchActivityLogs();
+    }
+  }, [activeTab, searchQuery, currentPage]);
 
   // Configuration settings state
   const [configSettings, setConfigSettings] = useState({
@@ -517,15 +514,9 @@ export default function SettingsPage() {
     await new Promise(resolve => setTimeout(resolve, 1000));
   };
 
-  const filteredLogs = activityLogs.filter(log =>
-    log.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    log.actionPerformed.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   const itemsPerPage = 10;
-  const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
+  const totalPages = Math.ceil(totalActivityLogs / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedLogs = filteredLogs.slice(startIndex, startIndex + itemsPerPage);
 
   return (
     <div className="drawer-content flex flex-col">
@@ -1081,63 +1072,82 @@ export default function SettingsPage() {
 
                     {/* Table Body */}
                     <div>
-                      {paginatedLogs.map((log, index) => (
-                        <div key={log.id}>
-                          <div className="flex items-center px-5 py-3">
-                            <div className="flex items-center w-8">
-                              <Checkbox
-                                checked={log.selected || false}
-                                onCheckedChange={() => handleSelectLog(log.id)}
-                              />
-                            </div>
-                            <div className="w-56 ml-4">
-                              <span 
-                                style={{
-                                  fontSize: '12.8px',
-                                  fontWeight: 700,
-                                  lineHeight: '19px',
-                                  color: '#6A707E',
-                                  fontFamily: 'Open Sauce Sans, sans-serif',
-                                }}
-                              >
-                                {log.fullName}
-                              </span>
-                            </div>
-                            <div className="flex-1 px-4">
-                              <span 
-                                style={{
-                                  fontSize: '12.8px',
-                                  fontWeight: 500,
-                                  lineHeight: '19px',
-                                  color: '#6A707E',
-                                  fontFamily: 'Open Sauce Sans, sans-serif',
-                                }}
-                              >
-                                {log.actionPerformed}
-                              </span>
-                            </div>
-                            <div className="w-64">
-                              <span 
-                                style={{
-                                  fontSize: '12.8px',
-                                  fontWeight: 500,
-                                  lineHeight: '19px',
-                                  color: '#ABAFB3',
-                                  fontFamily: 'Open Sauce Sans, sans-serif',
-                                }}
-                              >
-                                {log.timeAndDate}
-                              </span>
-                            </div>
-                          </div>
-                          {index < paginatedLogs.length - 1 && (
-                            <div 
-                              className="h-px mx-5"
-                              style={{ backgroundColor: '#DDDFE1' }}
-                            />
-                          )}
+                      {activityLogsLoading ? (
+                        <div className="flex items-center justify-center py-8">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#7F56D9]"></div>
                         </div>
-                      ))}
+                      ) : activityLogs.length === 0 ? (
+                        <div className="flex items-center justify-center py-8">
+                          <span 
+                            style={{
+                              fontSize: '14px',
+                              fontWeight: 500,
+                              color: '#6A707E',
+                              fontFamily: 'Open Sauce Sans, sans-serif',
+                            }}
+                          >
+                            No activity logs found
+                          </span>
+                        </div>
+                      ) : (
+                        activityLogs.map((log, index) => (
+                          <div key={log.id}>
+                            <div className="flex items-center px-5 py-3">
+                              <div className="flex items-center w-8">
+                                <Checkbox
+                                  checked={log.selected || false}
+                                  onCheckedChange={() => handleSelectLog(log.id)}
+                                />
+                              </div>
+                              <div className="w-56 ml-4">
+                                <span 
+                                  style={{
+                                    fontSize: '12.8px',
+                                    fontWeight: 700,
+                                    lineHeight: '19px',
+                                    color: '#6A707E',
+                                    fontFamily: 'Open Sauce Sans, sans-serif',
+                                  }}
+                                >
+                                  {log.fullName}
+                                </span>
+                              </div>
+                              <div className="flex-1 px-4">
+                                <span 
+                                  style={{
+                                    fontSize: '12.8px',
+                                    fontWeight: 500,
+                                    lineHeight: '19px',
+                                    color: '#6A707E',
+                                    fontFamily: 'Open Sauce Sans, sans-serif',
+                                  }}
+                                >
+                                  {log.actionPerformed}
+                                </span>
+                              </div>
+                              <div className="w-64">
+                                <span 
+                                  style={{
+                                    fontSize: '12.8px',
+                                    fontWeight: 500,
+                                    lineHeight: '19px',
+                                    color: '#ABAFB3',
+                                    fontFamily: 'Open Sauce Sans, sans-serif',
+                                  }}
+                                >
+                                  {log.timeAndDate}
+                                </span>
+                              </div>
+                            </div>
+                            {index < activityLogs.length - 1 && (
+                              <div 
+                                className="h-px mx-5"
+                                style={{ backgroundColor: '#DDDFE1' }}
+                              />
+                            )}
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
 

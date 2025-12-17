@@ -81,9 +81,9 @@ export default function CreditOfficerDetailsPage({ params }: { params: Promise<{
 
   // Transform User to CreditOfficerDetails
   const transformUserToCreditOfficerDetails = (user: User): CreditOfficerDetails => ({
-    id: user.id,
+    id: String(user.id), // Ensure ID is string
     name: `${user.firstName} ${user.lastName}`,
-    coId: user.id.slice(-5), // Use last 5 chars of ID
+    coId: String(user.id).slice(-5), // Convert to string before slicing
     dateJoined: new Date(user.createdAt).toLocaleDateString('en-US', { 
       year: 'numeric', 
       month: 'short', 
@@ -96,8 +96,8 @@ export default function CreditOfficerDetailsPage({ params }: { params: Promise<{
 
   // Transform Transaction to CollectionTransaction
   const transformTransactionToCollection = (transaction: Transaction, customerName: string): CollectionTransaction => ({
-    id: transaction.id,
-    transactionId: transaction.id.slice(-8).toUpperCase(),
+    id: String(transaction.id), // Ensure ID is string
+    transactionId: String(transaction.id).slice(-8).toUpperCase(),
     customerName,
     amount: transaction.amount,
     status: transaction.status === 'approved' ? 'Approved' : 
@@ -113,8 +113,8 @@ export default function CreditOfficerDetailsPage({ params }: { params: Promise<{
 
   // Transform Loan to DisbursedLoan
   const transformLoanToDisbursed = (loan: Loan, customerName: string): DisbursedLoan => ({
-    id: loan.id,
-    loanId: loan.id.slice(-8).toUpperCase(),
+    id: String(loan.id), // Ensure ID is string
+    loanId: String(loan.id).slice(-8).toUpperCase(),
     customerName,
     amount: loan.amount,
     status: loan.status === 'active' ? 'Active' : 

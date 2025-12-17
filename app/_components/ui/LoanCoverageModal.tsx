@@ -202,7 +202,7 @@ export default function LoanCoverageModal({
                   <option value="">Select a loan</option>
                   {customerLoans.map((loan) => (
                     <option key={loan.id} value={loan.id}>
-                      Loan #{loan.id.slice(-8).toUpperCase()} - ₦{loan.amount.toLocaleString()} ({loan.status})
+                      Loan #{String(loan.id).slice(-8).toUpperCase()} - ₦{loan.amount.toLocaleString()} ({loan.status})
                     </option>
                   ))}
                 </select>

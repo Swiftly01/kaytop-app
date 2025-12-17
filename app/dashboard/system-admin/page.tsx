@@ -14,6 +14,9 @@ import Pagination from '@/app/_components/ui/Pagination';
 import { EmptyState } from '@/app/_components/ui/EmptyState';
 import { DashboardFiltersModal, DashboardFilters } from '@/app/_components/ui/DashboardFiltersModal';
 import { dashboardService } from '@/lib/services/dashboard';
+import { bulkLoansService } from '@/lib/services/bulkLoans';
+import { userService } from '@/lib/services/users';
+import { savingsService } from '@/lib/services/savings';
 import type { DashboardKPIs, DashboardParams } from '@/lib/api/types';
 
 type TabValue = 'disbursements' | 're-collections' | 'savings' | 'missed-payments';
@@ -227,58 +230,19 @@ export default function SystemAdminDashboard() {
     ];
   };
 
-  // Tab data structures
-  // TODO: Replace with actual API data fetching based on activeTab
-  const tabData = {
-    disbursements: [
-      { id: '1', loanId: '43756', name: 'Ademola Jumoke', status: 'Active' as const, interest: '7.25%', amount: 'NGN87,000', dateDisbursed: '2024-06-03' },
-      { id: '2', loanId: '45173', name: 'Adegboyoga Precious', status: 'Active' as const, interest: '6.50%', amount: 'NGN55,000', dateDisbursed: '2023-12-24' },
-      { id: '3', loanId: '70668', name: 'Nneka Chukwu', status: 'Scheduled' as const, interest: '8.00%', amount: 'NGN92,000', dateDisbursed: '2024-11-11' },
-      { id: '4', loanId: '87174', name: 'Damilare Usman', status: 'Active' as const, interest: '7.75%', amount: 'NGN68,000', dateDisbursed: '2024-02-02' },
-      { id: '5', loanId: '89636', name: 'Jide Kosoko', status: 'Active' as const, interest: '7.00%', amount: 'NGN79,000', dateDisbursed: '2023-08-18' },
-      { id: '6', loanId: '97174', name: 'Oladejo israel', status: 'Active' as const, interest: '6.75%', amount: 'NGN46,000', dateDisbursed: '2024-09-09' },
-      { id: '7', loanId: '22739', name: 'Eze Chinedu', status: 'Active' as const, interest: '8.25%', amount: 'NGN61,000', dateDisbursed: '2023-07-27' },
-      { id: '8', loanId: '22739', name: 'Adebanji Bolaji', status: 'Active' as const, interest: '7.50%', amount: 'NGN73,000', dateDisbursed: '2024-04-05' },
-      { id: '9', loanId: '48755', name: 'Baba Kaothat', status: 'Active' as const, interest: '6.25%', amount: 'NGN62,000', dateDisbursed: '2023-10-14' },
-      { id: '10', loanId: '30635', name: 'Adebayo Salami', status: 'Active' as const, interest: '7.10%', amount: 'NGN84,000', dateDisbursed: '2024-03-22' },
-    ],
-    're-collections': [
-      { id: '11', loanId: '43756', name: 'Ademola Jumoke', status: 'Active' as const, amount: 'NGN87,000', dateDisbursed: '2024-06-03' },
-      { id: '12', loanId: '43178', name: 'Adegboyoga Precious', status: 'Active' as const, amount: 'NGN55,000', dateDisbursed: '2023-12-24' },
-      { id: '13', loanId: '70668', name: 'Nneka Chukwu', status: 'Scheduled' as const, amount: 'NGN92,000', dateDisbursed: '2024-11-11' },
-      { id: '14', loanId: '97174', name: 'Damilare Usman', status: 'Active' as const, amount: 'NGN68,000', dateDisbursed: '2024-02-02' },
-      { id: '15', loanId: '39635', name: 'Jide Kosoko', status: 'Active' as const, amount: 'NGN79,000', dateDisbursed: '2023-08-18' },
-      { id: '16', loanId: '97174', name: 'Oladejo israel', status: 'Active' as const, amount: 'NGN46,000', dateDisbursed: '2024-09-09' },
-      { id: '17', loanId: '22739', name: 'Eze Chinedu', status: 'Active' as const, amount: 'NGN61,000', dateDisbursed: '2023-07-27' },
-      { id: '18', loanId: '22739', name: 'Adebanji Bolaji', status: 'Active' as const, amount: 'NGN73,000', dateDisbursed: '2024-04-05' },
-      { id: '19', loanId: '43756', name: 'Baba Kaothat', status: 'Active' as const, amount: 'NGN52,000', dateDisbursed: '2023-10-14' },
-      { id: '20', loanId: '39635', name: 'Adebayo Salami', status: 'Active' as const, amount: 'NGN84,000', dateDisbursed: '2024-03-22' },
-    ],
-    savings: [
-      { id: '21', loanId: '43756', name: 'Ademola Jumoke', type: 'Savings' as const, amount: 'NGN87,000', dateDisbursed: '2024-06-03' },
-      { id: '22', loanId: '43178', name: 'Adegboyoga Precious', type: 'Savings' as const, amount: 'NGN55,000', dateDisbursed: '2023-12-24' },
-      { id: '23', loanId: '70668', name: 'Nneka Chukwu', type: 'Savings' as const, amount: 'NGN92,000', dateDisbursed: '2024-11-11' },
-      { id: '24', loanId: '97174', name: 'Damilare Usman', type: 'Savings' as const, amount: 'NGN68,000', dateDisbursed: '2024-02-02' },
-      { id: '25', loanId: '39635', name: 'Jide Kosoko', type: 'Savings' as const, amount: 'NGN79,000', dateDisbursed: '2023-08-18' },
-      { id: '26', loanId: '97174', name: 'Oladejo israel', type: 'Savings' as const, amount: 'NGN46,000', dateDisbursed: '2024-09-09' },
-      { id: '27', loanId: '22739', name: 'Eze Chinedu', type: 'Savings' as const, amount: 'NGN61,000', dateDisbursed: '2023-07-27' },
-      { id: '28', loanId: '22739', name: 'Adebanji Bolaji', type: 'Savings' as const, amount: 'NGN73,000', dateDisbursed: '2024-04-05' },
-      { id: '29', loanId: '43756', name: 'Baba Kaothat', type: 'Savings' as const, amount: 'NGN52,000', dateDisbursed: '2023-10-14' },
-      { id: '30', loanId: '39635', name: 'Adebayo Salami', type: 'Savings' as const, amount: 'NGN84,000', dateDisbursed: '2024-03-22' },
-    ],
-    'missed-payments': [
-      { id: '31', loanId: '43756', name: 'Ademola Jumoke', status: 'Active' as const, interest: '7.25%', amount: 'NGN87,000', dateDisbursed: '2024-06-03' },
-      { id: '32', loanId: '43178', name: 'Adegboyoga Precious', status: 'Active' as const, interest: '6.50%', amount: 'NGN55,000', dateDisbursed: '2023-12-24' },
-      { id: '33', loanId: '70668', name: 'Nneka Chukwu', status: 'Scheduled' as const, interest: '8.00%', amount: 'NGN92,000', dateDisbursed: '2024-11-11' },
-      { id: '34', loanId: '97174', name: 'Damilare Usman', status: 'Active' as const, interest: '7.75%', amount: 'NGN68,000', dateDisbursed: '2024-02-02' },
-      { id: '35', loanId: '39635', name: 'Jide Kosoko', status: 'Active' as const, interest: '7.00%', amount: 'NGN79,000', dateDisbursed: '2023-08-18' },
-      { id: '36', loanId: '97174', name: 'Oladejo israel', status: 'Active' as const, interest: '6.75%', amount: 'NGN46,000', dateDisbursed: '2024-09-09' },
-      { id: '37', loanId: '22739', name: 'Eze Chinedu', status: 'Active' as const, interest: '8.25%', amount: 'NGN61,000', dateDisbursed: '2023-07-27' },
-      { id: '38', loanId: '22739', name: 'Adebanji Bolaji', status: 'Active' as const, interest: '7.50%', amount: 'NGN73,000', dateDisbursed: '2024-04-05' },
-      { id: '39', loanId: '43756', name: 'Baba Kaothat', status: 'Active' as const, interest: '6.25%', amount: 'NGN52,000', dateDisbursed: '2023-10-14' },
-      { id: '40', loanId: '39635', name: 'Adebayo Salami', status: 'Active' as const, interest: '7.10%', amount: 'NGN84,000', dateDisbursed: '2024-03-22' },
-    ],
-  };
+  // State for API-fetched tab data
+  const [tabData, setTabData] = useState<Record<string, any[]>>({
+    disbursements: [],
+    're-collections': [],
+    savings: [],
+    'missed-payments': [],
+  });
+  const [tabDataLoading, setTabDataLoading] = useState<Record<string, boolean>>({
+    disbursements: false,
+    're-collections': false,
+    savings: false,
+    'missed-payments': false,
+  });
 
   // Handler for sorting
   const handleSort = (column: string) => {

@@ -35,21 +35,50 @@ class AuthenticationService implements AuthService {
 
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     try {
-      const response = await apiClient.post<AuthResponse>(
+      const response = await apiClient.post<any>(
         API_ENDPOINTS.AUTH.LOGIN,
         credentials
       );
 
-      if (response.success && response.data) {
-        // Store token and user data
-        this.setToken(response.data.token);
-        this.setUser(response.data.user);
-        
-        return response.data;
+      // Backend returns direct format: { access_token: "jwt...", role: "system_admin" }
+      const responseData = response as any;
+
+      // Extract token from the direct response format
+      const token = responseData.access_token || responseData.token || responseData.accessToken;
+      
+      if (!token) {
+        console.error('No token found in response. Full response:', JSON.stringify(responseData, null, 2));
+        throw new Error('No authentication token received from server');
       }
 
-      throw new Error(response.message || 'Login failed');
+      // Create user object from available data and credentials
+      const user = {
+        id: 'system-admin',
+        firstName: 'System',
+        lastName: 'Admin',
+        email: credentials.email,
+        mobileNumber: '',
+        role: responseData.role || 'system_admin',
+        verificationStatus: 'verified' as const,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      const authData: AuthResponse = { token, user };
+
+      if (!authData || !authData.token) {
+        throw new Error('No authentication token received');
+      }
+
+      // Store token and user data
+      this.setToken(authData.token);
+      if (authData.user) {
+        this.setUser(authData.user);
+      }
+      
+      return authData;
     } catch (error) {
+      console.error('Login error details:', error);
       // Clear any existing auth data on login failure
       this.clearAuthData();
       throw error;
@@ -201,6 +230,13 @@ class AuthenticationService implements AuthService {
   private setUser(user: AdminProfile): void {
     if (typeof window !== 'undefined') {
       localStorage.setItem(this.USER_KEY, JSON.stringify(user));
+      
+      // Also set cookies for middleware
+      const { setAuthCookies } = require('../authCookies');
+      const token = localStorage.getItem(this.TOKEN_KEY);
+      if (token && user.role) {
+        setAuthCookies(token, user.role);
+      }
     }
   }
 
@@ -208,6 +244,10 @@ class AuthenticationService implements AuthService {
     if (typeof window !== 'undefined') {
       localStorage.removeItem(this.TOKEN_KEY);
       localStorage.removeItem(this.USER_KEY);
+      
+      // Also clear cookies
+      const { removeAuthCookies } = require('../authCookies');
+      removeAuthCookies();
     }
   }
 

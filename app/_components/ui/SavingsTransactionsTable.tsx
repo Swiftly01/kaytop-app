@@ -312,14 +312,14 @@ export default function SavingsTransactionsTable({
                   <Checkbox
                     checked={selectedTransactions.includes(transaction.id)}
                     onChange={() => handleSelectTransaction(transaction.id)}
-                    aria-label={`Select transaction ${transaction.id.slice(-8).toUpperCase()}`}
+                    aria-label={`Select transaction ${String(transaction.id).slice(-8).toUpperCase()}`}
                   />
                 </td>
                 <td
                   className="text-sm font-normal"
                   style={{ color: '#475467', padding: '16px 24px' }}
                 >
-                  #{transaction.id.slice(-8).toUpperCase()}
+                  #{String(transaction.id).slice(-8).toUpperCase()}
                 </td>
                 <td style={{ padding: '16px 24px' }}>
                   <TransactionTypeBadge type={transaction.type} />

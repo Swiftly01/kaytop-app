@@ -11,7 +11,7 @@ import { useState } from "react";
 import { AuthService } from "@/app/services/authService";
 import { handleAxiosError } from "@/lib/errorHandler";
 import { AxiosError } from "axios";
-import { useAuth } from "@/app/context/AuthContext";
+import { useAuth } from "@/app/contexts/AuthContext";
 import { ROUTES } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import Spinner from "../Spinner";
@@ -31,7 +31,7 @@ type LoginData = z.infer<typeof schema>;
 
 export default function LoginForm() {
   const [isSubmitting, setisSubmitting] = useState(false);
-  const { login: auth, setCookie } = useAuth();
+  const { login } = useAuth();
   const router = useRouter();
   const {
     register,
@@ -46,17 +46,14 @@ export default function LoginForm() {
     setisSubmitting(true);
 
     try {
-      const response = await AuthService.login(data);
-
-      const accessToken = response.access_token;
-      const role = response.role;
-      auth(accessToken, role);
-      setCookie(accessToken, role);
-      toast.success("You have logged in successfuly");
-      router.push(ROUTES.Bm.DASHBOARD);
+      await login({
+        email: data.email,
+        password: data.password,
+        userType: 'branch-manager'
+      });
+      toast.success("You have logged in successfully");
     } catch (error: AxiosError | unknown) {
       const err = error as AxiosError;
-
       handleAxiosError(err, setError);
     } finally {
       setisSubmitting(false);
