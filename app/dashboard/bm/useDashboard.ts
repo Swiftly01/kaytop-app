@@ -11,15 +11,18 @@ interface DashboardKpiResponse {
 export function useDashboard() {
   const searchParams = useSearchParams();
   const timeFilter = searchParams.get("last") ?? "custom";
+  const startDate = searchParams.get("startDate");
+  const endDate = searchParams.get("endDate");
 
   const { isLoading, error, data } = useQuery<
     unknown[],
     AxiosError<DashboardKpiResponse>
   >({
-    queryKey: ["dashboard", timeFilter],
+    queryKey: ["dashboard", timeFilter, startDate, endDate],
     queryFn:   ({ queryKey }) => {
-      const [, timeFilter] = queryKey as [string, string];
-      return DashboardService.getDashboardKpi(timeFilter);
+      const [, timeFilter,  startDate, endDate] = queryKey as [string, string, string| null, string | null];
+
+      return DashboardService.getDashboardKpi({timeFilter, startDate, endDate});
     },
   });
 
