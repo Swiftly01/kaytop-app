@@ -1,15 +1,45 @@
 import React, { JSX } from "react";
 
-export default function Pagination(): JSX.Element {
+interface PaginationProps {
+  page: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}
+export default function Pagination({
+  page,
+  totalPages,
+  onPageChange,
+}: PaginationProps): JSX.Element {
+  const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
   return (
     <div className="flex justify-end">
       <div className="join custom-btn">
-        <button className="join-item btn btn-sm">Previous</button>
-        <button className="join-item btn btn-sm">1</button>
-        <button className="join-item btn btn-active btn-sm ">2</button>
-        <button className="join-item btn btn-sm">3</button>
-        <button className="join-item btn btn-sm">4</button>
-        <button className="join-item btn btn-sm">Next</button>
+        <button
+          className="join-item btn btn-sm"
+          disabled={page === 1}
+          onClick={() => onPageChange(page - 1)}
+        >
+          Previous
+        </button>
+        {pages.map((index, currentPage) => (
+          <button
+            key={index}
+            className={`join-item btn btn-sm ${
+              currentPage === page ? "btn-accent" : ""
+            }`}
+            onClick={() => onPageChange(page + 1)}
+          >
+            {currentPage}
+          </button>
+        ))}
+
+        <button
+          className="join-item btn btn-sm "
+          disabled={page === totalPages}
+          onClick={() => onPageChange(page + 1)}
+        >
+          Next
+        </button>
       </div>
     </div>
   );
