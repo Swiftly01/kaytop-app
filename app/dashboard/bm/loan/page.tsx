@@ -1,7 +1,7 @@
 import DrawerTable from "@/app/_components/ui/DrawerTable";
 import FilterButton from "@/app/_components/ui/FilterButton";
 import Metric from "@/app/_components/ui/Metric";
-import Table from "@/app/_components/ui/Table";
+import Table from "@/app/_components/ui/table/DisbursementTable";
 import { MetricProps } from "@/app/types/dashboard";
 import { loans as dashboardData } from "@/lib/utils";
 import { JSX } from "react";
@@ -52,7 +52,7 @@ export default function page(): JSX.Element {
               aria-label="close sidebar"
               className="drawer-overlay"
             ></label>
-              <ul className="z-50 min-h-full p-4 overflow-scroll bg-white menu w-80 md:w-140">
+            <ul className="z-50 min-h-full p-4 overflow-scroll bg-white menu w-80 md:w-140">
               <h1 className="font-semibold text-center text-md text-neutral-700">
                 Loan Details
               </h1>

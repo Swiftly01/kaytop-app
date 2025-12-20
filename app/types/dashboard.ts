@@ -61,6 +61,13 @@ export interface LoanDisbursedItem {
   status: string;
 }
 
+export interface LoanRecollectionItem {
+  amountToBePaid: number;
+  dateToBePaid: string;
+  name: string;
+  status: string;
+}
+
 export interface Meta {
   limit: number;
   page: number;
@@ -70,5 +77,81 @@ export interface Meta {
 
 export interface LoanDisbursedResponse {
   data: LoanDisbursedItem[];
-  meta: Meta;
+  meta?: Meta;
 }
+
+export interface LoanRecollectionResponse {
+  data: LoanRecollectionItem[];
+  meta?: Meta;
+}
+
+export interface LoanDisbursedVolumeResponse {
+  date: string;
+  loanCount: number;
+  totalAmount: number;
+}
+
+interface Transaction {
+  id: number;
+  amount: string;
+  type: string;
+  createdAt: string;
+  // add other fields if transactions have more
+}
+
+interface User {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  mobileNumber: string;
+  address: string;
+  state: string;
+  branch: string;
+  dob: string;
+  accountStatus: string;
+  verificationStatus: string;
+  verifiedAt: string | null;
+  isVerified: boolean;
+  role: string;
+  createdAt: string;
+  updatedAt: string | null;
+  createdAtBy: string | null;
+  profilePicture: string;
+  idNumber: string;
+  idType: string;
+  idPicture: string;
+  guarantorName: string;
+  guarantorAddress: string;
+  guarantorEmail: string;
+  guarantorPhone: string;
+  guarantorPicture: string;
+}
+
+export interface Savings {
+  id: number;
+  balance: number;
+  createdAt: string;
+  transactions: Transaction[];
+  user: User;
+}
+
+export interface MissedPayment {
+  amountOwedToday: number;
+  interest: string;
+  missedDays: number;
+  name: string;
+  status: string;
+}
+
+export interface SavingsApiResponse {
+  data: Savings[];
+  meta?: Meta;
+}
+
+export interface MissedPaymentResponse {
+  data: MissedPayment[];
+  meta?: Meta;
+}
+
+export type PaginationKey = "loanPage" | "recollectionPage" | "savingsPage" | "missedPaymentPage";

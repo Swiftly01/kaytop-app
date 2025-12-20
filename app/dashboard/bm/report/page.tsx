@@ -2,7 +2,7 @@ import Button from "@/app/_components/ui/Button";
 import DrawerTable from "@/app/_components/ui/DrawerTable";
 import FilterButton from "@/app/_components/ui/FilterButton";
 import Metric from "@/app/_components/ui/Metric";
-import Table from "@/app/_components/ui/Table";
+import Table from "@/app/_components/ui/table/DisbursementTable";
 import { MetricProps } from "@/app/types/dashboard";
 import { reports as dashboardData } from "@/lib/utils";
 import Link from "next/link";

@@ -2,7 +2,7 @@ import BreadCrumb from "@/app/_components/ui/BreadCrumb";
 import DrawerTable from "@/app/_components/ui/DrawerTable";
 import PieChart from "@/app/_components/ui/PieChart";
 import RepaymentProgress from "@/app/_components/ui/RepaymentProgress";
-import Table from "@/app/_components/ui/Table";
+import Table from "@/app/_components/ui/table/DisbursementTable";
 import { ROUTES } from "@/lib/utils";
 import { JSX } from "react";
 
@@ -136,7 +136,9 @@ export default function page(): JSX.Element {
                 className="drawer-overlay"
               ></label>
               <ul className="z-50 min-h-full p-4 overflow-scroll bg-white menu w-80 md:w-140">
-                <h1 className="text-center text-md text-neutral-700">Payment Schedule</h1>
+                <h1 className="text-center text-md text-neutral-700">
+                  Payment Schedule
+                </h1>
                 <DrawerTable />
               </ul>
             </div>

@@ -11,7 +11,7 @@ interface LoanDisbursedErrorResponse {
 
 export function useLoanDisbursedQuery() {
   const searchParams = useSearchParams();
-  const page = Number(searchParams.get("page") ?? "1");
+  const page = Number(searchParams.get("loanPage") ?? "1");
   const limit = 10;
 
   const { isLoading, error, data } = useQuery<

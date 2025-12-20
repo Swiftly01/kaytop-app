@@ -21,13 +21,13 @@ export default function Pagination({
         >
           Previous
         </button>
-        {pages.map((index, currentPage) => (
+        {pages.map((currentPage, index) => (
           <button
-            key={index}
+            key={currentPage}
             className={`join-item btn btn-sm ${
-              currentPage === page ? "btn-accent" : ""
+              currentPage === page ? "btn-active" : ""
             }`}
-            onClick={() => onPageChange(page + 1)}
+            onClick={() => onPageChange(currentPage)}
           >
             {currentPage}
           </button>

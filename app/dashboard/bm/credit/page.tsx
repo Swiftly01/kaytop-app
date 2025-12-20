@@ -1,6 +1,6 @@
 import FilterButton from "@/app/_components/ui/FilterButton";
 import Metric from "@/app/_components/ui/Metric";
-import Table from "@/app/_components/ui/Table";
+import Table from "@/app/_components/ui/table/DisbursementTable";
 import React from "react";
 import { creditOficcer as creditOfficerData } from "@/lib/utils";
 import { MetricProps } from "@/app/types/dashboard";
@@ -40,8 +40,6 @@ export default function page() {
           <div className="p-10 bg-white">
             <Table />
           </div>
-
-         
         </div>
       </div>
     </div>

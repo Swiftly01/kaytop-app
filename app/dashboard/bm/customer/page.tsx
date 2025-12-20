@@ -1,8 +1,8 @@
 import FilterButton from "@/app/_components/ui/FilterButton";
 import Metric from "@/app/_components/ui/Metric";
-import Table from "@/app/_components/ui/Table";
+import Table from "@/app/_components/ui/table/DisbursementTable";
 import React from "react";
-import {  customer as customerData } from "@/lib/utils";
+import { customer as customerData } from "@/lib/utils";
 import { MetricProps } from "@/app/types/dashboard";
 
 const metricData: MetricProps[] = customerData;
@@ -40,8 +40,6 @@ export default function page() {
           <div className="p-10 bg-white">
             <Table />
           </div>
-
-         
         </div>
       </div>
     </div>

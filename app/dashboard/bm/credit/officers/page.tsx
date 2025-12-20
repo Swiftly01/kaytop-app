@@ -1,6 +1,6 @@
 import BreadCrumb from "@/app/_components/ui/BreadCrumb";
 import Metric from "@/app/_components/ui/Metric";
-import Table from "@/app/_components/ui/Table";
+import Table from "@/app/_components/ui/table/DisbursementTable";
 import { MetricProps } from "@/app/types/dashboard";
 import { data as dashboardData, ROUTES } from "@/lib/utils";
 import Link from "next/link";
@@ -12,8 +12,7 @@ export default function page(): JSX.Element {
   return (
     <div className="drawer-content">
       <div className="container h-full px-5 pt-4 mx-auto max-w-7xl">
-        <BreadCrumb title="Credit Officer" link={ROUTES.Bm.CREDIT}/>
-       
+        <BreadCrumb title="Credit Officer" link={ROUTES.Bm.CREDIT} />
 
         <Metric item={metricData} />
         <Metric item={metricData} />
