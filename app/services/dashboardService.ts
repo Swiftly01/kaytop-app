@@ -1,7 +1,14 @@
 import apiClient from "@/lib/apiClient";
 import { apiBaseUrl } from "@/lib/config";
 import { AxiosError } from "axios";
-import { DashboardKpi, LoanDisbursedResponse } from "../types/dashboard";
+import {
+  DashboardKpi,
+  LoanDisbursedResponse,
+  LoanDisbursedVolumeResponse,
+  LoanRecollectionResponse,
+  MissedPaymentResponse,
+  SavingsApiResponse,
+} from "../types/dashboard";
 
 interface DashboardProps {
   timeFilter: string;
@@ -10,6 +17,11 @@ interface DashboardProps {
 }
 
 interface LoanDisbursedProps {
+  page: number;
+  limit: number;
+}
+
+interface MissedPaymentProps {
   page: number;
   limit: number;
 }
@@ -48,23 +60,85 @@ export class DashboardService {
           limit,
         },
       });
-      console.log(response);
+      //  console.log(response);
       return response.data;
     } catch (error: AxiosError | unknown) {
       const err = error as AxiosError;
-      console.log("Error fetching loan disbursed", err.response?.data);
+      //   console.log("Error fetching loan disbursed", err.response?.data);
       throw err;
     }
   }
 
-  static async getDisbursedVolume() {
+  static async getLoanRecollection({
+    page,
+    limit,
+  }: LoanDisbursedProps): Promise<LoanRecollectionResponse> {
     try {
-      const response = await apiClient.get(`${apiBaseUrl}/disbursed/volume`);
-      console.log(response);
+      const response = await apiClient.get(
+        `${apiBaseUrl}/loans/recollections`,
+        {
+          params: {
+            page,
+            limit,
+          },
+        }
+      );
+      // console.log(response);
       return response.data;
     } catch (error: AxiosError | unknown) {
       const err = error as AxiosError;
-      console.log("Error fetching disbursed volume", err.response?.data);
+      //   console.log("Error fetching disbursed volume", err.response?.data);
+      throw err;
+    }
+  }
+
+  static async getSavings({
+    page,
+    limit,
+  }: LoanDisbursedProps): Promise<SavingsApiResponse> {
+    try {
+      const response = await apiClient.get(`${apiBaseUrl}/savings/all`, {
+        params: {
+          page,
+          limit,
+        },
+      });
+      //console.log(response);
+      return response.data;
+    } catch (error: AxiosError | unknown) {
+      const err = error as AxiosError;
+      //   console.log("Error fetching disbursed volume", err.response?.data);
+      throw err;
+    }
+  }
+
+  static async getMissedPayment({ page, limit }: MissedPaymentProps): Promise<MissedPaymentResponse> {
+    try {
+      const response = await apiClient.get(`${apiBaseUrl}/loans/missed`, {
+        params: {
+          page,
+          limit,
+        },
+      });
+   //   console.log(response);
+      return response.data;
+    } catch (error: AxiosError | unknown) {
+      const err = error as AxiosError;
+    //  console.log("Error fetching disbursed volume", err.response?.data);
+      throw err;
+    }
+  }
+
+  static async getDisbursedVolume(): Promise<LoanDisbursedVolumeResponse[]> {
+    try {
+      const response = await apiClient.get(
+        `${apiBaseUrl}/loans/disbursed/volume`
+      );
+      //  console.log(response);
+      return response.data;
+    } catch (error: AxiosError | unknown) {
+      const err = error as AxiosError;
+      //   console.log("Error fetching disbursed volume", err.response?.data);
       throw err;
     }
   }
