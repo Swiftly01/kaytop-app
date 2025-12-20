@@ -24,6 +24,14 @@ export const ROUTES: Routes = {
   },
 };
 
+export const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+  }).format(value ?? 0);
+}
+
+
 export const reports: MetricProps[] = [
   {
     title: "Total Reports",

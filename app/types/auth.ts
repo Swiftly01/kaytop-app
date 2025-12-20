@@ -51,7 +51,6 @@ export interface LoginResponse {
 
 //Generic response type
 export interface ApiResponse<T> {
-  message: string;
   data: T;
 }
 

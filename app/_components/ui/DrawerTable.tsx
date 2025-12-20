@@ -76,7 +76,7 @@ export default function DrawerTable(): JSX.Element {
           </tr>
         </tbody>
       </table>
-      <Pagination />
+      {/* <Pagination /> */}
     </div>
   );
 }
