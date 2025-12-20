@@ -15,3 +15,12 @@ export interface Routes {
     SETTING: string;
   };
 }
+
+
+
+export interface MenuItem {
+  icon: string;
+  label: string;
+  link: string;
+  exact?: boolean;
+}
