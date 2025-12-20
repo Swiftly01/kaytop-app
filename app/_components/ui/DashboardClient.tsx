@@ -2,33 +2,40 @@
 import { useDashboardQuery } from "@/app/dashboard/bm/queries/kpi/useDashboardQuery";
 import { useLoanDisbursedQuery } from "@/app/dashboard/bm/queries/loan/useLoanDisbursedQuery";
 import { useDashboardDateFilter } from "@/app/hooks/useDashboardDateFilter";
-import { MetricProps } from "@/app/types/dashboard";
+import { MetricProps, PaginationKey } from "@/app/types/dashboard";
 import { formatCurrency } from "@/lib/utils";
-import Chart from "./Chart";
 import DashboardFilter from "./DashboardFilter";
 import Date from "./Date";
 import FilterButton from "./FilterButton";
 import Metric from "./Metric";
 import SpinnerLg from "./SpinnerLg";
-import Table from "./Table";
-import React from "react";
+
+import { useDisburseVolume } from "@/app/dashboard/bm/queries/loan/useDisburseVolume";
+import { useLoanRecollection } from "@/app/dashboard/bm/queries/loan/useLoanRecollection";
+import { useMissedPayment } from "@/app/dashboard/bm/queries/loan/useMissedPayment";
+import { useSavings } from "@/app/dashboard/bm/queries/savings/useSavings";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import DisbursementLineChart from "./DisbursementLineChart";
+import DisbursementTable from "./table/DisbursementTable";
+import MissedPaymentTable from "./table/MissedPaymentTable";
+import RecollectionTable from "./table/RecollectionTable";
+import SavingsTable from "./table/SavingsTable";
 
 export default function DashboardClient() {
-  const [currentPage, setCurrentPage] = React.useState(1);
   const searhParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
 
   const { isLoading, error, data } = useDashboardQuery();
-  const {
-    isLoading: isLoadingLoan,
-    error: loanError,
-    data: loan,
-  } = useLoanDisbursedQuery();
 
   const { open, setOpen, range, setRange, applyDateFilter, resetDateFilter } =
     useDashboardDateFilter();
+
+  const { data: loan } = useLoanDisbursedQuery();
+  const { data: disburseVolume } = useDisburseVolume();
+  const { data: loanRecollection } = useLoanRecollection();
+  const { data: savings } = useSavings();
+  const { data: missedPayment } = useMissedPayment();
 
   if (isLoading) {
     return (
@@ -86,11 +93,9 @@ export default function DashboardClient() {
     },
   ];
 
-  function handlePageChange(page: number) {
-    setCurrentPage(page);
-
+  function handlePageChange(page: number, key: PaginationKey) {
     const params = new URLSearchParams(searhParams.toString());
-    params.set("page", page.toString());
+    params.set(key, page.toString());
 
     router.push(`${pathname}?${params.toString()}`);
   }
@@ -132,7 +137,7 @@ export default function DashboardClient() {
       <Metric item={metricData2} cols={2} />
 
       <div className="flex flex-col p-5 my-5 bg-white h-[40vh]">
-        <Chart />
+        <DisbursementLineChart data={disburseVolume ?? []} />
       </div>
       <div>
         <div className="my-5 text-gray-500 tabs tabs-border custom-tabs">
@@ -144,7 +149,11 @@ export default function DashboardClient() {
             defaultChecked
           />
           <div className="p-10 bg-white tab-content">
-            <Table item={loan?.data} meta={loan?.meta} onPageChange={handlePageChange} />
+            <DisbursementTable
+              item={loan?.data}
+              meta={loan?.meta}
+              onPageChange={(page) => handlePageChange(page, "loanPage")}
+            />
           </div>
 
           <input
@@ -153,7 +162,15 @@ export default function DashboardClient() {
             className="tab"
             aria-label="Re-collections"
           />
-          <div className="p-10 bg-white tab-content">Tab content 2</div>
+          <div className="p-10 bg-white tab-content">
+            <RecollectionTable
+              item={loanRecollection?.data}
+              meta={loanRecollection?.meta}
+              onPageChange={(page) =>
+                handlePageChange(page, "recollectionPage")
+              }
+            />
+          </div>
 
           <input
             type="radio"
@@ -161,14 +178,28 @@ export default function DashboardClient() {
             className="tab"
             aria-label="Savings"
           />
-          <div className="p-10 bg-white tab-content">Tab content 3</div>
+          <div className="p-10 bg-white tab-content">
+            <SavingsTable
+              item={savings?.data}
+              meta={savings?.meta}
+              onPageChange={(page) => handlePageChange(page, "savingsPage")}
+            />
+          </div>
           <input
             type="radio"
             name="my_tabs_2"
             className="tab"
             aria-label="Missed payments"
           />
-          <div className="p-10 bg-white tab-content">Tab content 4</div>
+          <div className="p-10 bg-white tab-content">
+            <MissedPaymentTable
+              item={missedPayment?.data}
+              meta={missedPayment?.meta}
+              onPageChange={(page) =>
+                handlePageChange(page, "missedPaymentPage")
+              }
+            />
+          </div>
         </div>
       </div>
     </>
