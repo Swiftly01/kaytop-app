@@ -2,6 +2,7 @@ import React, { JSX } from "react";
 import Pagination from "../Pagination";
 import { Meta, MissedPayment } from "@/app/types/dashboard";
 import { formatCurrency } from "@/lib/utils";
+import Badge from "../Badge";
 
 interface TableProps {
   item?: MissedPayment[];
@@ -33,7 +34,7 @@ export default function MissedPaymentTable({
               <tr key={index}>
                 <th>{index + 1}</th>
                 <td>{missedPayment.name}</td>
-                <td>{missedPayment.status}</td>
+                <td> <Badge badge="scheduled"/></td>
                 <td>{formatCurrency(missedPayment.amountOwedToday)}</td>
                 <td>{missedPayment.missedDays} days</td>
                 <td>{missedPayment.interest}%</td>

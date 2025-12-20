@@ -1,7 +1,8 @@
 import React, { JSX } from "react";
 import Pagination from "../Pagination";
 import { LoanDisbursedItem, Meta } from "@/app/types/dashboard";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
+import Badge from "../Badge";
 
 interface TableProps {
   item?: LoanDisbursedItem[];
@@ -35,10 +36,10 @@ export default function DisbursementTable({
                 <th>{index + 1}</th>
                 <td>ID: Loan{index + 1}</td>
                 <td>{loan.name}</td>
-                <td>{loan.status}</td>
+                <td><Badge badge={loan.status}/></td>
                 <td>{formatCurrency(loan.amount)}</td>
                 <td>{formatCurrency(loan.interest)}</td>
-                <td>{loan.dateDisbursed}</td>
+                <td>{formatDate(loan.dateDisbursed)}</td>
               </tr>
             );
           })}

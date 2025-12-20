@@ -1,7 +1,8 @@
 import { LoanRecollectionItem, Meta } from "@/app/types/dashboard";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { JSX } from "react";
 import Pagination from "../Pagination";
+import Badge from "../Badge";
 
 interface TableProps {
   item?: LoanRecollectionItem[];
@@ -25,7 +26,6 @@ export default function RecollectionTable({
             <th>Status</th>
             <th>Amount to be paid</th>
             <th>Date to be paid</th>
-            
           </tr>
         </thead>
         <tbody>
@@ -35,9 +35,12 @@ export default function RecollectionTable({
                 <th>{index + 1}</th>
                 <td>ID: Loan{index + 1}</td>
                 <td>{loan.name}</td>
-                <td>{loan.status}</td>
+                <td>
+                  {" "}
+                  <Badge badge={loan.status} />
+                </td>
                 <td>{formatCurrency(loan.amountToBePaid)}</td>
-                <td>{loan.dateToBePaid}</td>
+                <td>{formatDate(loan.dateToBePaid)}</td>
               </tr>
             );
           })}

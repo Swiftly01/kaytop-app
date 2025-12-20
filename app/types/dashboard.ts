@@ -53,19 +53,21 @@ export interface DashboardKpi {
   topPerformers: unknown[];
 }
 
+type Status = "active" | "scheduled";
+
 export interface LoanDisbursedItem {
   amount: number;
   dateDisbursed: string;
   interest: number;
   name: string;
-  status: string;
+  status: Status;
 }
 
 export interface LoanRecollectionItem {
   amountToBePaid: number;
   dateToBePaid: string;
   name: string;
-  status: string;
+  status: Status;
 }
 
 export interface Meta {
@@ -141,7 +143,7 @@ export interface MissedPayment {
   interest: string;
   missedDays: number;
   name: string;
-  status: string;
+  status: Status;
 }
 
 export interface SavingsApiResponse {

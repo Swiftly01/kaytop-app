@@ -2,8 +2,8 @@
 import { useDashboardQuery } from "@/app/dashboard/bm/queries/kpi/useDashboardQuery";
 import { useLoanDisbursedQuery } from "@/app/dashboard/bm/queries/loan/useLoanDisbursedQuery";
 import { useDashboardDateFilter } from "@/app/hooks/useDashboardDateFilter";
-import { MetricProps, PaginationKey } from "@/app/types/dashboard";
-import { formatCurrency } from "@/lib/utils";
+import { MetricProps } from "@/app/types/dashboard";
+import { formatCurrency, getDashboardMetrics } from "@/lib/utils";
 import DashboardFilter from "./DashboardFilter";
 import Date from "./Date";
 import FilterButton from "./FilterButton";
@@ -14,7 +14,7 @@ import { useDisburseVolume } from "@/app/dashboard/bm/queries/loan/useDisburseVo
 import { useLoanRecollection } from "@/app/dashboard/bm/queries/loan/useLoanRecollection";
 import { useMissedPayment } from "@/app/dashboard/bm/queries/loan/useMissedPayment";
 import { useSavings } from "@/app/dashboard/bm/queries/savings/useSavings";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePageChange } from "@/app/hooks/usePageChange";
 import DisbursementLineChart from "./DisbursementLineChart";
 import DisbursementTable from "./table/DisbursementTable";
 import MissedPaymentTable from "./table/MissedPaymentTable";
@@ -22,10 +22,6 @@ import RecollectionTable from "./table/RecollectionTable";
 import SavingsTable from "./table/SavingsTable";
 
 export default function DashboardClient() {
-  const searhParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
-
   const { isLoading, error, data } = useDashboardQuery();
 
   const { open, setOpen, range, setRange, applyDateFilter, resetDateFilter } =
@@ -36,6 +32,7 @@ export default function DashboardClient() {
   const { data: loanRecollection } = useLoanRecollection();
   const { data: savings } = useSavings();
   const { data: missedPayment } = useMissedPayment();
+  const { handlePageChange } = usePageChange();
 
   if (isLoading) {
     return (
@@ -55,50 +52,8 @@ export default function DashboardClient() {
 
   if (!data) return null;
 
-  const metricData: MetricProps[] = [
-    {
-      title: "All Customers",
-      value: "N/A",
-      // change: "+6% this month",
-      // changeColor: "green",
-      border: false,
-    },
-    {
-      title: "All CO's",
-      value: data.totalCreditOfficers.toString(),
-      border: true,
-    },
-    {
-      title: "Loans Processed",
-      value: data.loansProcessedThisPeriod.toString(),
-      border: true,
-    },
-    {
-      title: "Loan Amount",
-      value: formatCurrency(data.loanValueThisPeriod),
-      border: true,
-    },
-  ];
+  const {primary, secondary} = getDashboardMetrics({ data });
 
-  const metricData2: MetricProps[] = [
-    {
-      title: "Active Loan",
-      value: data.activeLoans.toString(),
-      border: false,
-    },
-    {
-      title: "Missed Payment",
-      value: "N/A",
-      border: false,
-    },
-  ];
-
-  function handlePageChange(page: number, key: PaginationKey) {
-    const params = new URLSearchParams(searhParams.toString());
-    params.set(key, page.toString());
-
-    router.push(`${pathname}?${params.toString()}`);
-  }
 
   return (
     <>
@@ -132,9 +87,9 @@ export default function DashboardClient() {
           </FilterButton>
         </div>
       </div>
-      <Metric item={metricData} />
+      <Metric item={primary} />
 
-      <Metric item={metricData2} cols={2} />
+      <Metric item={secondary} cols={2} />
 
       <div className="flex flex-col p-5 my-5 bg-white h-[40vh]">
         <DisbursementLineChart data={disburseVolume ?? []} />

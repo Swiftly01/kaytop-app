@@ -1,7 +1,7 @@
 import React, { JSX } from "react";
 import Pagination from "../Pagination";
 import {  Meta, Savings } from "@/app/types/dashboard";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 interface TableProps {
   item?: Savings[];
@@ -37,7 +37,7 @@ export default function SavingsTable({
                 <td>{saving.user.firstName}</td>
                 <td>savings</td>
                 <td>{formatCurrency(saving.balance)}</td>
-                <td>{saving.createdAt}</td>
+                <td>{formatDate(saving.createdAt)}</td>
               </tr>
             );
           })}
