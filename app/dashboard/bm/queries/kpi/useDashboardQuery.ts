@@ -1,13 +1,9 @@
-"use client"
+"use client";
 import { DashboardService } from "@/app/services/dashboardService";
-import { DashboardKpi } from "@/app/types/dashboard";
+import { DashboardKpi, DashboardKpiResponse } from "@/app/types/dashboard";
 import { useQuery } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 import { useSearchParams } from "next/navigation";
-
-interface DashboardKpiResponse {
-  message?: string;
-}
 
 export function useDashboardQuery() {
   const searchParams = useSearchParams();
@@ -20,10 +16,19 @@ export function useDashboardQuery() {
     AxiosError<DashboardKpiResponse>
   >({
     queryKey: ["dashboard", timeFilter, startDate, endDate],
-    queryFn:   ({ queryKey }) => {
-      const [, timeFilter,  startDate, endDate] = queryKey as [string, string, string| null, string | null];
+    queryFn: ({ queryKey }) => {
+      const [, timeFilter, startDate, endDate] = queryKey as [
+        string,
+        string,
+        string | null,
+        string | null
+      ];
 
-      return DashboardService.getDashboardKpi({timeFilter, startDate, endDate});
+      return DashboardService.getDashboardKpi({
+        timeFilter,
+        startDate,
+        endDate,
+      });
     },
   });
 
