@@ -1,6 +1,6 @@
 export interface MetricProps {
   title: string;
-  value: string;
+  value?: string;
   change?: string;
   changeColor?: "green" | "red";
   border: boolean;
@@ -155,5 +155,10 @@ export interface MissedPaymentResponse {
   data: MissedPayment[];
   meta?: Meta;
 }
+
+export interface DashboardKpiResponse {
+  message?: string;
+}
+
 
 export type PaginationKey = "loanPage" | "recollectionPage" | "savingsPage" | "missedPaymentPage";
