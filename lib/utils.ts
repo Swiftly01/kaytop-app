@@ -29,7 +29,7 @@ export function formatDate(date?: string | Date | null) {
   return date ? dayjs(date).format("YYYY-MM-DD") : "-";
 }
 
-export const formatCurrency = (value: number) => {
+export const formatCurrency = (value?: number) => {
   return new Intl.NumberFormat("en-NG", {
     style: "currency",
     currency: "NGN",
@@ -45,11 +45,11 @@ export function isActiveRoute(pathname: string, item: MenuItem) {
 export function getLinkClass(isActive: boolean) {
   return isActive
     ? "text-white before:w-full"
-    : "text-neutral-700 hover:text-white hover:before:w-full";
+    : "";
 }
 
 interface DashboardMetricsInput {
-  data: {
+  data?: {
     totalCreditOfficers: number;
     loansProcessedThisPeriod: number;
     loanValueThisPeriod: number;
@@ -72,17 +72,17 @@ export function getDashboardMetrics({ data }: DashboardMetricsInput): {
       },
       {
         title: "All CO's",
-        value: data.totalCreditOfficers.toString(),
+        value: data?.totalCreditOfficers.toString(),
         border: true,
       },
       {
         title: "Loans Processed",
-        value: data.loansProcessedThisPeriod.toString(),
+        value: data?.loansProcessedThisPeriod.toString(),
         border: true,
       },
       {
         title: "Loan Amount",
-        value: formatCurrency(data.loanValueThisPeriod),
+        value: formatCurrency(data?.loanValueThisPeriod),
         border: true,
       },
     ],
@@ -90,7 +90,7 @@ export function getDashboardMetrics({ data }: DashboardMetricsInput): {
     secondary: [
       {
         title: "Active Loan",
-        value: data.activeLoans.toString(),
+        value: data?.activeLoans.toString(),
         border: false,
       },
       {
@@ -100,6 +100,18 @@ export function getDashboardMetrics({ data }: DashboardMetricsInput): {
       },
     ],
   };
+}
+
+export function getCreditOfficerMetrics({
+  data,
+}: DashboardMetricsInput): MetricProps[] {
+  return [
+    {
+      title: "Total Credit Officers",
+      value: data?.totalCreditOfficers.toString(),
+      border: false,
+    },
+  ];
 }
 
 export const reports: MetricProps[] = [
