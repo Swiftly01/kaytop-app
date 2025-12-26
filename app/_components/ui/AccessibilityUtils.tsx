@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useCallback, useState } from 'react';
+import React, { useEffect, useRef, useCallback, useState, useId } from 'react';
 
 // Hook for managing focus
 export function useFocusManagement() {
@@ -298,7 +298,7 @@ export function AccessibleField({
   required = false,
   className = ''
 }: AccessibleFieldProps) {
-  const fieldId = useRef(`field-${Math.random().toString(36).substr(2, 9)}`);
+  const fieldId = useRef(`field-${Math.floor(Math.random() * 1000000)}`);
   const errorId = useRef(`error-${fieldId.current}`);
   const hintId = useRef(`hint-${fieldId.current}`);
 
@@ -368,7 +368,7 @@ export function AccessibleModal({
 }: AccessibleModalProps) {
   const { trapFocus, restoreFocus } = useFocusManagement();
   const modalRef = useRef<HTMLDivElement>(null);
-  const titleId = useRef(`modal-title-${Math.random().toString(36).substr(2, 9)}`);
+  const titleId = useRef(`modal-title-${Math.floor(Math.random() * 1000000)}`);
 
   useEffect(() => {
     if (isOpen && modalRef.current) {

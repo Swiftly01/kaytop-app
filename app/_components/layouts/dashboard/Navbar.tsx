@@ -45,7 +45,7 @@ export default function Navbar(): JSX.Element {
           </label>
 
           <div className="flex items-center">
-            <Image height="40" src={logo} alt="Kaytop MI logo" />
+            <Image height="40" src={logo} alt="Kaytop MI logo" loading="eager" priority />
             <span className="text-sm font-semibold sm:text-base md:text-lg">
               Kaytop MI
             </span>

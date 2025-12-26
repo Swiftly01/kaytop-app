@@ -9,6 +9,8 @@ import type { AdminProfile } from '../api/types';
 export enum UserRole {
   SYSTEM_ADMIN = 'system_admin',
   BRANCH_MANAGER = 'branch_manager',
+  ACCOUNT_MANAGER = 'account_manager',
+  HQ_MANAGER = 'hq_manager', // Backend uses this instead of account_manager
   CREDIT_OFFICER = 'credit_officer',
   CUSTOMER = 'customer'
 }
@@ -25,6 +27,8 @@ export interface RouteConfig {
 export const ROLE_DASHBOARD_MAPPINGS: Record<UserRole, string> = {
   [UserRole.SYSTEM_ADMIN]: '/dashboard/system-admin',
   [UserRole.BRANCH_MANAGER]: '/dashboard/bm',
+  [UserRole.ACCOUNT_MANAGER]: '/dashboard/am',
+  [UserRole.HQ_MANAGER]: '/dashboard/am', // HQ Manager uses AM dashboard
   [UserRole.CREDIT_OFFICER]: '/dashboard/credit-officer',
   [UserRole.CUSTOMER]: '/dashboard/customer'
 };
@@ -47,10 +51,18 @@ export const ROUTE_CONFIGURATIONS: RouteConfig[] = [
     requiresAuth: true
   },
   
+  // Account Manager routes
+  {
+    path: '/dashboard/am',
+    allowedRoles: [UserRole.SYSTEM_ADMIN, UserRole.BRANCH_MANAGER, UserRole.ACCOUNT_MANAGER, UserRole.HQ_MANAGER],
+    isDefault: true,
+    requiresAuth: true
+  },
+  
   // Credit Officer routes
   {
     path: '/dashboard/credit-officer',
-    allowedRoles: [UserRole.SYSTEM_ADMIN, UserRole.BRANCH_MANAGER, UserRole.CREDIT_OFFICER],
+    allowedRoles: [UserRole.SYSTEM_ADMIN, UserRole.BRANCH_MANAGER, UserRole.ACCOUNT_MANAGER, UserRole.HQ_MANAGER, UserRole.CREDIT_OFFICER],
     isDefault: true,
     requiresAuth: true
   },
@@ -66,14 +78,14 @@ export const ROUTE_CONFIGURATIONS: RouteConfig[] = [
   // Shared routes
   {
     path: '/profile',
-    allowedRoles: [UserRole.SYSTEM_ADMIN, UserRole.BRANCH_MANAGER, UserRole.CREDIT_OFFICER, UserRole.CUSTOMER],
+    allowedRoles: [UserRole.SYSTEM_ADMIN, UserRole.BRANCH_MANAGER, UserRole.ACCOUNT_MANAGER, UserRole.HQ_MANAGER, UserRole.CREDIT_OFFICER, UserRole.CUSTOMER],
     isDefault: false,
     requiresAuth: true
   },
   
   {
     path: '/settings',
-    allowedRoles: [UserRole.SYSTEM_ADMIN, UserRole.BRANCH_MANAGER],
+    allowedRoles: [UserRole.SYSTEM_ADMIN, UserRole.BRANCH_MANAGER, UserRole.ACCOUNT_MANAGER, UserRole.HQ_MANAGER],
     isDefault: false,
     requiresAuth: true
   }
@@ -91,6 +103,11 @@ export function detectUserRole(authResponse: any): UserRole {
   // Check if user object has role
   if (authResponse.user?.role && Object.values(UserRole).includes(authResponse.user.role)) {
     return authResponse.user.role as UserRole;
+  }
+  
+  // Handle backend role mapping - treat branch_manager as HQ_MANAGER for AM dashboard access
+  if (authResponse.user?.role === 'branch_manager' || authResponse.role === 'branch_manager') {
+    return UserRole.HQ_MANAGER;
   }
   
   // Check for role in token payload (if available)
@@ -231,6 +248,10 @@ function getDefaultFirstName(role: UserRole): string {
       return 'System';
     case UserRole.BRANCH_MANAGER:
       return 'Branch';
+    case UserRole.ACCOUNT_MANAGER:
+      return 'Account';
+    case UserRole.HQ_MANAGER:
+      return 'HQ';
     case UserRole.CREDIT_OFFICER:
       return 'Credit';
     case UserRole.CUSTOMER:
@@ -248,6 +269,10 @@ function getDefaultLastName(role: UserRole): string {
     case UserRole.SYSTEM_ADMIN:
       return 'Administrator';
     case UserRole.BRANCH_MANAGER:
+      return 'Manager';
+    case UserRole.ACCOUNT_MANAGER:
+      return 'Manager';
+    case UserRole.HQ_MANAGER:
       return 'Manager';
     case UserRole.CREDIT_OFFICER:
       return 'Officer';
@@ -274,6 +299,10 @@ export function getRoleDisplayName(role: UserRole): string {
       return 'System Administrator';
     case UserRole.BRANCH_MANAGER:
       return 'Branch Manager';
+    case UserRole.ACCOUNT_MANAGER:
+      return 'Account Manager';
+    case UserRole.HQ_MANAGER:
+      return 'HQ Manager';
     case UserRole.CREDIT_OFFICER:
       return 'Credit Officer';
     case UserRole.CUSTOMER:

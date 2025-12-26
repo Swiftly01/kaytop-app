@@ -53,7 +53,7 @@ export interface AdminProfile {
   lastName: string;
   email: string;
   mobileNumber: string;
-  role: 'system_admin' | 'branch_manager' | 'credit_officer' | 'customer';
+  role: 'system_admin' | 'branch_manager' | 'account_manager' | 'credit_officer' | 'customer';
   branch?: string;
   state?: string;
   verificationStatus: 'pending' | 'verified' | 'rejected';

@@ -133,9 +133,17 @@ export function BranchManagerGuard({ children }: { children: ReactNode }) {
   );
 }
 
+export function AccountManagerGuard({ children }: { children: ReactNode }) {
+  return (
+    <AuthGuard allowedRoles={[UserRole.SYSTEM_ADMIN, UserRole.BRANCH_MANAGER, UserRole.ACCOUNT_MANAGER]}>
+      {children}
+    </AuthGuard>
+  );
+}
+
 export function CreditOfficerGuard({ children }: { children: ReactNode }) {
   return (
-    <AuthGuard allowedRoles={[UserRole.SYSTEM_ADMIN, UserRole.BRANCH_MANAGER, UserRole.CREDIT_OFFICER]}>
+    <AuthGuard allowedRoles={[UserRole.SYSTEM_ADMIN, UserRole.BRANCH_MANAGER, UserRole.ACCOUNT_MANAGER, UserRole.CREDIT_OFFICER]}>
       {children}
     </AuthGuard>
   );

@@ -45,7 +45,24 @@ class HttpClient implements ApiClient {
 
   private getAuthToken(): string | null {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('auth-token');
+      // Try to get token from localStorage first
+      const token = localStorage.getItem('auth-token');
+      if (token) {
+        console.log('🔑 Token found in localStorage:', token.substring(0, 20) + '...');
+        return token;
+      }
+      
+      // Fallback to cookies if localStorage is empty
+      const cookies = document.cookie.split(';');
+      for (const cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'auth-token') {
+          console.log('🔑 Token found in cookies:', decodeURIComponent(value).substring(0, 20) + '...');
+          return decodeURIComponent(value);
+        }
+      }
+      
+      console.log('❌ No auth token found in localStorage or cookies');
     }
     return null;
   }
@@ -183,6 +200,21 @@ class HttpClient implements ApiClient {
     // Classify error type
     if (response.status === 401 || response.status === 403) {
       (error as AuthError).type = 'auth';
+      
+      // Handle authentication errors by clearing stored tokens
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('auth-token');
+        localStorage.removeItem('auth-user');
+        
+        // Clear cookies as well
+        document.cookie = 'auth-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+        document.cookie = 'user-role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+        
+        // Redirect to login if not already on auth page
+        if (!window.location.pathname.includes('/auth/')) {
+          window.location.href = '/auth/login';
+        }
+      }
     } else if (response.status >= 500) {
       (error as ServerError).type = 'server';
     }

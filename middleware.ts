@@ -5,6 +5,8 @@ import type { NextRequest } from 'next/server';
 enum UserRole {
   SYSTEM_ADMIN = 'system_admin',
   BRANCH_MANAGER = 'branch_manager',
+  ACCOUNT_MANAGER = 'account_manager',
+  HQ_MANAGER = 'hq_manager',
   CREDIT_OFFICER = 'credit_officer',
   CUSTOMER = 'customer'
 }
@@ -21,6 +23,8 @@ interface RouteConfig {
 const ROUTE_MAPPINGS: Record<UserRole, string> = {
   [UserRole.SYSTEM_ADMIN]: '/dashboard/system-admin',
   [UserRole.BRANCH_MANAGER]: '/dashboard/bm',
+  [UserRole.ACCOUNT_MANAGER]: '/dashboard/am',
+  [UserRole.HQ_MANAGER]: '/dashboard/am',
   [UserRole.CREDIT_OFFICER]: '/dashboard/credit-officer',
   [UserRole.CUSTOMER]: '/dashboard/customer'
 };
@@ -137,16 +141,22 @@ function hasRoutePermission(role: UserRole, pathname: string): boolean {
     return true;
   }
   
-  // Branch manager can access system admin and BM routes
+  // Branch manager can access system admin, BM, and AM routes
   if (role === UserRole.BRANCH_MANAGER) {
     return pathname.startsWith('/dashboard/system-admin') || 
-           pathname.startsWith('/dashboard/bm');
+           pathname.startsWith('/dashboard/bm') ||
+           pathname.startsWith('/dashboard/am');
   }
   
-  // Credit officer can access their own routes and some BM routes
+  // Account manager and HQ manager can access AM and credit officer routes
+  if (role === UserRole.ACCOUNT_MANAGER || role === UserRole.HQ_MANAGER) {
+    return pathname.startsWith('/dashboard/am') ||
+           pathname.startsWith('/dashboard/credit-officer');
+  }
+  
+  // Credit officer can access their own routes
   if (role === UserRole.CREDIT_OFFICER) {
-    return pathname.startsWith('/dashboard/credit-officer') ||
-           pathname.startsWith('/dashboard/bm');
+    return pathname.startsWith('/dashboard/credit-officer');
   }
   
   // Customer can only access customer routes

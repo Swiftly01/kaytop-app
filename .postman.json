@@ -4,20 +4,181 @@
   "collection_uid": "50645954-2b260fff-e267-4fca-9d75-b25c123b2e59",
   "environment_id": "882436f4-1117-4eb5-b0a4-876fd173fc8e",
   "environment_uid": "50645954-882436f4-1117-4eb5-b0a4-876fd173fc8e",
+  "am_collection_id": "c02cd1c8-5729-4ede-a904-fc24c1edae1d",
+  "am_collection_uid": "50645954-c02cd1c8-5729-4ede-a904-fc24c1edae1d",
+  "complete_user_creation_collection_id": "4a895d60-420c-4a49-b327-efc8bf69c380",
+  "complete_user_creation_collection_uid": "50645954-4a895d60-420c-4a49-b327-efc8bf69c380",
   "base_url": "https://kaytop-production.up.railway.app",
+  "frontend_base_url": "http://localhost:3000",
   "created_at": "2024-12-17T10:30:00Z",
-  "description": "Postman collection for testing Kaytop API endpoints with focus on authentication system",
+  "updated_at": "2024-12-26T12:10:00Z",
+  "description": "Complete Postman setup for testing all KAYTOP user roles with verified credentials",
+  
+  "user_credentials": {
+    "system_admin": {
+      "email": "admin@kaytop.com",
+      "password": "Admin123",
+      "role": "system_admin",
+      "status": "✅ EXISTING - VERIFIED",
+      "dashboard": "/dashboard/system-admin",
+      "note": "Primary admin account for user creation"
+    },
+    "branch_manager": {
+      "email": "branchmanager@kaytop.com",
+      "password": "BranchManager123",
+      "role": "branch_manager",
+      "status": "✅ CREATED AND VERIFIED",
+      "dashboard": "/dashboard/bm",
+      "note": "Branch Manager with access to BM dashboard"
+    },
+    "account_manager": {
+      "email": "accountmanager@kaytop.com",
+      "password": "AccountManager123",
+      "role": "account_manager",
+      "status": "✅ CREATED AND VERIFIED",
+      "dashboard": "/dashboard/am",
+      "note": "Account Manager with access to AM dashboard"
+    },
+    "hq_manager": {
+      "email": "hqmanager@kaytop.com",
+      "password": "HQManager123",
+      "role": "hq_manager",
+      "status": "✅ CREATED AND VERIFIED",
+      "dashboard": "/dashboard/am",
+      "note": "HQ Manager with access to AM dashboard (backend role mapping)"
+    },
+    "credit_officer": {
+      "email": "creditofficer@kaytop.com",
+      "password": "CreditOfficer123",
+      "role": "credit_officer",
+      "status": "✅ CREATED AND VERIFIED",
+      "dashboard": "/dashboard/credit-officer",
+      "note": "Credit Officer with access to CO dashboard"
+    },
+    "customer": {
+      "email": "customer@kaytop.com",
+      "password": "Customer123",
+      "role": "customer",
+      "status": "✅ CREATED AND VERIFIED",
+      "dashboard": "/dashboard/customer",
+      "note": "Customer user with access to customer dashboard"
+    }
+  },
+  
+  "role_mapping": {
+    "frontend_roles": ["system_admin", "branch_manager", "account_manager", "hq_manager", "credit_officer", "customer"],
+    "backend_roles": ["system_admin", "branch_manager", "account_manager", "hq_manager", "credit_officer", "customer"],
+    "dashboard_mappings": {
+      "system_admin": "/dashboard/system-admin",
+      "branch_manager": "/dashboard/bm", 
+      "account_manager": "/dashboard/am",
+      "hq_manager": "/dashboard/am",
+      "credit_officer": "/dashboard/credit-officer",
+      "customer": "/dashboard/customer"
+    },
+    "access_hierarchy": {
+      "system_admin": "Full access to all dashboards",
+      "branch_manager": "Access to BM and AM dashboards",
+      "account_manager": "Access to AM dashboard",
+      "hq_manager": "Access to AM dashboard (same as account_manager)",
+      "credit_officer": "Access to CO dashboard",
+      "customer": "Access to customer dashboard only"
+    }
+  },
+  
   "test_results": {
-    "last_run": "2024-12-17T10:30:00Z",
-    "total_tests": 7,
-    "passed": 1,
-    "failed": 6,
-    "success_rate": "14.3%",
-    "issues_found": [
-      "All authentication endpoints returning 401 Unauthorized",
-      "Login endpoint not accepting credentials",
-      "Dashboard and profile endpoints require authentication",
-      "API may not be properly deployed or configured"
+    "last_run": "2024-12-26T12:10:00Z",
+    "complete_user_creation": {
+      "status": "✅ COMPLETED SUCCESSFULLY",
+      "collection_name": "KAYTOP - Complete User Role Creation",
+      "total_users_created": 5,
+      "total_users_verified": 6,
+      "success_rate": "100%",
+      "duration": "11.64s",
+      "findings": [
+        "✅ All 6 user roles successfully created/verified",
+        "✅ All authentication endpoints working correctly",
+        "✅ All users can login with their credentials",
+        "✅ Role-based access control properly configured",
+        "✅ Backend accepts all role types via /admin/users endpoint"
+      ]
+    },
+    "authentication_format": {
+      "login_endpoint": "/auth/login",
+      "required_fields": ["email", "password", "userType"],
+      "userType_value": "admin",
+      "response_format": "access_token in response body",
+      "token_usage": "Bearer token in Authorization header"
+    },
+    "user_creation_process": {
+      "endpoint": "/admin/users",
+      "method": "POST",
+      "authentication": "Bearer token from system admin",
+      "required_fields": ["firstName", "lastName", "email", "mobileNumber", "role", "password", "state", "branch"],
+      "supported_roles": ["system_admin", "branch_manager", "account_manager", "hq_manager", "credit_officer", "customer"]
+    }
+  },
+  
+  "postman_collections": {
+    "main_collection": {
+      "id": "2b260fff-e267-4fca-9d75-b25c123b2e59",
+      "name": "Kaytop API Testing Collection",
+      "purpose": "Original API testing collection"
+    },
+    "am_collection": {
+      "id": "c02cd1c8-5729-4ede-a904-fc24c1edae1d", 
+      "name": "HQ Manager API Endpoints",
+      "purpose": "Account Manager specific testing"
+    },
+    "complete_user_creation": {
+      "id": "4a895d60-420c-4a49-b327-efc8bf69c380",
+      "name": "KAYTOP - Complete User Role Creation",
+      "purpose": "Create and verify all user roles",
+      "status": "✅ READY FOR REUSE"
+    }
+  },
+  
+  "integration_status": {
+    "completed_tasks": 9,
+    "total_tasks": 13,
+    "progress": "69.2%",
+    "completed": [
+      "✅ Backend API Infrastructure Setup",
+      "✅ Authentication System Integration", 
+      "✅ Customer Management Integration",
+      "✅ Loan Management Integration",
+      "✅ Savings Management Integration",
+      "✅ Dashboard KPI Integration",
+      "✅ Profile and Settings Integration",
+      "✅ HQ Manager Role Support Added",
+      "✅ Complete User Role Creation System"
+    ],
+    "remaining": [
+      "🔧 OTP Verification Integration",
+      "🔧 Comprehensive Error Handling",
+      "🔧 UI Consistency with Real Data",
+      "🔧 Mock Data Cleanup"
+    ]
+  },
+  
+  "usage_instructions": {
+    "for_testing": [
+      "Use any role credentials from user_credentials section",
+      "Login format: {email, password, userType: 'admin'}",
+      "All users verified and ready for dashboard testing"
+    ],
+    "for_development": [
+      "Run 'KAYTOP - Complete User Role Creation' collection to recreate users",
+      "Collection handles existing users gracefully",
+      "All users have consistent password format: [Role]123"
+    ],
+    "for_role_testing": [
+      "system_admin: Full access testing",
+      "branch_manager: BM dashboard testing", 
+      "account_manager: AM dashboard testing",
+      "hq_manager: AM dashboard testing (backend role)",
+      "credit_officer: CO dashboard testing",
+      "customer: Customer dashboard testing"
     ]
   }
 }

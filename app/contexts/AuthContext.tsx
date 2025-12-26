@@ -49,14 +49,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
           setUser(storedUser);
         } else {
           // Clear invalid auth data only if we're not on auth pages
-          const isAuthPage = typeof window !== 'undefined' && window.location.pathname.includes('/auth/');
+          const currentPath = window.location.pathname;
+          const isAuthPage = currentPath.includes('/auth/') || currentPath === '/';
           if (!isAuthPage) {
+            console.log('🔄 Clearing invalid auth data and redirecting to login');
             authService.logout();
           }
         }
       } catch (error) {
-        console.error('Error initializing auth:', error);
-        const isAuthPage = typeof window !== 'undefined' && window.location.pathname.includes('/auth/');
+        console.error('❌ Error initializing auth:', error);
+        const currentPath = window.location.pathname;
+        const isAuthPage = currentPath.includes('/auth/') || currentPath === '/';
         if (!isAuthPage) {
           authService.logout();
         }
@@ -91,14 +94,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const loginUnified = async (credentials: LoginCredentials): Promise<void> => {
     setIsLoading(true);
     try {
+      console.log('🔐 Attempting unified login for:', credentials.email);
       const authResponse: AuthResponse = await authService.loginUnified(credentials);
       
+      console.log('✅ Login successful, setting auth state');
       setToken(authResponse.token);
       setUser(authResponse.user);
       
       // Use role-based routing for unified login
       const userRole = authResponse.user.role as UserRole;
       const defaultDashboard = getDefaultDashboard(userRole);
+      
+      console.log('🚀 Redirecting to dashboard:', defaultDashboard);
       
       // Wait for cookies to be set properly
       await new Promise(resolve => setTimeout(resolve, 200));
@@ -110,7 +117,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         router.push(defaultDashboard);
       }
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('❌ Login error:', error);
       // Clear any partial auth state
       setToken(null);
       setUser(null);
