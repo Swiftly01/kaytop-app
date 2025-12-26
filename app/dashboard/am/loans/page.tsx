@@ -18,10 +18,10 @@ import { TableSkeleton } from '@/app/_components/ui/Skeleton';
 import { EmptyState } from '@/app/_components/ui/EmptyState';
 import { DateRange } from 'react-day-picker';
 import LoansPageLoanDetailsModal, { LoanDetailsData } from '@/app/_components/ui/LoansPageLoanDetailsModal';
-import { amLoansService } from '@/lib/services/amLoans';
+import { unifiedLoanService } from '@/lib/services/unifiedLoan';
 
 type TabId = 'all' | 'active' | 'completed' | 'missed';
-type TimePeriod = '12months' | '30days' | '7days' | '24hours' | null;
+type TimePeriod = 'last_24_hours' | 'last_7_days' | 'last_30_days' | 'custom' | null;
 
 const ITEMS_PER_PAGE = 10;
 
@@ -30,11 +30,12 @@ interface LoanData {
   loanId: string;
   customerId: string;
   customerName: string;
+  customerPhone?: string; // Added optional phone field
   amount: number;
   interestRate: number;
   status: 'pending' | 'approved' | 'disbursed' | 'active' | 'completed' | 'defaulted' | 'overdue';
   nextRepaymentDate: string;
-  disbursementDate: Date;
+  disbursementDate: string; // Changed from Date to string
   term: number;
   branchId: string;
   creditOfficer: string;
@@ -81,7 +82,7 @@ const transformAMLoanToLoanData = (loan: any): LoanData => {
     amount: loan.amount,
     interestRate: loan.interestRate || 15,
     nextRepaymentDate: loan.nextRepaymentDate || loan.dueDate || new Date().toISOString(),
-    disbursementDate: loan.disbursementDate ? new Date(loan.disbursementDate) : new Date(loan.createdAt || Date.now()),
+    disbursementDate: loan.disbursementDate ? loan.disbursementDate : new Date(loan.createdAt || Date.now()).toISOString(),
     term: loan.term || loan.tenure || 12,
     branchId: loan.branch || 'Unknown',
     creditOfficer: loan.creditOfficer || 'Unassigned',
@@ -96,7 +97,7 @@ export default function AMLoansPage() {
   const { toasts, removeToast, success, error: showError } = useToast();
   
   // Filter and pagination state
-  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('12months');
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('last_30_days');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
@@ -156,16 +157,16 @@ export default function AMLoansPage() {
         queryParams.status = appliedFilters.loanStatus[0].toLowerCase();
       }
 
-      // Fetch AM loans
-      const loansResponse = await amLoansService.getLoans(queryParams);
+      // Fetch loans using unified service
+      const loansResponse = await unifiedLoanService.getLoans(queryParams);
       
-      // Handle response structure
-      const loansData = loansResponse.data?.loans || loansResponse.data || [];
-      const paginationData = loansResponse.data?.pagination || {
+      // Handle response structure - loansResponse.data is already a Loan[]
+      const loansData = Array.isArray(loansResponse.data) ? loansResponse.data : [];
+      const paginationData = {
         page: 1,
         limit: ITEMS_PER_PAGE,
-        total: Array.isArray(loansData) ? loansData.length : 0,
-        totalPages: 1
+        total: loansData.length,
+        totalPages: Math.ceil(loansData.length / ITEMS_PER_PAGE)
       };
       
       // Transform loans data
@@ -288,20 +289,36 @@ export default function AMLoansPage() {
   const handleLoanClick = (loanId: string) => {
     const loan = allLoans.find(l => l.id === loanId);
     if (loan) {
+      // Map loan status to expected LoanDetailsData status
+      const mapStatus = (status: string): 'Active' | 'Scheduled' | 'Missed Payment' => {
+        switch (status.toLowerCase()) {
+          case 'active':
+          case 'disbursed':
+            return 'Active';
+          case 'pending':
+          case 'approved':
+            return 'Scheduled';
+          case 'overdue':
+          case 'defaulted':
+            return 'Missed Payment';
+          default:
+            return 'Active';
+        }
+      };
+
       const loanDetails: LoanDetailsData = {
         id: loan.id,
         loanId: loan.loanId,
-        customerName: loan.customerName,
+        borrowerName: loan.customerName,
+        borrowerPhone: loan.customerPhone || loan.customerName || 'N/A',
         amount: loan.amount,
         interestRate: loan.interestRate,
-        status: loan.status,
-        disbursementDate: loan.disbursementDate.toISOString(),
-        nextRepaymentDate: loan.nextRepaymentDate,
-        term: loan.term,
-        purpose: loan.purpose,
+        status: mapStatus(loan.status),
+        disbursementDate: new Date(loan.disbursementDate),
+        nextRepaymentDate: new Date(loan.nextRepaymentDate || loan.disbursementDate),
         creditOfficer: loan.creditOfficer,
         branch: loan.branchId,
-        stage: loan.stage
+        missedPayments: loan.status === 'overdue' ? 1 : 0
       };
       setSelectedLoan(loanDetails);
       setIsLoanDetailsModalOpen(true);
@@ -416,22 +433,22 @@ export default function AMLoansPage() {
             {loanStatistics && (
               <>
                 <SimpleStatisticsCard
-                  title="Total Applications"
+                  label="Total Applications"
                   value={loanStatistics.totalApplications.count}
                   growth={loanStatistics.totalApplications.growth}
                 />
                 <SimpleStatisticsCard
-                  title="Pending Review"
+                  label="Pending Review"
                   value={loanStatistics.pendingReview.count}
                   growth={loanStatistics.pendingReview.growth}
                 />
                 <SimpleStatisticsCard
-                  title="Awaiting Approval"
+                  label="Awaiting Approval"
                   value={loanStatistics.awaitingApproval.count}
                   growth={loanStatistics.awaitingApproval.growth}
                 />
                 <SimpleStatisticsCard
-                  title="Ready for Disbursement"
+                  label="Ready for Disbursement"
                   value={loanStatistics.readyForDisbursement.count}
                   growth={loanStatistics.readyForDisbursement.growth}
                 />
@@ -442,8 +459,14 @@ export default function AMLoansPage() {
           {/* Tab Navigation */}
           <div className="mb-6">
             <LoansTabNavigation
+              tabs={[
+                { id: 'all', label: 'All Loans' },
+                { id: 'active', label: 'Active' },
+                { id: 'completed', label: 'Completed' },
+                { id: 'missed', label: 'Missed Payments' }
+              ]}
               activeTab={activeTab}
-              onTabChange={handleTabChange}
+              onTabChange={(tabId: string) => handleTabChange(tabId as TabId)}
             />
           </div>
 
@@ -553,11 +576,22 @@ export default function AMLoansPage() {
                 <LoansTable
                   loans={sortedLoans}
                   selectedLoans={selectedRows}
-                  onSelectionChange={handleSelectionChange}
-                  onSort={handleSort}
-                  sortColumn={sortColumn}
-                  sortDirection={sortDirection}
-                  onLoanClick={handleLoanClick}
+                  onSelectLoan={(loanId: string) => {
+                    if (selectedRows.includes(loanId)) {
+                      handleSelectionChange(selectedRows.filter(id => id !== loanId));
+                    } else {
+                      handleSelectionChange([...selectedRows, loanId]);
+                    }
+                  }}
+                  onSelectAll={() => {
+                    if (selectedRows.length === sortedLoans.length) {
+                      setSelectedRows([]);
+                    } else {
+                      setSelectedRows(sortedLoans.map(loan => loan.id));
+                    }
+                  }}
+                  allSelected={selectedRows.length === sortedLoans.length && sortedLoans.length > 0}
+                  onLoanClick={(loan) => handleLoanClick(loan.id)}
                 />
 
                 {/* Pagination Controls */}
@@ -584,11 +618,16 @@ export default function AMLoansPage() {
       </main>
 
       {/* Loan Details Modal */}
-      <LoansPageLoanDetailsModal
-        isOpen={isLoanDetailsModalOpen}
-        onClose={() => setIsLoanDetailsModalOpen(false)}
-        loan={selectedLoan}
-      />
+      {selectedLoan && (
+        <LoansPageLoanDetailsModal
+          isOpen={isLoanDetailsModalOpen}
+          onClose={() => setIsLoanDetailsModalOpen(false)}
+          loanData={selectedLoan}
+          onEdit={(loanData) => success('Edit loan feature coming soon!')}
+          onDelete={(loanId) => success('Delete loan feature coming soon!')}
+          onViewSchedule={(loanId) => success('View schedule feature coming soon!')}
+        />
+      )}
 
       {/* Advanced Filters Modal */}
       <DashboardFiltersModal

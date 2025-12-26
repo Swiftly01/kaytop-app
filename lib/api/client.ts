@@ -1,10 +1,13 @@
 /**
- * Base HTTP Client
- * Centralized HTTP client with error handling, retry mechanisms, and authentication
+ * Unified API Client
+ * Enhanced HTTP client with unified authentication, error handling, and data transformation
  */
 
-import { API_CONFIG } from './config';
+import { API_CONFIG, initializeConfiguration } from './config';
 import { interceptorManager } from './interceptors';
+import { DataTransformers } from './transformers';
+import { UnifiedAPIErrorHandler } from './errorHandler';
+import { authenticationManager } from './authManager';
 import type { 
   ApiResponse, 
   RequestConfig, 
@@ -14,7 +17,7 @@ import type {
   ServerError 
 } from './types';
 
-export interface ApiClient {
+export interface UnifiedApiClient {
   get<T>(url: string, config?: RequestConfig): Promise<ApiResponse<T>>;
   post<T>(url: string, data?: any, config?: RequestConfig): Promise<ApiResponse<T>>;
   put<T>(url: string, data?: any, config?: RequestConfig): Promise<ApiResponse<T>>;
@@ -28,12 +31,41 @@ export interface RetryConfig {
   retryableStatusCodes: number[];
 }
 
-class HttpClient implements ApiClient {
+export interface APILogger {
+  logRequest(method: string, url: string, data?: any): void;
+  logSuccess(method: string, url: string, status: number, responseTime: number): void;
+  logError(method: string, url: string, error: any, responseTime: number): void;
+}
+
+class UnifiedAPILogger implements APILogger {
+  logRequest(method: string, url: string, data?: any): void {
+    if (API_CONFIG.LOG_API_CALLS && (API_CONFIG.DEBUG || API_CONFIG.LOG_LEVEL === 'debug')) {
+      console.log(`🚀 [${method}] ${url}`, data ? { data } : '');
+    }
+  }
+
+  logSuccess(method: string, url: string, status: number, responseTime: number): void {
+    if (API_CONFIG.LOG_API_CALLS && (API_CONFIG.DEBUG || ['debug', 'info'].includes(API_CONFIG.LOG_LEVEL))) {
+      console.log(`✅ [${method}] ${url} - ${status} (${responseTime}ms)`);
+    }
+  }
+
+  logError(method: string, url: string, error: any, responseTime: number): void {
+    // Always log errors regardless of log level
+    console.error(`❌ [${method}] ${url} - ${error.status || 'Network Error'} (${responseTime}ms)`, error);
+  }
+}
+
+class UnifiedHttpClient implements UnifiedApiClient {
   private baseURL: string;
   private defaultTimeout: number;
   private retryConfig: RetryConfig;
+  private logger: APILogger;
 
   constructor() {
+    // Initialize and validate configuration
+    initializeConfiguration();
+    
     this.baseURL = API_CONFIG.BASE_URL;
     this.defaultTimeout = API_CONFIG.TIMEOUT;
     this.retryConfig = {
@@ -41,43 +73,17 @@ class HttpClient implements ApiClient {
       backoffMultiplier: 2,
       retryableStatusCodes: [408, 429, 500, 502, 503, 504],
     };
+    this.logger = new UnifiedAPILogger();
   }
 
-  private getAuthToken(): string | null {
-    if (typeof window !== 'undefined') {
-      // Try to get token from localStorage first
-      const token = localStorage.getItem('auth-token');
-      if (token) {
-        console.log('🔑 Token found in localStorage:', token.substring(0, 20) + '...');
-        return token;
-      }
-      
-      // Fallback to cookies if localStorage is empty
-      const cookies = document.cookie.split(';');
-      for (const cookie of cookies) {
-        const [name, value] = cookie.trim().split('=');
-        if (name === 'auth-token') {
-          console.log('🔑 Token found in cookies:', decodeURIComponent(value).substring(0, 20) + '...');
-          return decodeURIComponent(value);
-        }
-      }
-      
-      console.log('❌ No auth token found in localStorage or cookies');
-    }
-    return null;
-  }
-
-  private getDefaultHeaders(): Record<string, string> {
+  private async getDefaultHeaders(): Promise<Record<string, string>> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
 
-    const token = this.getAuthToken();
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-
-    return headers;
+    // Use authentication manager for token handling
+    const authHeaders = await authenticationManager.getAuthHeaders();
+    return { ...headers, ...authHeaders };
   }
 
   private async makeRequest<T>(
@@ -86,11 +92,12 @@ class HttpClient implements ApiClient {
     data?: any,
     config?: RequestConfig
   ): Promise<ApiResponse<T>> {
+    const startTime = Date.now();
     const fullUrl = url.startsWith('http') ? url : `${this.baseURL}${url}`;
     const timeout = config?.timeout || this.defaultTimeout;
     
     const headers = {
-      ...this.getDefaultHeaders(),
+      ...(await this.getDefaultHeaders()),
       ...config?.headers,
     };
 
@@ -123,12 +130,27 @@ class HttpClient implements ApiClient {
     // Execute request interceptors
     interceptorManager.executeRequestInterceptors(fullUrl, config);
 
+    // Log request
+    this.logger.logRequest(method, fullUrl, data);
+
     try {
       const response = await fetch(fullUrl, requestOptions);
       clearTimeout(timeoutId);
+      const responseTime = Date.now() - startTime;
 
       if (!response.ok) {
-        throw await this.createApiError(response);
+        const error = await this.createApiError(response);
+        this.logger.logError(method, fullUrl, error, responseTime);
+        
+        // Log error with context
+        UnifiedAPIErrorHandler.logErrorWithContext(error, {
+          endpoint: fullUrl,
+          method,
+          requestData: data,
+          timestamp: new Date().toISOString()
+        });
+        
+        throw error;
       }
 
       let responseData;
@@ -139,12 +161,14 @@ class HttpClient implements ApiClient {
       } else {
         // Handle non-JSON responses
         const text = await response.text();
-        console.log('Non-JSON response received:', {
-          status: response.status,
-          contentType,
-          textLength: text.length,
-          text: text.substring(0, 200) + (text.length > 200 ? '...' : '')
-        });
+        if (API_CONFIG.DEBUG) {
+          console.log('Non-JSON response received:', {
+            status: response.status,
+            contentType,
+            textLength: text.length,
+            text: text.substring(0, 200) + (text.length > 200 ? '...' : '')
+          });
+        }
         
         // If response is empty, this indicates a backend issue
         if (!text || text.trim() === '') {
@@ -162,25 +186,128 @@ class HttpClient implements ApiClient {
         }
       }
       
-      // Execute response interceptors
-      interceptorManager.executeResponseInterceptors(responseData);
+      // Apply unified data transformation based on endpoint
+      const transformedData = this.transformResponse<T>(responseData, fullUrl);
       
-      return responseData;
+      // Execute response interceptors
+      interceptorManager.executeResponseInterceptors(transformedData);
+      
+      // Log success
+      this.logger.logSuccess(method, fullUrl, response.status, responseTime);
+      
+      return transformedData;
     } catch (error) {
       // Execute error interceptors
       interceptorManager.executeResponseErrorInterceptors(error);
       clearTimeout(timeoutId);
+      const responseTime = Date.now() - startTime;
       
       if (error instanceof Error && error.name === 'AbortError') {
-        throw this.createNetworkError('Request timeout', 408);
+        const timeoutError = this.createNetworkError('Request timeout', 408);
+        this.logger.logError(method, fullUrl, timeoutError, responseTime);
+        throw timeoutError;
       }
       
       if (error instanceof TypeError && error.message.includes('fetch')) {
-        throw this.createNetworkError('Network error', 0);
+        const networkError = this.createNetworkError('Network error', 0);
+        this.logger.logError(method, fullUrl, networkError, responseTime);
+        throw networkError;
       }
+      
+      this.logger.logError(method, fullUrl, error, responseTime);
+      
+      // Log error with context
+      UnifiedAPIErrorHandler.logErrorWithContext(error, {
+        endpoint: fullUrl,
+        method,
+        requestData: data,
+        timestamp: new Date().toISOString()
+      });
       
       throw error;
     }
+  }
+
+  private transformResponse<T>(responseData: any, url: string): ApiResponse<T> {
+    // Apply endpoint-specific transformations using the unified transformer
+    if (url.includes('/dashboard/kpi')) {
+      const transformedData = DataTransformers.transformDashboardKPIs(responseData.data || responseData);
+      return {
+        success: true,
+        data: transformedData as T,
+        message: responseData.message
+      };
+    }
+    
+    if (url.includes('/admin/users') || url.includes('/users/filter')) {
+      if (Array.isArray(responseData.data) || Array.isArray(responseData)) {
+        const transformedData = DataTransformers.transformPaginatedResponse(
+          responseData,
+          DataTransformers.transformUser
+        );
+        return {
+          success: true,
+          data: transformedData as T,
+          message: responseData.message
+        };
+      } else if (responseData.data?.id || responseData.id) {
+        const transformedData = DataTransformers.transformUser(responseData.data || responseData);
+        return {
+          success: true,
+          data: transformedData as T,
+          message: responseData.message
+        };
+      }
+    }
+    
+    if (url.includes('/loans/')) {
+      if (Array.isArray(responseData.data) || Array.isArray(responseData)) {
+        const transformedData = DataTransformers.transformPaginatedResponse(
+          responseData,
+          DataTransformers.transformLoan
+        );
+        return {
+          success: true,
+          data: transformedData as T,
+          message: responseData.message
+        };
+      } else if (responseData.data?.id || responseData.id) {
+        const transformedData = DataTransformers.transformLoan(responseData.data || responseData);
+        return {
+          success: true,
+          data: transformedData as T,
+          message: responseData.message
+        };
+      }
+    }
+    
+    if (url.includes('/savings/')) {
+      if (Array.isArray(responseData.data) || Array.isArray(responseData)) {
+        const transformedData = DataTransformers.transformPaginatedResponse(
+          responseData,
+          DataTransformers.transformSavingsAccount
+        );
+        return {
+          success: true,
+          data: transformedData as T,
+          message: responseData.message
+        };
+      } else if (responseData.data?.id || responseData.id) {
+        const transformedData = DataTransformers.transformSavingsAccount(responseData.data || responseData);
+        return {
+          success: true,
+          data: transformedData as T,
+          message: responseData.message
+        };
+      }
+    }
+
+    // Default transformation for unknown endpoints
+    return {
+      success: responseData.success !== false,
+      data: responseData.data || responseData,
+      message: responseData.message
+    };
   }
 
   private async createApiError(response: Response): Promise<ApiError> {
@@ -197,24 +324,11 @@ class HttpClient implements ApiClient {
     error.status = response.status;
     error.details = errorData;
 
-    // Classify error type
+    // Classify error type and handle authentication errors
     if (response.status === 401 || response.status === 403) {
       (error as AuthError).type = 'auth';
-      
-      // Handle authentication errors by clearing stored tokens
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('auth-token');
-        localStorage.removeItem('auth-user');
-        
-        // Clear cookies as well
-        document.cookie = 'auth-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-        document.cookie = 'user-role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-        
-        // Redirect to login if not already on auth page
-        if (!window.location.pathname.includes('/auth/')) {
-          window.location.href = '/auth/login';
-        }
-      }
+      // Use authentication manager for handling auth failures
+      authenticationManager.handleAuthenticationFailure();
     } else if (response.status >= 500) {
       (error as ServerError).type = 'server';
     }
@@ -260,6 +374,9 @@ class HttpClient implements ApiClient {
 
         // Wait before retry with exponential backoff
         const delay = Math.pow(this.retryConfig.backoffMultiplier, attempt) * API_CONFIG.RETRY_DELAY;
+        if (API_CONFIG.DEBUG) {
+          console.log(`🔄 Retrying request in ${delay}ms (attempt ${attempt + 1}/${this.retryConfig.maxRetries})`);
+        }
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
@@ -288,5 +405,8 @@ class HttpClient implements ApiClient {
   }
 }
 
-// Export singleton instance
-export const apiClient = new HttpClient();
+// Export singleton instance with unified capabilities
+export const apiClient = new UnifiedHttpClient();
+
+// Maintain backward compatibility
+export const unifiedApiClient = apiClient;

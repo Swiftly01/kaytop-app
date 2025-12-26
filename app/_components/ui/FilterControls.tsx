@@ -6,7 +6,7 @@ import { FilterIcon } from '../icons/filter-icon';
 import DateRangePicker from './DateRangePicker';
 import { DateRange } from 'react-day-picker';
 
-type TimePeriod = '12months' | '30days' | '7days' | '24hours' | null;
+export type TimePeriod = 'last_24_hours' | 'last_7_days' | 'last_30_days' | 'custom' | null;
 
 interface FilterControlsProps {
   selectedPeriod?: TimePeriod;
@@ -16,7 +16,7 @@ interface FilterControlsProps {
 }
 
 export default function FilterControls({
-  selectedPeriod = '12months',
+  selectedPeriod = 'last_30_days',
   onPeriodChange,
   onDateRangeChange,
   onFilter,
@@ -67,10 +67,10 @@ export default function FilterControls({
   };
 
   const periods: { value: TimePeriod; label: string }[] = [
-    { value: '12months', label: '12 months' },
-    { value: '30days', label: '30 days' },
-    { value: '7days', label: '7 days' },
-    { value: '24hours', label: '24 hours' },
+    { value: 'last_24_hours', label: '24 hours' },
+    { value: 'last_7_days', label: '7 days' },
+    { value: 'last_30_days', label: '30 days' },
+    { value: 'custom', label: 'Custom' },
   ];
 
   return (

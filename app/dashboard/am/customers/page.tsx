@@ -10,12 +10,12 @@ import { ToastContainer } from '@/app/_components/ui/ToastContainer';
 import { useToast } from '@/app/hooks/useToast';
 import Pagination from '@/app/_components/ui/Pagination';
 import { StatisticsCardSkeleton, TableSkeleton } from '@/app/_components/ui/Skeleton';
-import { amCustomerService } from '@/lib/services/amCustomers';
+import { unifiedUserService } from '@/lib/services/unifiedUser';
 import { useAuth } from '@/app/contexts/AuthContext';
 import type { User } from '@/lib/api/types';
 import { DateRange } from 'react-day-picker';
 
-type TimePeriod = '12months' | '30days' | '7days' | '24hours' | null;
+type TimePeriod = 'last_24_hours' | 'last_7_days' | 'last_30_days' | 'custom' | null;
 
 interface Customer {
   id: string;
@@ -53,7 +53,7 @@ const transformToCustomer = (customer: any): Customer => ({
 export default function AMCustomersPage() {
   const { toasts, removeToast, success, error } = useToast();
   const { user, isAuthenticated, isLoading: authLoading, token } = useAuth();
-  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('12months');
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('last_30_days');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -113,8 +113,8 @@ export default function AMCustomersPage() {
 
       console.log('🔄 Fetching customers with params:', queryParams);
 
-      // Fetch AM customers data
-      const response = await amCustomerService.getCustomers(queryParams);
+      // Fetch customers data using unified service
+      const response = await unifiedUserService.getUsers(queryParams);
       
       // Handle the response structure - it should match the API endpoint we created
       const customersData = response.data || response;
@@ -238,7 +238,7 @@ export default function AMCustomersPage() {
         mobileNumber: updatedCustomer.phoneNumber,
       };
 
-      await amCustomerService.updateCustomer(updatedCustomer.id, updateData);
+      await unifiedUserService.updateUser(updatedCustomer.id, updateData);
       
       // Refresh the data
       await fetchCustomersData(currentPage, advancedFilters);

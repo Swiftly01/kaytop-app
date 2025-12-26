@@ -1,45 +1,41 @@
 /**
- * API Error Handler
- * Comprehensive error handling for API interactions
+ * Unified API Error Handler
+ * Comprehensive error handling for unified API interactions with enhanced logging and recovery
  */
 
+import { authenticationManager } from './authManager';
+import { API_CONFIG } from './config';
 import type { ApiError, AuthError, NetworkError, ServerError } from './types';
 
 export interface ErrorHandlerOptions {
   showToast?: boolean;
   redirectOnAuth?: boolean;
   logError?: boolean;
+  retryable?: boolean;
 }
 
-export class APIErrorHandler {
+export interface ErrorContext {
+  endpoint?: string;
+  method?: string;
+  requestData?: any;
+  userId?: string;
+  timestamp?: string;
+}
+
+export class UnifiedAPIErrorHandler {
   
   /**
-   * Handle authentication errors
+   * Handle authentication errors using unified authentication manager
    */
   static handleAuthenticationError(error: AuthError, options: ErrorHandlerOptions = {}): void {
-    const { redirectOnAuth = true, logError = true } = options;
+    const { logError = true } = options;
     
     if (logError) {
-      console.error('Authentication error:', error);
+      console.error('🔐 Authentication error:', error);
     }
 
-    if (error.status === 401) {
-      // Token expired or invalid
-      this.clearStoredTokens();
-      
-      if (redirectOnAuth && typeof window !== 'undefined') {
-        // Only redirect if not already on auth page
-        if (!window.location.pathname.includes('/auth/')) {
-          window.location.href = '/auth/login?reason=session_expired';
-        }
-      }
-    } else if (error.status === 403) {
-      // Insufficient permissions
-      if (typeof window !== 'undefined') {
-        // Show permission denied message or redirect to appropriate dashboard
-        console.warn('Access denied - insufficient permissions');
-      }
-    }
+    // Use unified authentication manager for handling auth failures
+    authenticationManager.handleAuthenticationFailure();
   }
 
   /**
@@ -203,45 +199,136 @@ export class APIErrorHandler {
   }
 
   /**
-   * Log error with context for debugging
+   * Log error with enhanced context for debugging and monitoring
    */
-  static logErrorWithContext(error: any, context: {
-    endpoint?: string;
-    method?: string;
-    requestData?: any;
-    userId?: string;
-  }): void {
+  static logErrorWithContext(error: any, context: ErrorContext): void {
     const errorLog = {
-      timestamp: new Date().toISOString(),
+      timestamp: context.timestamp || new Date().toISOString(),
       error: {
         message: error.message,
         status: error.status,
         type: error.type,
         stack: error.stack,
       },
-      context,
+      context: {
+        endpoint: context.endpoint,
+        method: context.method,
+        requestData: context.requestData,
+        userId: context.userId || authenticationManager.getCurrentUser()?.id,
+      },
       userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : 'server',
       url: typeof window !== 'undefined' ? window.location.href : 'server',
+      sessionId: this.getSessionId(),
     };
     
-    console.error('API Error Log:', errorLog);
+    console.error('🚨 Unified API Error Log:', errorLog);
     
-    // In production, you might want to send this to an error tracking service
-    // like Sentry, LogRocket, or your own logging endpoint
+    // In production, send to error tracking service
+    if (process.env.NODE_ENV === 'production') {
+      this.sendToErrorTracking(errorLog);
+    }
   }
 
   /**
-   * Clear stored authentication tokens
+   * Get or create session ID for error tracking
+   */
+  private static getSessionId(): string {
+    if (typeof window === 'undefined') return 'server-session';
+    
+    let sessionId = sessionStorage.getItem('error-session-id');
+    if (!sessionId) {
+      sessionId = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      sessionStorage.setItem('error-session-id', sessionId);
+    }
+    return sessionId;
+  }
+
+  /**
+   * Send error to tracking service (placeholder for production implementation)
+   */
+  private static sendToErrorTracking(errorLog: any): void {
+    if (!API_CONFIG.ENABLE_ERROR_TRACKING) {
+      return;
+    }
+
+    if (API_CONFIG.ERROR_TRACKING_ENDPOINT) {
+      // Send to configured error tracking service
+      fetch(API_CONFIG.ERROR_TRACKING_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(errorLog),
+      }).catch(err => {
+        console.error('Failed to send error to tracking service:', err);
+      });
+    } else {
+      // Fallback: log to console in production if no endpoint configured
+      console.log('📊 Error tracking enabled but no endpoint configured:', errorLog);
+    }
+  }
+
+  /**
+   * Enhanced retry logic with exponential backoff and jitter
+   */
+  static async withRetry<T>(
+    operation: () => Promise<T>,
+    options: {
+      maxRetries?: number;
+      baseDelay?: number;
+      maxDelay?: number;
+      jitter?: boolean;
+      retryCondition?: (error: any) => boolean;
+    } = {}
+  ): Promise<T> {
+    const {
+      maxRetries = API_CONFIG.RETRY_ATTEMPTS,
+      baseDelay = API_CONFIG.RETRY_DELAY,
+      maxDelay = API_CONFIG.RETRY_MAX_DELAY,
+      jitter = true,
+      retryCondition = this.isRetryableError
+    } = options;
+    
+    let lastError: any;
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await operation();
+      } catch (error) {
+        lastError = error;
+        
+        // Don't retry on last attempt
+        if (attempt === maxRetries) {
+          break;
+        }
+        
+        // Don't retry non-retryable errors
+        if (!retryCondition(error)) {
+          break;
+        }
+        
+        // Calculate delay with exponential backoff and optional jitter
+        let delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay);
+        
+        if (jitter) {
+          // Add random jitter to prevent thundering herd
+          delay = delay * (0.5 + Math.random() * 0.5);
+        }
+        
+        console.log(`🔄 Retrying operation in ${Math.round(delay)}ms (attempt ${attempt + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    
+    throw lastError;
+  }
+
+  /**
+   * Clear stored authentication tokens (deprecated - use authenticationManager)
    */
   private static clearStoredTokens(): void {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('auth-token');
-      localStorage.removeItem('auth-user');
-      
-      // Clear cookies as well
-      document.cookie = 'auth-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-      document.cookie = 'user-role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-    }
+    console.warn('⚠️ clearStoredTokens is deprecated. Use authenticationManager.handleAuthenticationFailure() instead.');
+    authenticationManager.handleAuthenticationFailure();
   }
 
   /**
@@ -257,39 +344,7 @@ export class APIErrorHandler {
     //   window.toast.error(message);
     // }
   }
-
-  /**
-   * Handle retry logic with exponential backoff
-   */
-  static async withRetry<T>(
-    operation: () => Promise<T>,
-    maxRetries: number = 3,
-    baseDelay: number = 1000
-  ): Promise<T> {
-    let lastError: any;
-    
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        return await operation();
-      } catch (error) {
-        lastError = error;
-        
-        // Don't retry on last attempt
-        if (attempt === maxRetries) {
-          break;
-        }
-        
-        // Don't retry non-retryable errors
-        if (!this.isRetryableError(error)) {
-          break;
-        }
-        
-        // Wait before retry with exponential backoff
-        const delay = baseDelay * Math.pow(2, attempt);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
-    
-    throw lastError;
-  }
 }
+
+// Maintain backward compatibility
+export const APIErrorHandler = UnifiedAPIErrorHandler;

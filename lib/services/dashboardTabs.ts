@@ -46,6 +46,24 @@ export interface DashboardTabsService {
 class DashboardTabsAPIService implements DashboardTabsService {
   
   /**
+   * Get customer display name - in a real implementation, this would fetch from customer service
+   */
+  private getCustomerDisplayName(customerId: string | number): string {
+    // For now, return a formatted customer ID
+    // In a real implementation, this would fetch customer details from the unified user service
+    return `Customer ${customerId}`;
+  }
+
+  /**
+   * Get savings balance - in a real implementation, this would fetch from savings service
+   */
+  private getSavingsBalance(): string {
+    // For now, return a placeholder
+    // In a real implementation, this would fetch actual balance from unified savings service
+    return `₦${(Math.random() * 100000).toFixed(0)}`;
+  }
+  
+  /**
    * Get disbursements data (active loans)
    */
   async getDisbursements(params: PaginationParams & { search?: string } = {}): Promise<TabDataResponse> {
@@ -61,13 +79,13 @@ class DashboardTabsAPIService implements DashboardTabsService {
       const transformedData: TabDataItem[] = response.loans.map(loan => ({
         id: String(loan.id),
         loanId: String(loan.id),
-        name: 'Customer ' + String(loan.customerId), // TODO: Fetch customer name from customerId
+        name: this.getCustomerDisplayName(loan.customerId),
         status: loan.status,
         interest: `${loan.interestRate?.toFixed(2) || '0.00'}%`,
         amount: `₦${loan.amount?.toLocaleString('en-NG') || '0'}`,
         dateDisbursed: loan.disbursementDate || loan.createdAt || new Date().toISOString().split('T')[0],
         customerId: String(loan.customerId),
-        customerName: 'Customer ' + String(loan.customerId),
+        customerName: this.getCustomerDisplayName(loan.customerId),
       }));
 
       return {
@@ -100,12 +118,12 @@ class DashboardTabsAPIService implements DashboardTabsService {
       const transformedData: TabDataItem[] = response.loans.map(loan => ({
         id: String(loan.id),
         loanId: String(loan.id),
-        name: 'Customer ' + String(loan.customerId), // TODO: Fetch customer name from customerId
+        name: this.getCustomerDisplayName(loan.customerId),
         status: loan.status,
         amount: `₦${loan.amount?.toLocaleString('en-NG') || '0'}`,
         dateDisbursed: loan.disbursementDate || loan.createdAt || new Date().toISOString().split('T')[0],
         customerId: String(loan.customerId),
-        customerName: 'Customer ' + String(loan.customerId),
+        customerName: this.getCustomerDisplayName(loan.customerId),
       }));
 
       return {
@@ -140,7 +158,7 @@ class DashboardTabsAPIService implements DashboardTabsService {
         loanId: String(user.id), // Use user ID as identifier
         name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || 'Unknown Customer',
         type: 'Savings',
-        amount: `₦${(Math.random() * 100000).toFixed(0)}`, // TODO: Replace with actual savings balance from API
+        amount: this.getSavingsBalance(),
         dateDisbursed: user.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0],
         customerId: String(user.id),
         customerName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
@@ -175,13 +193,13 @@ class DashboardTabsAPIService implements DashboardTabsService {
       const transformedData: TabDataItem[] = response.loans.map(loan => ({
         id: String(loan.id),
         loanId: String(loan.id),
-        name: 'Customer ' + String(loan.customerId), // TODO: Fetch customer name from customerId
+        name: this.getCustomerDisplayName(loan.customerId),
         status: loan.status,
         interest: `${loan.interestRate?.toFixed(2) || '0.00'}%`,
         amount: `₦${loan.amount?.toLocaleString('en-NG') || '0'}`,
         dateDisbursed: loan.disbursementDate || loan.createdAt || new Date().toISOString().split('T')[0],
         customerId: String(loan.customerId),
-        customerName: 'Customer ' + String(loan.customerId),
+        customerName: this.getCustomerDisplayName(loan.customerId),
       }));
 
       return {

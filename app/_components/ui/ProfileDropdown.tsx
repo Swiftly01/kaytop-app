@@ -78,12 +78,12 @@ export default function ProfileDropdown() {
     try {
       await logout();
       success('Logged out successfully');
-      router.push('/auth/system-admin/login');
+      router.push('/auth/login');
     } catch (err) {
       console.error('Logout error:', err);
       error('Failed to logout properly');
       // Force redirect even if logout fails
-      router.push('/auth/system-admin/login');
+      router.push('/auth/login');
     } finally {
       setShowLogoutConfirm(false);
     }

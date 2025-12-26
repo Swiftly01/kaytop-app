@@ -10,7 +10,7 @@ import { DateRange } from 'react-day-picker';
 import { Checkbox } from '@/app/_components/ui/Checkbox';
 import { useToast } from '@/app/hooks/useToast';
 import { ToastContainer } from '@/app/_components/ui/ToastContainer';
-import { amDashboardService } from '@/lib/services/amDashboard';
+import { unifiedDashboardService } from '@/lib/services/unifiedDashboard';
 
 type TimePeriod = '12months' | '30days' | '7days' | '24hours' | null;
 
@@ -86,8 +86,8 @@ export default function AMCreditOfficersPage() {
 
       setCreditOfficersData(mockCreditOfficers);
 
-      // Fetch AM dashboard statistics for credit officers count
-      const dashboardData = await amDashboardService.getKPIs();
+      // Fetch unified dashboard statistics for credit officers count
+      const dashboardData = await unifiedDashboardService.getKPIs();
       const stats: StatSection[] = [
         {
           label: 'Total Credit Officers',

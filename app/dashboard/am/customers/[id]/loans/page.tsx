@@ -15,14 +15,15 @@ import { useToast } from '@/app/hooks/useToast';
 import Pagination from '@/app/_components/ui/Pagination';
 import { StatisticsCardSkeleton, TableSkeleton } from '@/app/_components/ui/Skeleton';
 import { EmptyState } from '@/app/_components/ui/EmptyState';
-import { amCustomerService } from '@/lib/services/amCustomers';
+import { unifiedUserService } from '@/lib/services/unifiedUser';
+import { unifiedLoanService } from '@/lib/services/unifiedLoan';
 import { DateRange } from 'react-day-picker';
 
 interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-type TimePeriod = '12months' | '30days' | '7days' | '24hours' | null;
+type TimePeriod = 'last_24_hours' | 'last_7_days' | 'last_30_days' | 'custom' | null;
 
 interface CustomerLoan {
   id: string;
@@ -43,7 +44,7 @@ export default function AMCustomerLoansPage({ params }: PageProps) {
   const { toasts, removeToast, success, error } = useToast();
 
   // State management
-  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('12months');
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('last_30_days');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
@@ -92,15 +93,12 @@ export default function AMCustomerLoansPage({ params }: PageProps) {
       setIsLoading(true);
       setApiError(null);
 
-      // Fetch customer details first
-      const customer = await amCustomerService.getCustomerById(id);
+      // Fetch customer details first using unified service
+      const customer = await unifiedUserService.getUserById(id);
       setCustomerName(`${customer.firstName} ${customer.lastName}`);
 
-      // Fetch customer loans
-      const loansResponse = await amCustomerService.getCustomerLoans(id, {
-        page,
-        limit: itemsPerPage
-      });
+      // Fetch customer loans using unified service
+      const loansResponse = await unifiedLoanService.getCustomerLoans(id);
 
       const loansData = loansResponse.data || [];
       const transformedLoans = loansData.map(transformLoanData);

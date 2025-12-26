@@ -53,7 +53,7 @@ export interface AdminProfile {
   lastName: string;
   email: string;
   mobileNumber: string;
-  role: 'system_admin' | 'branch_manager' | 'account_manager' | 'credit_officer' | 'customer';
+  role: 'system_admin' | 'branch_manager' | 'account_manager' | 'hq_manager' | 'credit_officer' | 'customer';
   branch?: string;
   state?: string;
   verificationStatus: 'pending' | 'verified' | 'rejected';
@@ -80,7 +80,7 @@ export interface User {
   lastName: string;
   email: string;
   mobileNumber: string;
-  role: 'system_admin' | 'branch_manager' | 'credit_officer' | 'customer';
+  role: 'system_admin' | 'branch_manager' | 'account_manager' | 'hq_manager' | 'credit_officer' | 'customer';
   branch?: string;
   state?: string;
   verificationStatus: 'pending' | 'verified' | 'rejected';
@@ -166,8 +166,15 @@ export interface DisbursementSummary {
 export interface SavingsAccount {
   id: string | number; // Backend returns numeric IDs but we handle both
   customerId: string;
+  customerName?: string;
+  accountNumber?: string;
   balance: number;
-  transactions: Transaction[];
+  status?: 'active' | 'inactive' | 'suspended';
+  branch?: string;
+  interestRate?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  transactions?: Transaction[];
 }
 
 export interface Transaction {

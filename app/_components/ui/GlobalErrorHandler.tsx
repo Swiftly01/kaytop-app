@@ -46,7 +46,7 @@ export function useGlobalErrorHandler(options: GlobalErrorHandlerOptions = {}) {
         showError('Your session has expired. Please log in again.');
         
         // Redirect to login page
-        router.push('/auth/system-admin/login');
+        router.push('/auth/login');
         return;
       } else if (error.status === 403) {
         showError('You don\'t have permission to perform this action.');
@@ -148,7 +148,7 @@ export function createApiErrorHandler(router: any, showError: any) {
     if (error.status === 401) {
       authService.logout();
       showError('Your session has expired. Please log in again.');
-      router.push('/auth/system-admin/login');
+      router.push('/auth/login');
       return;
     }
 

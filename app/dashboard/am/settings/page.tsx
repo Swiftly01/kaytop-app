@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { amDashboardService } from '@/lib/services/amDashboard';
-import { amSettingsService } from '@/lib/services/amSettings';
+import { unifiedDashboardService } from '@/lib/services/unifiedDashboard';
 import { ToastContainer } from '@/app/_components/ui/ToastContainer';
 import { useToast } from '@/app/hooks/useToast';
 import { Checkbox } from '@/app/_components/ui/Checkbox';

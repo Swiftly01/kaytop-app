@@ -9,7 +9,7 @@ import { use, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ToastContainer } from '@/app/_components/ui/ToastContainer';
 import { useToast } from '@/app/hooks/useToast';
-import { amLoansService } from '@/lib/services/amLoans';
+import { unifiedLoanService } from '@/lib/services/unifiedLoan';
 import type { Loan } from '@/lib/api/types';
 
 interface PageProps {
@@ -90,7 +90,7 @@ export default function AMLoanDetailsPage({ params }: PageProps) {
       setIsLoading(true);
       setApiError(null);
 
-      const loan = await amLoansService.getLoanById(id);
+      const loan = await unifiedLoanService.getLoanById(id);
       const details = transformLoanData(loan);
       setLoanDetails(details);
 
@@ -109,7 +109,7 @@ export default function AMLoanDetailsPage({ params }: PageProps) {
 
     try {
       setIsApproving(true);
-      await amLoansService.approveLoan(loanDetails.id, 'Approved by Account Manager');
+      await unifiedLoanService.approveLoan(loanDetails.id, 'Approved by Account Manager');
       success('Loan approved successfully!');
       
       // Refresh loan details
@@ -128,7 +128,7 @@ export default function AMLoanDetailsPage({ params }: PageProps) {
 
     try {
       setIsDeclining(true);
-      await amLoansService.declineLoan(loanDetails.id, 'Declined by Account Manager', 'Risk assessment failed');
+      await unifiedLoanService.declineLoan(loanDetails.id, 'Declined by Account Manager', 'Risk assessment failed');
       success('Loan declined successfully!');
       
       // Refresh loan details
@@ -146,7 +146,7 @@ export default function AMLoanDetailsPage({ params }: PageProps) {
     if (!loanDetails) return;
 
     try {
-      await amLoansService.updateLoanStage(loanDetails.id, newStage, `Updated to ${newStage} by Account Manager`);
+      await unifiedLoanService.updateLoanStage(loanDetails.id, newStage, `Updated to ${newStage} by Account Manager`);
       success(`Loan stage updated to ${newStage}!`);
       
       // Refresh loan details

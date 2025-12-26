@@ -12,7 +12,9 @@ import CustomerInfoCard from '@/app/_components/ui/CustomerInfoCard';
 import ActiveLoanCard from '@/app/_components/ui/ActiveLoanCard';
 import TransactionHistoryTable from '@/app/_components/ui/TransactionHistoryTable';
 import SavingsTransactionsTable from '@/app/_components/ui/SavingsTransactionsTable';
-import { amCustomerService } from '@/lib/services/amCustomers';
+import { unifiedUserService } from '@/lib/services/unifiedUser';
+import { unifiedLoanService } from '@/lib/services/unifiedLoan';
+import { unifiedSavingsService } from '@/lib/services/unifiedSavings';
 import { useToast } from '@/app/hooks/useToast';
 import { ToastContainer } from '@/app/_components/ui/ToastContainer';
 import type { User, Loan, SavingsAccount, Transaction } from '@/lib/api/types';
@@ -147,13 +149,13 @@ export default function AMCustomerDetailsPage({ params }: PageProps) {
       setIsLoading(true);
       setApiError(null);
 
-      // Fetch customer details
-      const customer = await amCustomerService.getCustomerById(id);
+      // Fetch customer details using unified service
+      const customer = await unifiedUserService.getUserById(id);
 
       // Fetch customer loans
       let loans: any[] = [];
       try {
-        const loansResponse = await amCustomerService.getCustomerLoans(id);
+        const loansResponse = await unifiedLoanService.getCustomerLoans(id);
         loans = loansResponse.data || [];
       } catch (err) {
         console.warn('Failed to fetch customer loans:', err);
@@ -163,7 +165,7 @@ export default function AMCustomerDetailsPage({ params }: PageProps) {
       // Fetch customer savings
       let savings: any = null;
       try {
-        const savingsResponse = await amCustomerService.getCustomerSavings(id);
+        const savingsResponse = await unifiedSavingsService.getCustomerSavings(id);
         savings = savingsResponse.data || null;
       } catch (err) {
         console.warn('Failed to fetch customer savings:', err);

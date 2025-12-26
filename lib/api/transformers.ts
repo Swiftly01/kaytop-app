@@ -86,39 +86,32 @@ export class DataTransformers {
     return {
       branches: this.transformStatisticValue(
         backendKPIs.totalBranches || backendKPIs.branches || 0,
-        backendKPIs.branchesGrowth || 0,
-        'branches'
+        backendKPIs.branchesGrowth || 0
       ),
       creditOfficers: this.transformStatisticValue(
         backendKPIs.totalCreditOfficers || backendKPIs.creditOfficers || 0,
-        backendKPIs.creditOfficersGrowth || 0,
-        'credit officers'
+        backendKPIs.creditOfficersGrowth || 0
       ),
       customers: this.transformStatisticValue(
         backendKPIs.totalCustomers || backendKPIs.customers || 0,
-        backendKPIs.customersGrowth || 0,
-        'customers'
+        backendKPIs.customersGrowth || 0
       ),
       loansProcessed: this.transformStatisticValue(
         backendKPIs.loansProcessed || backendKPIs.totalLoans || 0,
-        backendKPIs.loansProcessedGrowth || backendKPIs.loansGrowth || 0,
-        'loans processed'
+        backendKPIs.loansProcessedGrowth || backendKPIs.loansGrowth || 0
       ),
       loanAmounts: this.transformStatisticValue(
         backendKPIs.totalLoanAmount || backendKPIs.loanAmounts || 0,
         backendKPIs.loanAmountGrowth || backendKPIs.loanAmountsGrowth || 0,
-        'loan amount',
         true // isCurrency
       ),
       activeLoans: this.transformStatisticValue(
         backendKPIs.activeLoans || 0,
-        backendKPIs.activeLoansGrowth || 0,
-        'active loans'
+        backendKPIs.activeLoansGrowth || 0
       ),
       missedPayments: this.transformStatisticValue(
         backendKPIs.missedPayments || 0,
-        backendKPIs.missedPaymentsGrowth || 0,
-        'missed payments'
+        backendKPIs.missedPaymentsGrowth || 0
       ),
       bestPerformingBranches: this.transformBranchPerformance(
         backendKPIs.bestPerformingBranches || backendKPIs.topBranches || []
@@ -135,7 +128,6 @@ export class DataTransformers {
   private static transformStatisticValue(
     value: number | string,
     change: number,
-    label: string,
     isCurrency: boolean = false
   ): StatisticValue {
     const numericValue = typeof value === 'string' ? parseFloat(value) || 0 : value || 0;
@@ -177,7 +169,7 @@ export class DataTransformers {
   /**
    * Transform paginated response from backend to frontend format
    */
-  static transformPaginatedResponse<T, U>(
+  static transformPaginatedResponse<T>(
     backendResponse: any,
     transformItem: (item: any) => T
   ): PaginatedResponse<T> {
@@ -225,7 +217,7 @@ export class DataTransformers {
   /**
    * Normalize user role to match frontend expectations
    */
-  private static normalizeRole(role: string): 'system_admin' | 'branch_manager' | 'account_manager' | 'credit_officer' | 'customer' {
+  private static normalizeRole(role: string): 'system_admin' | 'branch_manager' | 'account_manager' | 'hq_manager' | 'credit_officer' | 'customer' {
     if (!role) return 'customer';
     
     const normalizedRole = role.toLowerCase().replace(/[-\s]/g, '_');
@@ -242,6 +234,9 @@ export class DataTransformers {
       case 'account_manager':
       case 'accountmanager':
         return 'account_manager';
+      case 'hq_manager':
+      case 'hqmanager':
+        return 'hq_manager';
       case 'credit_officer':
       case 'creditofficer':
       case 'officer':
@@ -381,6 +376,96 @@ export class DataTransformers {
       approvedBy: backendTransaction.approvedBy || backendTransaction.approved_by,
       branch: backendTransaction.branch || backendTransaction.branchName || '',
     };
+  }
+
+  /**
+   * Transform chart data from backend to frontend format
+   */
+  static transformChartData(backendData: any): any {
+    // Handle different backend response formats
+    if (Array.isArray(backendData)) {
+      // Format: [{ month: 'Jan', amount: 1000000 }, ...]
+      const labels = backendData.map(item => item.month || item.label || item.name || '');
+      const data = backendData.map(item => item.amount || item.value || item.total || 0);
+      
+      return {
+        labels,
+        datasets: [{
+          label: 'Data',
+          data,
+          backgroundColor: '#7F56D9',
+          borderColor: '#7F56D9'
+        }]
+      };
+    } else if (backendData && typeof backendData === 'object') {
+      // Format: { labels: [], data: [] } or { months: [], amounts: [] }
+      const labels = backendData.labels || backendData.months || [];
+      const data = backendData.data || backendData.amounts || backendData.values || [];
+      
+      return {
+        labels,
+        datasets: [{
+          label: 'Data',
+          data,
+          backgroundColor: '#7F56D9',
+          borderColor: '#7F56D9'
+        }]
+      };
+    }
+
+    // Fallback to empty data
+    return {
+      labels: [],
+      datasets: [{
+        label: 'Data',
+        data: [],
+        backgroundColor: '#7F56D9',
+        borderColor: '#7F56D9'
+      }]
+    };
+  }
+
+  /**
+   * Transform API response with proper error handling and validation
+   */
+  static transformApiResponse<T>(
+    response: any,
+    transformer: (item: any) => T,
+    options: {
+      isArray?: boolean;
+      isPaginated?: boolean;
+      fallbackValue?: T | T[];
+    } = {}
+  ): T | T[] | any {
+    const { isArray = false, isPaginated = false, fallbackValue } = options;
+
+    try {
+      // Handle null/undefined responses
+      if (!response) {
+        return fallbackValue || (isArray ? [] : null);
+      }
+
+      // Handle paginated responses
+      if (isPaginated) {
+        return this.transformPaginatedResponse(response, transformer);
+      }
+
+      // Handle array responses
+      if (isArray || Array.isArray(response.data) || Array.isArray(response)) {
+        const dataArray = response.data || response;
+        if (!Array.isArray(dataArray)) {
+          return fallbackValue || [];
+        }
+        return this.transformArray(dataArray, transformer);
+      }
+
+      // Handle single item responses
+      const item = response.data || response;
+      return this.validateAndSanitize(item, transformer) || fallbackValue || null;
+    } catch (error) {
+      console.error('Data transformation error:', error);
+      return fallbackValue || (isArray ? [] : null);
+    }
   }
 
   /**

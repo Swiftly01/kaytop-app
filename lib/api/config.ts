@@ -1,16 +1,163 @@
 /**
  * API Configuration
- * Centralized configuration for API endpoints and settings
+ * Centralized configuration for API endpoints and settings with environment-based configuration
  */
 
+// Environment-based configuration with fallbacks
+const getEnvNumber = (key: string, defaultValue: number): number => {
+  const value = process.env[key];
+  return value ? parseInt(value, 10) : defaultValue;
+};
+
+const getEnvBoolean = (key: string, defaultValue: boolean): boolean => {
+  const value = process.env[key];
+  if (value === undefined) return defaultValue;
+  return value.toLowerCase() === 'true';
+};
+
 export const API_CONFIG = {
+  // Backend URL configuration
   BASE_URL: process.env.NEXT_PUBLIC_KAYTOP_API_BASE_URL || 'https://kaytop-production.up.railway.app',
-  TIMEOUT: 30000, // 30 seconds
-  RETRY_ATTEMPTS: 3,
-  RETRY_DELAY: 1000, // 1 second
-  // Add debugging flag for API calls
-  DEBUG: process.env.NODE_ENV === 'development',
+  
+  // Timeout configuration (configurable via environment)
+  TIMEOUT: getEnvNumber('NEXT_PUBLIC_API_TIMEOUT', 30000), // 30 seconds default
+  
+  // Retry configuration (configurable via environment)
+  RETRY_ATTEMPTS: getEnvNumber('NEXT_PUBLIC_API_RETRY_ATTEMPTS', 3),
+  RETRY_DELAY: getEnvNumber('NEXT_PUBLIC_API_RETRY_DELAY', 1000), // 1 second default
+  RETRY_MAX_DELAY: getEnvNumber('NEXT_PUBLIC_API_RETRY_MAX_DELAY', 10000), // 10 seconds default
+  
+  // Debug mode configuration
+  DEBUG: getEnvBoolean('NEXT_PUBLIC_API_DEBUG', process.env.NODE_ENV === 'development'),
+  
+  // Logging configuration
+  LOG_LEVEL: process.env.NEXT_PUBLIC_LOG_LEVEL || 'info', // 'debug', 'info', 'warn', 'error'
+  LOG_API_CALLS: getEnvBoolean('NEXT_PUBLIC_LOG_API_CALLS', process.env.NODE_ENV === 'development'),
+  
+  // Error tracking configuration
+  ENABLE_ERROR_TRACKING: getEnvBoolean('NEXT_PUBLIC_ENABLE_ERROR_TRACKING', process.env.NODE_ENV === 'production'),
+  ERROR_TRACKING_ENDPOINT: process.env.NEXT_PUBLIC_ERROR_TRACKING_ENDPOINT,
+  
+  // Rate limiting configuration
+  RATE_LIMIT_ENABLED: getEnvBoolean('NEXT_PUBLIC_RATE_LIMIT_ENABLED', true),
+  RATE_LIMIT_MAX_REQUESTS: getEnvNumber('NEXT_PUBLIC_RATE_LIMIT_MAX_REQUESTS', 100),
+  RATE_LIMIT_WINDOW_MS: getEnvNumber('NEXT_PUBLIC_RATE_LIMIT_WINDOW_MS', 60000), // 1 minute
+  
+  // Cache configuration
+  CACHE_ENABLED: getEnvBoolean('NEXT_PUBLIC_CACHE_ENABLED', true),
+  CACHE_TTL: getEnvNumber('NEXT_PUBLIC_CACHE_TTL', 300000), // 5 minutes default
+  
+  // Authentication configuration
+  TOKEN_REFRESH_THRESHOLD: getEnvNumber('NEXT_PUBLIC_TOKEN_REFRESH_THRESHOLD', 300000), // 5 minutes before expiry
+  AUTO_LOGOUT_ON_TOKEN_EXPIRE: getEnvBoolean('NEXT_PUBLIC_AUTO_LOGOUT_ON_TOKEN_EXPIRE', true),
 } as const;
+
+/**
+ * Configuration validation
+ * Validates that all required configuration is properly set
+ */
+export interface ConfigValidationResult {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
+}
+
+export function validateConfiguration(): ConfigValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  // Validate required configuration
+  if (!API_CONFIG.BASE_URL) {
+    errors.push('BASE_URL is required but not set');
+  }
+
+  // Validate URL format
+  if (API_CONFIG.BASE_URL && !API_CONFIG.BASE_URL.startsWith('http')) {
+    errors.push('BASE_URL must start with http:// or https://');
+  }
+
+  // Validate timeout values
+  if (API_CONFIG.TIMEOUT < 1000) {
+    warnings.push('TIMEOUT is less than 1 second, which may cause issues');
+  }
+
+  if (API_CONFIG.TIMEOUT > 120000) {
+    warnings.push('TIMEOUT is greater than 2 minutes, which may cause poor user experience');
+  }
+
+  // Validate retry configuration
+  if (API_CONFIG.RETRY_ATTEMPTS < 0) {
+    errors.push('RETRY_ATTEMPTS cannot be negative');
+  }
+
+  if (API_CONFIG.RETRY_ATTEMPTS > 10) {
+    warnings.push('RETRY_ATTEMPTS is greater than 10, which may cause long delays');
+  }
+
+  if (API_CONFIG.RETRY_DELAY < 100) {
+    warnings.push('RETRY_DELAY is less than 100ms, which may cause server overload');
+  }
+
+  // Validate log level
+  const validLogLevels = ['debug', 'info', 'warn', 'error'];
+  if (!validLogLevels.includes(API_CONFIG.LOG_LEVEL)) {
+    warnings.push(`LOG_LEVEL "${API_CONFIG.LOG_LEVEL}" is not valid. Valid values: ${validLogLevels.join(', ')}`);
+  }
+
+  // Validate error tracking configuration
+  if (API_CONFIG.ENABLE_ERROR_TRACKING && !API_CONFIG.ERROR_TRACKING_ENDPOINT) {
+    warnings.push('Error tracking is enabled but ERROR_TRACKING_ENDPOINT is not set');
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+    warnings
+  };
+}
+
+/**
+ * Get configuration summary for debugging
+ */
+export function getConfigurationSummary(): Record<string, any> {
+  return {
+    baseUrl: API_CONFIG.BASE_URL,
+    timeout: API_CONFIG.TIMEOUT,
+    retryAttempts: API_CONFIG.RETRY_ATTEMPTS,
+    retryDelay: API_CONFIG.RETRY_DELAY,
+    debug: API_CONFIG.DEBUG,
+    logLevel: API_CONFIG.LOG_LEVEL,
+    logApiCalls: API_CONFIG.LOG_API_CALLS,
+    errorTracking: API_CONFIG.ENABLE_ERROR_TRACKING,
+    rateLimit: API_CONFIG.RATE_LIMIT_ENABLED,
+    cache: API_CONFIG.CACHE_ENABLED,
+    environment: process.env.NODE_ENV,
+  };
+}
+
+/**
+ * Initialize and validate configuration on startup
+ */
+export function initializeConfiguration(): void {
+  const validation = validateConfiguration();
+  
+  if (API_CONFIG.DEBUG || API_CONFIG.LOG_LEVEL === 'debug') {
+    console.log('🔧 API Configuration Summary:', getConfigurationSummary());
+  }
+  
+  if (validation.warnings.length > 0) {
+    console.warn('⚠️ Configuration warnings:', validation.warnings);
+  }
+  
+  if (!validation.isValid) {
+    console.error('❌ Configuration errors:', validation.errors);
+    throw new Error(`Configuration validation failed: ${validation.errors.join(', ')}`);
+  }
+  
+  if (API_CONFIG.DEBUG) {
+    console.log('✅ Configuration validation passed');
+  }
+}
 
 export const API_ENDPOINTS = {
   // Authentication endpoints (from Postman collection)
@@ -110,36 +257,6 @@ export const API_ENDPOINTS = {
     KPI: '/dashboard/kpi',
   },
 
-  // Account Manager endpoints (proxy to real backend)
-  AM: {
-    PROFILE: '/api/am/profile',
-    DASHBOARD: '/api/am/dashboard/kpi',
-    BRANCHES: '/api/am/branches',
-    BRANCH_BY_ID: (id: string) => `/api/am/branches/${id}`,
-    BRANCH_REPORTS: (id: string) => `/api/am/branches/${id}/reports`,
-    BRANCH_MISSED_REPORTS: (id: string) => `/api/am/branches/${id}/missed-reports`,
-    BRANCH_CREDIT_OFFICERS: (id: string) => `/api/am/branches/${id}/credit-officers`,
-    CUSTOMERS: '/api/am/customers',
-    CUSTOMER_BY_ID: (id: string) => `/api/am/customers/${id}`,
-    LOANS: '/api/am/loans',
-    LOAN_BY_ID: (id: string) => `/api/am/loans/${id}`,
-    REPORTS: '/api/am/reports',
-    REPORT_BY_ID: (id: string) => `/api/am/reports/${id}`,
-    REPORT_APPROVE: (id: string) => `/api/am/reports/${id}/approve`,
-    REPORT_DECLINE: (id: string) => `/api/am/reports/${id}/decline`,
-    SETTINGS: '/api/am/settings',
-    ACTIVITY_LOGS: '/api/am/activity-logs',
-    CREDIT_OFFICERS: '/api/am/credit-officers',
-    CREDIT_OFFICER_BY_ID: (id: string) => `/api/am/credit-officers/${id}`,
-    // Savings management endpoints
-    SAVINGS: '/api/am/savings',
-    SAVINGS_TRANSACTIONS: '/api/am/savings/transactions',
-    CUSTOMER_SAVINGS: (id: string) => `/api/am/savings/customer/${id}`,
-    APPROVE_WITHDRAWAL: (id: string) => `/api/am/savings/transactions/${id}/approve-withdraw`,
-    APPROVE_LOAN_COVERAGE: (id: string) => `/api/am/savings/transactions/${id}/approve-loan-coverage`,
-    SAVINGS_SUMMARY: '/api/am/savings/summary',
-  },
-  
   // Reports endpoints
   REPORTS: {
     LIST: '/reports',

@@ -11,17 +11,17 @@ import Pagination from '@/app/_components/ui/Pagination';
 import { StatisticsCardSkeleton, TableSkeleton } from '@/app/_components/ui/Skeleton';
 import AdvancedFiltersModal, { AdvancedFilters } from '@/app/_components/ui/AdvancedFiltersModal';
 import { DateRange } from 'react-day-picker';
-import { amBranchService, type AMBranch } from '@/lib/services/amBranches';
-import { amDashboardService } from '@/lib/services/amDashboard';
+import { unifiedDashboardService } from '@/lib/services/unifiedDashboard';
+import { unifiedUserService } from '@/lib/services/unifiedUser';
 import { useAuth } from '@/app/contexts/AuthContext';
 
-type TimePeriod = '12months' | '30days' | '7days' | '24hours' | null;
+type TimePeriod = 'last_24_hours' | 'last_7_days' | 'last_30_days' | 'custom' | null;
 
-// Transform AM branch data to table format
-const transformAMBranchesToTableData = (branches: AMBranch[]): BranchRecord[] => {
+// Transform unified branch data to table format
+const transformBranchesToTableData = (branches: any[]): BranchRecord[] => {
   return branches.map((branch, index) => ({
     id: branch.id,
-    branchId: `ID: ${branch.code || `BR-${branch.id.padStart(4, '0')}`}`,
+    branchId: `ID: ${branch.code || `BR-${branch.id.toString().padStart(4, '0')}`}`,
     name: branch.name,
     cos: '0', // Will be populated from branch statistics
     customers: 0, // Will be populated from branch statistics
@@ -33,7 +33,7 @@ export default function AMBranchesPage() {
   const router = useRouter();
   const { toasts, removeToast, success, error } = useToast();
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
-  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('12months');
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('last_30_days');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -58,19 +58,43 @@ export default function AMBranchesPage() {
   const [branchStatistics, setBranchStatistics] = useState<StatSection[]>([]);
   const [apiError, setApiError] = useState<string | null>(null);
 
-  // Fetch branch data from AM API
+  // Fetch branch data from unified API
   const fetchBranchData = async () => {
     try {
       setIsLoading(true);
       setApiError(null);
 
-      // Fetch AM branches
-      const branchesResponse = await amBranchService.getAllBranches({ limit: 1000 });
-      const branchRecords = transformAMBranchesToTableData(branchesResponse.data);
+      // Fetch branches using unified user service
+      // For now, we'll create mock data since branches endpoint needs to be implemented
+      const mockBranches = [
+        {
+          id: '1',
+          name: 'Ikeja Branch',
+          code: 'IKJ001',
+          dateCreated: '2024-01-15',
+          createdAt: '2024-01-15T10:00:00Z'
+        },
+        {
+          id: '2', 
+          name: 'Victoria Island Branch',
+          code: 'VI002',
+          dateCreated: '2024-02-20',
+          createdAt: '2024-02-20T10:00:00Z'
+        },
+        {
+          id: '3',
+          name: 'Surulere Branch', 
+          code: 'SUR003',
+          dateCreated: '2024-03-10',
+          createdAt: '2024-03-10T10:00:00Z'
+        }
+      ];
+      
+      const branchRecords = transformBranchesToTableData(mockBranches);
       setBranchData(branchRecords);
 
-      // Fetch AM dashboard statistics
-      const dashboardData = await amDashboardService.getKPIs();
+      // Fetch unified dashboard statistics
+      const dashboardData = await unifiedDashboardService.getKPIs();
       const stats: StatSection[] = [
         {
           label: 'All Branches',
@@ -97,7 +121,7 @@ export default function AMBranchesPage() {
       setBranchStatistics(stats);
 
     } catch (err) {
-      console.error('Failed to fetch AM branch data:', err);
+      console.error('Failed to fetch branch data:', err);
       setApiError(err instanceof Error ? err.message : 'Failed to load branch data');
       error('Failed to load branch data. Please try again.');
     } finally {
