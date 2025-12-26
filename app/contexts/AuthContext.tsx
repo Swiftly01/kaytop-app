@@ -98,12 +98,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const authResponse: AuthResponse = await authService.loginUnified(credentials);
       
       console.log('✅ Login successful, setting auth state');
+      console.log('📊 Auth response:', {
+        hasToken: !!authResponse.token,
+        userRole: authResponse.user.role,
+        userEmail: authResponse.user.email
+      });
+      
       setToken(authResponse.token);
       setUser(authResponse.user);
       
       // Use role-based routing for unified login
       const userRole = authResponse.user.role as UserRole;
       const defaultDashboard = getDefaultDashboard(userRole);
+      
+      console.log('🎯 Role-based routing details:', {
+        userRole,
+        defaultDashboard,
+        allRoles: Object.values(UserRole)
+      });
       
       console.log('🚀 Redirecting to dashboard:', defaultDashboard);
       
@@ -112,8 +124,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       // Force a hard redirect to ensure middleware processes the request
       if (typeof window !== 'undefined') {
+        console.log('🌐 Performing hard redirect to:', defaultDashboard);
         window.location.href = defaultDashboard;
       } else {
+        console.log('🔄 Using router.push to:', defaultDashboard);
         router.push(defaultDashboard);
       }
     } catch (error) {
