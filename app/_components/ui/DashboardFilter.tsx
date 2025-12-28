@@ -1,9 +1,13 @@
-import React, { JSX } from "react";
 import Filter from "./Filter";
 
-export default function DashboardFilter(): JSX.Element {
+interface DashboardFilterProps {
+  isLoading: boolean;
+}
+
+export default function DashboardFilter({ isLoading }: DashboardFilterProps) {
   return (
     <Filter
+      isLoading={isLoading}
       filterField="last"
       options={[
         { value: "custom", label: "12 months" },
