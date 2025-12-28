@@ -63,3 +63,6 @@ export interface ValidationErrorResponse {
   errors?: BackendValidationErrors;
 }
 
+export interface ApiResponseError {
+  message?: string;
+}
