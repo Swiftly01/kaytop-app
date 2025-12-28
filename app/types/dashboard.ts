@@ -178,6 +178,8 @@ export enum PaginationKey {
   credit_officer_loan_disbursed_Page = "creditOfficerLoanDisbursedPage",
   credit_officer_loan_collection_page = "creditOfficerLoanCollectionPage",
   branch_customer_page = "customerPage",
+  branch_customer_savings_page = "branchCustomerSavingsPage"
+
 }
 
 
