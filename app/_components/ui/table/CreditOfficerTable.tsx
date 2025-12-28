@@ -1,14 +1,13 @@
-import React, { JSX } from "react";
-import Pagination from "../Pagination";
-import { Meta } from "@/app/types/dashboard";
-import { formatDate } from "@/lib/utils";
 import {
   CreditOfficerData,
   CreditOfficerErrorResponse,
 } from "@/app/types/creditOfficer";
+import { Meta } from "@/app/types/dashboard";
+import { formatDate } from "@/lib/utils";
 import { AxiosError } from "axios";
-import SpinnerLg from "../SpinnerLg";
 import Link from "next/link";
+import Pagination from "../Pagination";
+import TableState from "./TableState";
 
 interface TableProps {
   isLoading: boolean;
@@ -25,12 +24,6 @@ export default function CreditOfficerTable({
   meta,
   onPageChange,
 }: TableProps) {
-  if (error) {
-    return (
-      <p className="text-center text-red-400">{error.response?.data.message}</p>
-    );
-  }
-
   return (
     <div className="overflow-x-auto">
       <table className="table table-md">
@@ -45,21 +38,13 @@ export default function CreditOfficerTable({
           </tr>
         </thead>
         <tbody>
-          {isLoading && (
-            <tr>
-              <td colSpan={6}>
-                <div className="flex items-center justify-center">
-                  <SpinnerLg />
-                </div>
-              </td>
-            </tr>
-          )}
-
-          {!isLoading && item?.length === 0 && (
-            <tr>
-              <td colSpan={6}>No credit officers found</td>
-            </tr>
-          )}
+          <TableState
+            isLoading={isLoading}
+            error={error}
+            isEmpty={!isLoading && item?.length === 0}
+            colSpan={6}
+            emptyMessage="No credit oficer data available yet!!"
+          />
 
           {item?.map((officer, index) => {
             return (
