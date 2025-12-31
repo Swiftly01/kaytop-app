@@ -1,35 +1,63 @@
 "use client";
-import React from "react";
-import PieChart from "./PieChart";
-import { getBranchCustomerProfileSummary, ROUTES } from "@/lib/utils";
-import RepaymentProgress from "./RepaymentProgress";
-import DrawerTable from "./DrawerTable";
-import { Table } from "lucide-react";
-import BreadCrumb from "./BreadCrumb";
 import { useBranchCustomerById } from "@/app/dashboard/bm/queries/customers/useBranchCustomerById";
+import {
+  getActiveLoanSummary,
+  getBranchCustomerProfileSummary,
+  ROUTES,
+} from "@/lib/utils";
+import BreadCrumb from "./BreadCrumb";
+import DrawerTable from "./DrawerTable";
+import PieChart from "./PieChart";
+import RepaymentProgress from "./RepaymentProgress";
 
 import { useBranchCustomerLoan } from "@/app/dashboard/bm/queries/loan/useBranchCustomerLoan";
 import { useBranchCustomerSavings } from "@/app/dashboard/bm/queries/loan/useBranchCustomerSavings";
-import ProfileSummary from "./ProfileSummary";
-import BranchCustomerSavingsTable from "./table/BranchCustomerSavingsTable";
 import { usePageChange } from "@/app/hooks/usePageChange";
 import { PaginationKey } from "@/app/types/dashboard";
+import ProfileSummary from "./ProfileSummary";
+import BranchCustomerSavingsTable from "./table/BranchCustomerSavingsTable";
+import { useLoanPaymentSchedule } from "@/app/dashboard/bm/queries/loan/useLoanPaymentSchedule";
+import PaymentScheduleTable from "./table/PaymentScheduleTable";
 
 export default function CustomerDetails() {
   const { isLoading, error, data } = useBranchCustomerById();
-  const {data: loan} = useBranchCustomerLoan();
+  const {
+    isLoading: isLoadingLoans,
+    error: loansError,
+    data: loans,
+  } = useBranchCustomerLoan();
   const {
     isLoading: isLoadingSavings,
     error: savingsError,
     data: savings,
   } = useBranchCustomerSavings();
 
-  
-
-  const profileSummary = data
-    ? getBranchCustomerProfileSummary(data?.data)
+  const profileSummary = data?.data
+    ? getBranchCustomerProfileSummary(data.data)
     : [];
-  const { handlePageChange } = usePageChange();
+
+  const { handlePageChange, setContextParam } = usePageChange();
+
+  const activeLoan = loans?.find((loan) => {
+    return loan.status === "active";
+  });
+
+  const activeLoanSummary = activeLoan ? getActiveLoanSummary(activeLoan) : [];
+
+  function handleClick() {
+    if (activeLoan) {
+      setContextParam(activeLoan?.id, PaginationKey.active_loan_id);
+    }
+
+    return;
+  }
+
+  const {
+    isLoading: isLoadingPaymentSchedule,
+    error: paymentScheduleError,
+    data: paymentScheduleData,
+  } = useLoanPaymentSchedule();
+
 
   return (
     <>
@@ -83,66 +111,64 @@ export default function CustomerDetails() {
         error={error}
       />
 
-      <div className="p-5 my-5 bg-white ">
-        <h1 className="font-semibold text-neutral-700">Active Loan</h1>
-        <div className="flex flex-wrap justify-between gap-4 mt-2">
-          <div>
-            <p className="text-sm text-gray-500">Loan ID:</p>
-            <h1 className="text-sm text-neutral-700">46729233</h1>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Amount</p>
-            <h1 className="text-sm text-neutral-700">₦50,000</h1>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Outstanding</p>
-            <h1 className="text-sm text-neutral-700">₦35,000</h1>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Monthly Payment</p>
-            <h1 className="text-sm text-neutral-700">₦35,000</h1>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Interest Rate</p>
-            <h1 className="text-sm text-neutral-700">20%</h1>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Start Date</p>
-            <h1 className="text-sm text-neutral-700">23rd Nov, 2025</h1>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">End Date</p>
-            <h1 className="text-sm text-neutral-700">23rd Nov, 2025</h1>
-          </div>
-        </div>
-        <RepaymentProgress paid={35000} total={60000} />
+      {activeLoan && (
+        <>
+          <ProfileSummary
+            item={activeLoanSummary}
+            isLoading={isLoadingLoans}
+            error={loansError}
+          />
 
-        <div className="drawer drawer-end">
-          <input id="my-drawer-5" type="checkbox" className="drawer-toggle" />
-          <div className="drawer-content">
-            <label
-              htmlFor="my-drawer-5"
-              className="underline cursor-pointer drawer-button text-md decoration-brand-purple text-brand-purple"
-            >
-              View Payment Schedule
-            </label>
-          </div>
-          <div className="z-40 drawer-side">
-            <label
-              htmlFor="my-drawer-5"
-              aria-label="close sidebar"
-              className="drawer-overlay"
-            ></label>
-            <ul className="z-50 min-h-full p-4 overflow-scroll bg-white menu w-80 md:w-140">
-              <h1 className="text-center text-md text-neutral-700">
-                Payment Schedule
-              </h1>
-              <DrawerTable />
-            </ul>
-          </div>
-        </div>
-      </div>
+          <div className="px-5 py-3 my-3 bg-white rounded-md">
+            <RepaymentProgress
+              isLoading={isLoadingLoans}
+              paid={Number(activeLoan?.amountPaid)}
+              total={Number(activeLoan?.totalRepayable)}
+            />
 
+            <div className="drawer drawer-end">
+              <input
+                id="my-drawer-5"
+                type="checkbox"
+                className="drawer-toggle"
+              />
+              <div className="drawer-content">
+                <label
+                  onClick={handleClick}
+                  htmlFor="my-drawer-5"
+                  className="text-sm underline cursor-pointer drawer-button decoration-brand-purple text-brand-purple"
+                >
+                  View Payment Schedule
+                </label>
+              </div>
+              <div className="z-40 drawer-side">
+                <label
+                  htmlFor="my-drawer-5"
+                  aria-label="close sidebar"
+                  className="drawer-overlay"
+                ></label>
+                <ul className="z-50 min-h-full p-4 overflow-x-scroll bg-white menu w-80 md:w-140">
+                  <h1 className="text-center text-md text-neutral-700">
+                    Payment Schedule
+                  </h1>
+                  <PaymentScheduleTable
+                    isLoading={isLoadingPaymentSchedule}
+                    error={paymentScheduleError}
+                    item={paymentScheduleData?.data.schedule}
+                    meta={paymentScheduleData?.meta}
+                    onPageChange={(page) =>
+                      handlePageChange(
+                        page,
+                        PaginationKey.payment_schedule_page
+                      )
+                    }
+                  />
+                </ul>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
       <div>
         <p className="pb-5 text-md">Transaction History</p>
         <div className="p-10 bg-white">
@@ -152,10 +178,7 @@ export default function CustomerDetails() {
             item={savings?.data.transactions}
             meta={savings?.meta}
             onPageChange={(page) =>
-              handlePageChange(
-                page,
-                PaginationKey.branch_customer_savings_page
-              )
+              handlePageChange(page, PaginationKey.branch_customer_savings_page)
             }
           />
         </div>
