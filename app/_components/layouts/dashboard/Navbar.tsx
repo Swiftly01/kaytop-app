@@ -1,10 +1,20 @@
-import Image from "next/image";
-import React, { JSX } from "react";
-import ProfileDropdown from "../../ui/ProfileDropdown";
-import logo from "@/public/logo.png";
 import { AuthProvider } from "@/app/context/AuthContext";
+import { SettingsService } from "@/app/services/settingsService";
+import logo from "@/public/logo.png";
+import Image from "next/image";
+import { JSX } from "react";
+import ProfileDropdown from "../../ui/ProfileDropdown";
 
-export default function Navbar(): JSX.Element {
+export default async function Navbar(): Promise<JSX.Element> {
+  // page.tsx
+  //let profile = null;
+
+  // try {
+  //   profile = await SettingsService.getProfile();
+  // } catch (err: any) {
+  //   console.error("Failed to fetch profile:", err.message);
+  // }
+
   return (
     <nav className="fixed top-0 left-0 z-40 flex items-center w-full h-16 px-4 bg-white shadow">
       <div className="flex items-center justify-between w-full">
@@ -36,6 +46,7 @@ export default function Navbar(): JSX.Element {
             </span>
           </div>
         </div>
+
         <AuthProvider>
           <ProfileDropdown />
         </AuthProvider>
