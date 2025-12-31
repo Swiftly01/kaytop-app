@@ -6,9 +6,15 @@ import {
   CustomerListResponse,
   CustomerSavingsResponse,
 } from "../types/customer";
+import {
+  ActiveLoanData,
+  PaymentSchedule,
+  PaymentScheduleResponse,
+} from "../types/loan";
 
 interface QueryParamsProps {
   customerId?: number;
+  loanId?: number;
   page: number;
   limit: number;
 }
@@ -50,15 +56,18 @@ export class CustomerService {
     }
   }
 
-  static async getBranchCustomerLoan(customerId: number) {
+  static async getBranchCustomerLoan(
+    customerId: number
+  ): Promise<ActiveLoanData[]> {
     try {
       const response = await apiClient.get(
         `${apiBaseUrl}/loans/customer/${customerId}`
       );
-      console.log(response);
+      // console.log(response);
       return response.data;
     } catch (error: AxiosError | unknown) {
       const err = error as AxiosError;
+
       console.log("Error fetching branch customer by id", err.response?.data);
       throw err;
     }
@@ -74,7 +83,6 @@ export class CustomerService {
         `${apiBaseUrl}/savings/customer/${customerId}`,
         {
           params: {
-            customerId,
             page,
             limit,
           },
@@ -84,7 +92,34 @@ export class CustomerService {
       return { data: response.data, meta: response.data.meta ?? null };
     } catch (error: AxiosError | unknown) {
       const err = error as AxiosError;
-      console.log("Error fetching branch customer by id", err.response?.data);
+      //   console.log("Error fetching branch customer by id", err.response?.data);
+      throw err;
+    }
+  }
+  //   {{baseUrl}}/loans/:loanId/summary
+  // {{baseUrl}}/loans/:loanId/payment-schedule
+  // {{baseUrl}}/loans/:loanId/details
+  // {{baseUrl}}/loans?page=1&limit=20
+
+  static async getLoanPaymentsSchedule({
+    loanId,
+    page,
+    limit,
+  }: QueryParamsProps): Promise<PaymentScheduleResponse> {
+    try {
+      const response = await apiClient.get<PaymentSchedule>(
+        `${apiBaseUrl}/loans/${loanId}/payment-schedule`,
+        {
+          params: {
+            page,
+            limit,
+          },
+        }
+      );
+      return { data: response.data, meta: undefined };
+    } catch (error: AxiosError | unknown) {
+      const err = error as AxiosError;
+      console.log("Error fetching all branch customer", err.response?.data);
       throw err;
     }
   }
