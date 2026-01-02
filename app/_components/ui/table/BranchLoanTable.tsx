@@ -5,15 +5,19 @@ import { AxiosError } from "axios";
 import Link from "next/link";
 import Pagination from "../Pagination";
 import TableState from "./TableState";
-import { LoanData } from "@/app/types/loan";
 import { formatCurrency } from "@/lib/utils";
+import { BaseLoanData } from "@/app/types/loan";
 
 interface TableProps {
   isLoading: boolean;
   error: AxiosError<ApiResponseError> | null;
-  item?: LoanData[];
+  item?: BaseLoanData[];
   meta?: Meta;
   onPageChange?: (page: number) => void;
+  handleClick: (loanId: number) => void;
+  
+  
+  
 }
 
 export default function BranchLoanTable({
@@ -22,7 +26,9 @@ export default function BranchLoanTable({
   item,
   meta,
   onPageChange,
+  handleClick,
 }: TableProps) {
+  
   return (
     <div className="overflow-x-auto">
       <table className="table table-md">
@@ -50,21 +56,23 @@ export default function BranchLoanTable({
             return (
               <tr key={index}>
                 <th>{index + 1}</th>
-                <td>{loan.borrower.name}</td>
+                <td>{loan.customerName}</td>
                 <td>{loan.status}</td>
                 <td>{formatCurrency(Number(loan.amount))}</td>
                 <td>{loan.interestRate}</td>
                 <td>{loan.disbursementDate}</td>
                 <td>
-                  <Link
-                    href={`/dashboard/bm/customer/details/${loan.borrower.email}`}
+                  <label
+                    onClick={() => handleClick(loan.id)}
+                    htmlFor="my-drawer-5"
+                    className="underline cursor-pointer drawer-button text-md decoration-brand-purple text-brand-purple"
                   >
                     <img
                       className="w-4 cursor-pointer"
                       src="/view.svg"
                       alt="view icon"
                     />
-                  </Link>
+                  </label>
                 </td>
               </tr>
             );
