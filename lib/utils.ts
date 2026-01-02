@@ -1,7 +1,11 @@
 import { CreditOfficerProfile, Summary } from "@/app/types/creditOfficer";
 import { CustomerData } from "@/app/types/customer";
 import { MetricProps, SummaryProps } from "@/app/types/dashboard";
-import { ActiveLoanData, SavingsProgressResponse } from "@/app/types/loan";
+import {
+  ActiveLoanData,
+  LoanDetailsApiResponse,
+  SavingsProgressResponse,
+} from "@/app/types/loan";
 import { MenuItem, Routes } from "@/app/types/routes";
 import { clsx, type ClassValue } from "clsx";
 import dayjs from "dayjs";
@@ -244,14 +248,44 @@ export function mapSavingsProgressData(
   ];
 }
 
-export function mapLoanRepaymentProgessData(data: ActiveLoanData): SummaryProps[]{
-   return [
+export function mapLoanRepaymentProgessData(
+  data: ActiveLoanData
+): SummaryProps[] {
+  return [
     { label: "Total Repayable", value: Number(data.totalRepayable) },
     { label: "Amount Paid", value: Number(data.amountPaid) },
-    
   ];
-
 }
+
+export function mapLoanDetailsData(
+  data: LoanDetailsApiResponse
+): SummaryProps[] {
+  return [
+    { label: "Loan Id", value: data.loanDetails.id },
+    { label: " CO In-charge", value: data.createdBy.name },
+    { label: "Branch", value: data.createdBy.branch },
+  ];
+}
+
+export function mapOtherLoanDetailsData(
+  data: LoanDetailsApiResponse
+): SummaryProps[] {
+  return [
+    { label: "Amount borrowed", value: formatCurrency(Number(data.loanDetails.amount)) },
+    { label: "Date disbursed", value:formatDate(data.loanDetails.createdAt) },
+  ];
+}
+
+export function mapLoanIntrestData(
+  data: LoanDetailsApiResponse
+): SummaryProps[] {
+  return [
+    { label: "Intrest Rate", value: data.loanDetails.interestRate },
+    { label: "Loan status", value:data.loanDetails.status },
+  ];
+}
+
+
 
 export const reports: MetricProps[] = [
   {
