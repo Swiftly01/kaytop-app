@@ -96,10 +96,7 @@ export class CustomerService {
       throw err;
     }
   }
-  //   {{baseUrl}}/loans/:loanId/summary
-  // {{baseUrl}}/loans/:loanId/payment-schedule
-  // {{baseUrl}}/loans/:loanId/details
-  // {{baseUrl}}/loans?page=1&limit=20
+ 
 
   static async getLoanPaymentsSchedule({
     loanId,
