@@ -184,6 +184,8 @@ export enum PaginationKey {
   active_loan_id = "loanId",
   payment_schedule_page = "paymentSchedulePage",
   customer_id = "customerId",
+  loan_page_id = "loanPageId",
+  loan_page_repayment = "loanPageRepayment"
 }
 
 export interface TableStateProps {
