@@ -5,6 +5,10 @@ import { Switch } from "@/components/ui/switch";
 import { AxiosError } from "axios";
 import { JSX } from "react";
 
+export const metadata = {
+  title: "Settings"
+}
+
 export default async function page(): Promise<JSX.Element> {
   let profile = undefined;
 
