@@ -27,4 +27,3 @@ export function usePageChange() {
 
   return { handlePageChange, setContextParam };
 }
-  
