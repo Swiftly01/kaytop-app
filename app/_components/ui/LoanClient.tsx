@@ -10,16 +10,20 @@ import LoanSummary from "./LoanSummary";
 import Metric from "./Metric";
 import BranchLoanTable from "./table/BranchLoanTable";
 import LoanRepaymentTable from "./table/LoanRepaymentTable";
+import { useState } from "react";
+import { useMissedPayment } from "@/app/dashboard/bm/queries/loan/useMissedPayment";
+import MissedPaymentTable from "./table/MissedPaymentTable";
 
 export default function LoanClient() {
   const { isLoading, error, data } = useDashboardQuery();
+  const [status, setStatus] = useState("");
 
   const metricData = getBranchLoanMetrics({ data });
   const {
     isLoading: isLoadingLoan,
     error: branchLoanError,
     data: branchLoan,
-  } = useBranchLoans();
+  } = useBranchLoans(status);
 
   const { handlePageChange, setContextParam } = usePageChange();
 
@@ -33,6 +37,12 @@ export default function LoanClient() {
     data: loanDetails,
   } = useLoanDetails();
 
+  const {
+    isLoading: isLoadingMissedPayment,
+    error: missedPaymentError,
+    data: missedPayment,
+  } = useMissedPayment();
+
   return (
     <>
       <DashboardHeader data={data} isLoading={isLoading} />
@@ -41,14 +51,7 @@ export default function LoanClient() {
 
       <div className=" drawer drawer-end">
         <input id="my-drawer-5" type="checkbox" className="drawer-toggle" />
-        <div className="drawer-content">
-          {/* <label
-            htmlFor="my-drawer-5"
-            className="underline cursor-pointer drawer-button text-md decoration-brand-purple text-brand-purple"
-          >
-            View Loan
-          </label> */}
-        </div>
+        <div className="drawer-content"></div>
         <div className="z-40 drawer-side ">
           <label
             htmlFor="my-drawer-5"
@@ -111,6 +114,7 @@ export default function LoanClient() {
             name="my_tabs_2"
             className="tab"
             aria-label="Active"
+            onClick={() => setStatus("active")}
           />
           <div className="p-10 bg-white tab-content">Tab content 2</div>
 
@@ -119,6 +123,7 @@ export default function LoanClient() {
             name="my_tabs_2"
             className="tab"
             aria-label="Completed"
+            onClick={() => setStatus("completed")}
           />
           <div className="p-10 bg-white tab-content">Tab content 3</div>
           <input
@@ -127,7 +132,17 @@ export default function LoanClient() {
             className="tab"
             aria-label="Missed payments"
           />
-          <div className="p-10 bg-white tab-content">Tab content 4</div>
+          <div className="p-10 bg-white tab-content">
+            <MissedPaymentTable
+              isLoading={isLoadingMissedPayment}
+              error={missedPaymentError}
+              item={missedPayment?.data}
+              meta={missedPayment?.meta}
+              onPageChange={(page) =>
+                handlePageChange(page, PaginationKey.missed_payment_page)
+              }
+            />
+          </div>
         </div>
       </div>
     </>
