@@ -1,19 +1,21 @@
 import { AuthProvider } from "@/app/context/AuthContext";
-import { SettingsService } from "@/app/services/settingsService";
+import { profileService } from "@/app/services/profileService";
 import logo from "@/public/logo.png";
+import { AxiosError } from "axios";
 import Image from "next/image";
 import { JSX } from "react";
 import ProfileDropdown from "../../ui/ProfileDropdown";
 
 export default async function Navbar(): Promise<JSX.Element> {
-  // page.tsx
-  //let profile = null;
+  
+  let profile = undefined;
 
-  // try {
-  //   profile = await SettingsService.getProfile();
-  // } catch (err: any) {
-  //   console.error("Failed to fetch profile:", err.message);
-  // }
+  try {
+    profile = await profileService.getProfile();
+  } catch (err: AxiosError | unknown) {
+    const error = err as AxiosError;
+    console.error("Failed to fetch profile:", error.message);
+  }
 
   return (
     <nav className="fixed top-0 left-0 z-40 flex items-center w-full h-16 px-4 bg-white shadow">
@@ -48,7 +50,7 @@ export default async function Navbar(): Promise<JSX.Element> {
         </div>
 
         <AuthProvider>
-          <ProfileDropdown />
+          <ProfileDropdown data={profile} />
         </AuthProvider>
       </div>
     </nav>
