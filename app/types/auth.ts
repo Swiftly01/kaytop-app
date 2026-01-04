@@ -66,3 +66,15 @@ export interface ValidationErrorResponse {
 export interface ApiResponseError {
   message?: string;
 }
+
+export interface ChangePasswordData {
+  currentPassword: string;
+  newPassword: string;
+  confirmNewPassword: string;
+}
+
+export interface NestValidationErrorResponse {
+  statusCode: number;
+  message: string[];
+  error: string;
+}
