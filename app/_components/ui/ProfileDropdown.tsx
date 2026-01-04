@@ -24,7 +24,7 @@ interface ProfileProps {
 }
 
 export default function ProfileDropdown({ data }: ProfileProps) {
-  // console.log(profile);
+ 
   const [open, setOpen] = useState(false);
   const { logOut } = useAuth();
   const router = useRouter();
@@ -40,7 +40,7 @@ export default function ProfileDropdown({ data }: ProfileProps) {
   return (
     <DropdownMenu onOpenChange={setOpen}>
       <DropdownMenuTrigger className="flex items-center gap-2 transition outline-none cursor-pointer hover:opacity-80">
-        <span className="font-medium">{data?.email}</span>
+        <span className="font-medium">{data?.firstName}</span>
 
         <Avatar className="h-7 w-7">
           <AvatarImage src={src} alt="avatar" />
