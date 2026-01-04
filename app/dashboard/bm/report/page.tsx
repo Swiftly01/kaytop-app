@@ -36,12 +36,12 @@ export default function page(): JSX.Element {
             </FilterButton>
           </div>
         </div>
-        <Metric item={metricData} cols={2} />
+        {/* <Metric item={metricData} cols={2} /> */}
 
         <div>
           <p className="pb-5 font-semibold text-md text-neutral-700">Reports</p>
           <div className="p-10 bg-white">
-            <Table />
+            {/* <Table /> */}
           </div>
         </div>
 
