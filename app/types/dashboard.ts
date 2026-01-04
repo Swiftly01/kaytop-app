@@ -1,5 +1,4 @@
 import { AxiosError } from "axios";
-import { ApiError } from "next/dist/server/api-utils";
 import { ApiResponseError } from "./auth";
 
 export interface MetricProps {
@@ -185,7 +184,8 @@ export enum PaginationKey {
   payment_schedule_page = "paymentSchedulePage",
   customer_id = "customerId",
   loan_page_id = "loanPageId",
-  loan_page_repayment = "loanPageRepayment"
+  loan_page_repayment = "loanPageRepayment",
+  active_status = "status"
 }
 
 export interface TableStateProps {
