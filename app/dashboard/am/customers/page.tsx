@@ -151,16 +151,21 @@ export default function AMCustomersPage() {
           label: 'Total Customers',
           value: mockPortfolioSummary.totalCustomers,
           change: 12.5, // Mock change percentage
+          changeLabel: '+12.5% this month',
+          isCurrency: false,
         },
         {
           label: 'Active Customers',
           value: mockPortfolioSummary.activeCustomers,
           change: 8.3, // Mock change percentage
+          changeLabel: '+8.3% this month',
+          isCurrency: false,
         },
         {
           label: 'Portfolio Value',
           value: mockPortfolioSummary.totalPortfolioValue,
           change: 15.2, // Mock change percentage
+          changeLabel: '+15.2% this month',
           isCurrency: true,
         },
       ];

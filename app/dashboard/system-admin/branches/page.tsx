@@ -15,8 +15,7 @@ import { DateRange } from 'react-day-picker';
 import { userService } from '@/lib/services/users';
 import { dashboardService } from '@/lib/services/dashboard';
 import type { User, PaginatedResponse } from '@/lib/api/types';
-
-type TimePeriod = '12months' | '30days' | '7days' | '24hours' | null;
+import type { TimePeriod } from '@/app/_components/ui/FilterControls';
 
 interface BranchFormData {
   branchName: string;
@@ -51,14 +50,12 @@ const transformUsersToBranchData = (users: User[]): BranchRecord[] => {
 
   // Convert to branch records
   return Object.entries(branchGroups).map(([branchName, data], index) => {
-    // Use the first user's ID as a base for branch ID, or create from branch name
-    const branchId = data.users[0]?.id 
-      ? `BR-${String(data.users[0].id).padStart(4, '0')}` 
-      : `BR-${branchName.replace(/\s+/g, '').substring(0, 4).toUpperCase()}-${(index + 1).toString().padStart(3, '0')}`;
+    // Create a consistent branch ID based on branch name
+    const branchId = branchName.replace(/\s+/g, '-').toLowerCase();
     
     return {
-      id: (index + 1).toString(),
-      branchId: `ID: ${branchId}`, // Use real data-based ID
+      id: branchId, // Use branch name-based ID for consistency
+      branchId: `ID: BR-${(index + 1).toString().padStart(3, '0')}`, // Display ID
       name: branchName,
       cos: data.creditOfficers.toString(),
       customers: data.customers,
@@ -70,7 +67,7 @@ const transformUsersToBranchData = (users: User[]): BranchRecord[] => {
 export default function BranchesPage() {
   const router = useRouter();
   const { toasts, removeToast, success, error } = useToast();
-  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('12months');
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('last_30_days');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -109,30 +106,55 @@ export default function BranchesPage() {
 
       // Fetch dashboard statistics
       const dashboardData = await dashboardService.getKPIs();
+      
+      // Debug: Log the dashboard data structure
+      console.log('🔍 Dashboard KPI data:', JSON.stringify(dashboardData, null, 2));
+      
+      // Helper function to safely extract values
+      const extractValue = (obj: any, fallback: any = 0) => {
+        if (obj === null || obj === undefined) return fallback;
+        if (typeof obj === 'object' && obj.value !== undefined) return obj.value;
+        return obj;
+      };
+
       const stats: StatSection[] = [
         {
           label: 'All Branches',
-          value: dashboardData.branches.value,
-          change: dashboardData.branches.change,
+          value: extractValue(dashboardData.branches.value, 0),
+          change: extractValue(dashboardData.branches.change, 0),
+          changeLabel: extractValue(dashboardData.branches.changeLabel, 'No change'),
+          isCurrency: extractValue(dashboardData.branches.isCurrency, false),
         },
         {
           label: "All CO's",
-          value: dashboardData.creditOfficers.value,
-          change: dashboardData.creditOfficers.change,
+          value: extractValue(dashboardData.creditOfficers.value, 0),
+          change: extractValue(dashboardData.creditOfficers.change, 0),
+          changeLabel: extractValue(dashboardData.creditOfficers.changeLabel, 'No change'),
+          isCurrency: extractValue(dashboardData.creditOfficers.isCurrency, false),
         },
         {
           label: 'All Customers',
-          value: dashboardData.customers.value,
-          change: dashboardData.customers.change,
+          value: extractValue(dashboardData.customers.value, 0),
+          change: extractValue(dashboardData.customers.change, 0),
+          changeLabel: extractValue(dashboardData.customers.changeLabel, 'No change'),
+          isCurrency: extractValue(dashboardData.customers.isCurrency, false),
         },
         {
           label: 'Active Loans',
-          value: dashboardData.activeLoans.value,
-          change: dashboardData.activeLoans.change,
-          isCurrency: false,
+          value: extractValue(dashboardData.activeLoans.value, 0),
+          change: extractValue(dashboardData.activeLoans.change, 0),
+          changeLabel: extractValue(dashboardData.activeLoans.changeLabel, 'No change'),
+          isCurrency: extractValue(dashboardData.activeLoans.isCurrency, false),
         },
       ];
+      
+      // Debug: Log the transformed stats
+      console.log('📊 Transformed branch statistics:', JSON.stringify(stats, null, 2));
       setBranchStatistics(stats);
+      
+      // Debug: Log what we're actually setting
+      console.log('✅ Setting branchStatistics:', stats);
+      console.log('📋 First stat section:', stats[0]);
 
     } catch (err) {
       console.error('Failed to fetch branch data:', err);
@@ -152,8 +174,9 @@ export default function BranchesPage() {
     setIsModalOpen(true);
   };
 
-  const handleRowClick = (branchId: string) => {
-    router.push(`/dashboard/system-admin/branches/${branchId}`);
+  const handleRowClick = (row: BranchRecord) => {
+    // Extract the ID from the row object
+    router.push(`/dashboard/system-admin/branches/${row.id}`);
   };
 
   const handleModalClose = () => {
@@ -384,7 +407,10 @@ export default function BranchesPage() {
                   </div>
                 </div>
               ) : (
-                <StatisticsCard sections={branchStatistics} />
+                <>
+                  {console.log('🎯 Rendering StatisticsCard with:', branchStatistics)}
+                  <StatisticsCard sections={branchStatistics} />
+                </>
               )}
             </div>
 

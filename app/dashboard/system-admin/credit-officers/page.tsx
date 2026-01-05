@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import FilterControls from '@/app/_components/ui/FilterControls';
 import { StatisticsCard, StatSection } from '@/app/_components/ui/StatisticsCard';
@@ -12,11 +12,11 @@ import EditCreditOfficerModal from '@/app/_components/ui/EditCreditOfficerModal'
 import DeleteConfirmationModal from '@/app/_components/ui/DeleteConfirmationModal';
 import { useToast } from '@/app/hooks/useToast';
 import { ToastContainer } from '@/app/_components/ui/ToastContainer';
-import { userService } from '@/lib/services/users';
+import { unifiedUserService } from '@/lib/services/unifiedUser';
 import { dashboardService } from '@/lib/services/dashboard';
+import { extractValue } from '@/lib/utils/dataExtraction';
 import type { User } from '@/lib/api/types';
-
-type TimePeriod = '12months' | '30days' | '7days' | '24hours' | null;
+import type { TimePeriod } from '@/app/_components/ui/FilterControls';
 
 interface CreditOfficer {
   id: string;
@@ -46,20 +46,19 @@ const transformUserToCreditOfficer = (user: User): CreditOfficer => ({
 export default function CreditOfficersPage() {
   const router = useRouter();
   const { toasts, removeToast, success, error } = useToast();
-  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('12months');
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('last_30_days');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedOfficers, setSelectedOfficers] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortColumn, setSortColumn] = useState<keyof CreditOfficer | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(10);
   const [isLoading, setIsLoading] = useState(true);
 
   // API data state
   const [creditOfficersData, setCreditOfficersData] = useState<CreditOfficer[]>([]);
   const [creditOfficersStatistics, setCreditOfficersStatistics] = useState<StatSection[]>([]);
-  const [apiError, setApiError] = useState<string | null>(null);
 
   // Edit modal state
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -73,12 +72,11 @@ export default function CreditOfficersPage() {
   const fetchCreditOfficersData = async (searchTerm?: string) => {
     try {
       setIsLoading(true);
-      setApiError(null);
 
       // Fetch staff members (credit officers)
-      const staffData = await userService.getMyStaff();
-      let creditOfficers = staffData
-        .filter(user => user.role === 'credit_officer')
+      const staffData = await unifiedUserService.getUsers({ role: 'credit_officer' });
+      let creditOfficers = staffData.data
+        .filter((user: User) => user.role === 'credit_officer')
         .map(transformUserToCreditOfficer);
 
       // Apply search filter if provided
@@ -96,18 +94,28 @@ export default function CreditOfficersPage() {
 
       // Fetch dashboard statistics for credit officers count
       const dashboardData = await dashboardService.getKPIs();
+      
+      // Ensure we have valid data before creating stats
+      if (!dashboardData || !dashboardData.creditOfficers) {
+        console.error('Invalid dashboard data:', dashboardData);
+        setCreditOfficersStatistics([]);
+        return;
+      }
+      
+      const creditOfficerData = dashboardData.creditOfficers;
       const stats: StatSection[] = [
         {
           label: 'Total Credit Officers',
-          value: dashboardData.creditOfficers.value,
-          change: dashboardData.creditOfficers.change,
+          value: extractValue(creditOfficerData.value, 0),
+          change: extractValue(creditOfficerData.change, 0),
+          changeLabel: extractValue(creditOfficerData.changeLabel, 'No change this month'),
+          isCurrency: extractValue(creditOfficerData.isCurrency, false),
         },
       ];
       setCreditOfficersStatistics(stats);
 
     } catch (err) {
       console.error('Failed to fetch credit officers data:', err);
-      setApiError(err instanceof Error ? err.message : 'Failed to load credit officers data');
       error('Failed to load credit officers data. Please try again.');
     } finally {
       setIsLoading(false);
@@ -183,7 +191,7 @@ export default function CreditOfficersPage() {
         mobileNumber: updatedOfficer.phone,
       };
 
-      await userService.updateUser(updatedOfficer.id, updateData);
+      await unifiedUserService.updateUser(updatedOfficer.id, updateData);
       
       // Refresh the data
       await fetchCreditOfficersData();
@@ -209,7 +217,7 @@ export default function CreditOfficersPage() {
       try {
         setIsLoading(true);
         
-        await userService.deleteUser(officerToDelete.id);
+        await unifiedUserService.deleteUser(officerToDelete.id);
         
         // Refresh the data
         await fetchCreditOfficersData();
@@ -279,8 +287,12 @@ export default function CreditOfficersPage() {
             <div className="w-full max-w-[1091px]" style={{ marginBottom: '48px' }}>
               {isLoading ? (
                 <StatisticsCardSkeleton />
-              ) : (
+              ) : creditOfficersStatistics && creditOfficersStatistics.length > 0 ? (
                 <StatisticsCard sections={creditOfficersStatistics} />
+              ) : (
+                <div className="bg-white p-6 rounded-lg border">
+                  <p className="text-gray-500">No statistics available</p>
+                </div>
               )}
             </div>
 

@@ -98,6 +98,12 @@ export default function ProfileDropdown() {
     setShowLogoutConfirm(false);
   };
 
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) {
+      setShowLogoutConfirm(false);
+    }
+  };
+
   return (
     <div 
       className="flex items-center gap-3"
@@ -207,7 +213,14 @@ export default function ProfileDropdown() {
 
       {/* Logout Confirmation Dialog */}
       {showLogoutConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{
+            backgroundColor: 'rgba(52, 64, 84, 0.7)',
+            backdropFilter: 'blur(16px)'
+          }}
+          onClick={handleBackdropClick}
+        >
           <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
             <div className="flex items-center mb-4">
               <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mr-3">

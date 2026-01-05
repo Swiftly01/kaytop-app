@@ -121,21 +121,29 @@ export default function AMReportsPage() {
           label: 'Total Reports',
           value: mockReports.length,
           change: 12.5,
+          changeLabel: '+12.5% this month',
+          isCurrency: false,
         },
         {
           label: 'Pending Reports',
           value: mockReports.filter(r => r.status === 'pending').length,
           change: -5.2,
+          changeLabel: '-5.2% this month',
+          isCurrency: false,
         },
         {
           label: 'Approved Reports',
           value: mockReports.filter(r => r.status === 'approved').length,
           change: 8.7,
+          changeLabel: '+8.7% this month',
+          isCurrency: false,
         },
         {
           label: 'Total Loans Disbursed',
           value: mockReports.reduce((sum, r) => sum + r.loansDispursed, 0),
           change: 15.3,
+          changeLabel: '+15.3% this month',
+          isCurrency: false,
         },
       ];
       setReportStatistics(stats);

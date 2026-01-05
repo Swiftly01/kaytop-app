@@ -1,5 +1,6 @@
 import React from 'react';
 import { formatCurrency } from '@/lib/formatCurrency';
+import { extractValue } from '@/lib/utils/dataExtraction';
 
 export interface StatSection {
   label: string;
@@ -14,22 +15,45 @@ export interface StatisticsCardProps {
 }
 
 export const StatisticsCard: React.FC<StatisticsCardProps> = ({ sections }) => {
+  // Safety check - ensure sections is an array
+  if (!Array.isArray(sections)) {
+    console.error('StatisticsCard: sections prop is not an array:', sections);
+    return (
+      <div className="bg-white p-6 rounded-lg border">
+        <p className="text-red-500">Error: Invalid data format</p>
+      </div>
+    );
+  }
+
   const formatValue = (value: string | number, isCurrency?: boolean): string => {
-    if (isCurrency && typeof value === 'number') {
-      return formatCurrency(value);
+    // Use extractValue to handle nested objects
+    const safeValue = extractValue(value, 0);
+    
+    if (safeValue === null || safeValue === undefined) {
+      return '0';
     }
-    if (typeof value === 'number') {
-      return value.toLocaleString('en-US');
+    
+    if (isCurrency && typeof safeValue === 'number') {
+      return formatCurrency(safeValue);
     }
-    return value;
+    if (typeof safeValue === 'number') {
+      return safeValue.toLocaleString('en-US');
+    }
+    return String(safeValue);
   };
 
   const getChangeColor = (change: number): string => {
-    return change >= 0 ? '#5CC47C' : '#E43535';
+    const safeChange = extractValue(change, 0);
+    return safeChange >= 0 ? '#5CC47C' : '#E43535';
   };
 
   const getChangePrefix = (change: number): string => {
-    return change >= 0 ? '+' : '-';
+    const safeChange = extractValue(change, 0);
+    return safeChange >= 0 ? '+' : '-';
+  };
+
+  const getChangeValue = (change: number): number => {
+    return Math.abs(extractValue(change, 0));
   };
 
   return (
@@ -56,7 +80,7 @@ export const StatisticsCard: React.FC<StatisticsCardProps> = ({ sections }) => {
                 fontWeight: 600,
               }}
             >
-              {section.label}
+              {String(extractValue(section.label, 'Unknown'))}
             </div>
             <div
               className="text-base sm:text-lg font-semibold mb-1"
@@ -67,7 +91,7 @@ export const StatisticsCard: React.FC<StatisticsCardProps> = ({ sections }) => {
                 letterSpacing: '0.013em',
               }}
             >
-              {formatValue(section.value, section.isCurrency)}
+              {formatValue(section.value, extractValue(section.isCurrency, false))}
             </div>
             <div
               className="text-xs sm:text-sm"
@@ -79,7 +103,7 @@ export const StatisticsCard: React.FC<StatisticsCardProps> = ({ sections }) => {
               }}
             >
               {getChangePrefix(section.change)}
-              {Math.abs(section.change)}% This Month
+              {getChangeValue(section.change)}% This Month
             </div>
           </div>
         </React.Fragment>

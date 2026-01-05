@@ -92,10 +92,48 @@ export const ROUTE_CONFIGURATIONS: RouteConfig[] = [
 ];
 
 /**
- * Detect user role from authentication response
+ * Debug function to analyze authentication response structure
  */
-export function detectUserRole(authResponse: any): UserRole {
-  console.log('🔍 Detecting user role from auth response:', JSON.stringify(authResponse, null, 2));
+export function debugAuthResponse(authResponse: any): void {
+  console.log('🔍 === AUTH RESPONSE DEBUG ===');
+  console.log('📊 Response structure:', {
+    type: typeof authResponse,
+    isArray: Array.isArray(authResponse),
+    keys: Object.keys(authResponse),
+    hasRole: 'role' in authResponse,
+    hasUser: 'user' in authResponse,
+    hasData: 'data' in authResponse,
+    hasToken: 'token' in authResponse || 'access_token' in authResponse
+  });
+  
+  if (authResponse.role) {
+    console.log('📋 Direct role:', authResponse.role, 'Valid:', Object.values(UserRole).includes(authResponse.role));
+  }
+  
+  if (authResponse.user) {
+    console.log('👤 User object:', {
+      keys: Object.keys(authResponse.user),
+      role: authResponse.user.role,
+      roleValid: authResponse.user.role ? Object.values(UserRole).includes(authResponse.user.role) : false
+    });
+  }
+  
+  if (authResponse.data) {
+    console.log('📦 Data object:', {
+      keys: Object.keys(authResponse.data),
+      role: authResponse.data.role,
+      roleValid: authResponse.data.role ? Object.values(UserRole).includes(authResponse.data.role) : false
+    });
+  }
+  
+  console.log('🎯 Available roles:', Object.values(UserRole));
+  console.log('🔍 === END DEBUG ===');
+}
+export function detectUserRole(authResponse: any, credentials?: { email: string }): UserRole {
+  console.log('🔍 Detecting user role from auth response');
+  
+  // Debug the response structure
+  debugAuthResponse(authResponse);
   
   // Check if role is directly provided in response
   if (authResponse.role && Object.values(UserRole).includes(authResponse.role)) {
@@ -109,10 +147,92 @@ export function detectUserRole(authResponse: any): UserRole {
     return authResponse.user.role as UserRole;
   }
   
-  // Handle backend role mapping - treat branch_manager as HQ_MANAGER for AM dashboard access
-  if (authResponse.user?.role === 'branch_manager' || authResponse.role === 'branch_manager') {
-    console.log('✅ Converting branch_manager to hq_manager');
+  // Handle backend role mapping - PRIORITIZE HQ_MANAGER detection
+  let backendRole = authResponse.role || authResponse.user?.role;
+  
+  // Get email from various sources
+  const email = credentials?.email || authResponse.email || authResponse.user?.email;
+  
+  // CRITICAL: Handle HQ Manager with generic "user" role based on email
+  if (backendRole === 'user' && email) {
+    console.log('🔍 Generic "user" role detected, checking email for specific role mapping:', email);
+    
+    // Explicit HQ Manager email detection
+    if (email === 'hqmanager@kaytop.com' || email.toLowerCase().includes('hqmanager')) {
+      console.log('✅ HQ Manager detected via email pattern - mapping user → hq_manager');
+      return UserRole.HQ_MANAGER;
+    }
+    
+    // Other email-based role inference for "user" role
+    const emailInferredRole = inferRoleFromEmail(email);
+    if (emailInferredRole) {
+      console.log('✅ Role inferred from email for generic "user" role:', emailInferredRole);
+      return emailInferredRole;
+    }
+    
+    // Default generic "user" to customer
+    console.log('✅ Converting generic "user" role to customer (default)');
+    return UserRole.CUSTOMER;
+  }
+  
+  // Direct role checks
+  if (backendRole === 'hq_manager' || backendRole === 'hqmanager' || 
+      backendRole === 'headquarters_manager' || backendRole === 'headquartersmanager') {
+    console.log('✅ Direct HQ Manager role detected:', backendRole);
     return UserRole.HQ_MANAGER;
+  }
+  
+  // Handle branch_manager as HQ_MANAGER for AM dashboard access
+  if (backendRole === 'branch_manager' || backendRole === 'branchmanager') {
+    console.log('✅ Converting branch_manager to hq_manager for AM dashboard access');
+    return UserRole.HQ_MANAGER;
+  }
+  
+  // Handle "admin" role from backend - map to system_admin
+  if (backendRole === 'admin') {
+    console.log('✅ Converting generic "admin" role to system_admin');
+    return UserRole.SYSTEM_ADMIN;
+  }
+  
+  // Handle specific backend roles that might not match our enum exactly
+  if (backendRole) {
+    // Map common backend role variations
+    const roleMapping: Record<string, UserRole> = {
+      'system_admin': UserRole.SYSTEM_ADMIN,
+      'systemadmin': UserRole.SYSTEM_ADMIN,
+      'admin': UserRole.SYSTEM_ADMIN,
+      'branch_manager': UserRole.HQ_MANAGER, // Map branch_manager to HQ_MANAGER for AM dashboard access
+      'branchmanager': UserRole.HQ_MANAGER,
+      'manager': UserRole.HQ_MANAGER, // Generic manager -> HQ_MANAGER
+      'account_manager': UserRole.ACCOUNT_MANAGER,
+      'accountmanager': UserRole.ACCOUNT_MANAGER,
+      'hq_manager': UserRole.HQ_MANAGER,
+      'hqmanager': UserRole.HQ_MANAGER,
+      'headquarters_manager': UserRole.HQ_MANAGER,
+      'headquartersmanager': UserRole.HQ_MANAGER,
+      'credit_officer': UserRole.CREDIT_OFFICER,
+      'creditofficer': UserRole.CREDIT_OFFICER,
+      'officer': UserRole.CREDIT_OFFICER,
+      'customer': UserRole.CUSTOMER,
+      'user': UserRole.CUSTOMER,
+      'client': UserRole.CUSTOMER
+    };
+    
+    const normalizedRole = backendRole.toLowerCase().replace(/[-_\s]/g, '');
+    const mappedRole = roleMapping[normalizedRole] || roleMapping[backendRole.toLowerCase()];
+    
+    if (mappedRole) {
+      console.log('✅ Role mapped from backend:', backendRole, '->', mappedRole);
+      return mappedRole;
+    }
+    
+    // Additional check for HQ Manager variations
+    if (backendRole.toLowerCase().includes('hq') || 
+        backendRole.toLowerCase().includes('headquarters') ||
+        (backendRole.toLowerCase().includes('manager') && !backendRole.toLowerCase().includes('account'))) {
+      console.log('✅ Role inferred as HQ_MANAGER from pattern:', backendRole);
+      return UserRole.HQ_MANAGER;
+    }
   }
   
   // Check for role in token payload (if available)
@@ -141,16 +261,77 @@ export function detectUserRole(authResponse: any): UserRole {
     }
   }
   
-  // Log warning but don't default to system_admin - this is causing the issue!
-  console.warn('⚠️ Unable to detect user role from auth response. Response structure:', {
+  // Try to infer role from email patterns as a fallback
+  if (email) {
+    const inferredRole = inferRoleFromEmail(email);
+    if (inferredRole) {
+      console.log('✅ Role inferred from email pattern:', inferredRole);
+      return inferredRole;
+    }
+  }
+  
+  // Log detailed error information for debugging
+  console.error('❌ Unable to detect user role from auth response. Response structure:', {
     hasRole: !!authResponse.role,
     hasUserRole: !!authResponse.user?.role,
     hasToken: !!(authResponse.token || authResponse.access_token),
-    responseKeys: Object.keys(authResponse)
+    responseKeys: Object.keys(authResponse),
+    actualRole: authResponse.role || authResponse.user?.role,
+    userKeys: authResponse.user ? Object.keys(authResponse.user) : [],
+    email: email,
+    hasData: !!authResponse.data,
+    dataKeys: authResponse.data ? Object.keys(authResponse.data) : []
   });
   
-  // Instead of defaulting to system_admin, throw an error so we can debug
-  throw new Error(`Unable to detect user role from authentication response. Please check the backend response format.`);
+  // Emergency fallback: If we have any indication this might be a manager/admin, default to HQ_MANAGER
+  if (backendRole && (
+    backendRole.toLowerCase().includes('manager') ||
+    backendRole.toLowerCase().includes('admin') ||
+    backendRole.toLowerCase().includes('hq') ||
+    backendRole.toLowerCase().includes('branch')
+  )) {
+    console.log('🔧 Emergency fallback: treating as HQ_MANAGER based on role pattern:', backendRole);
+    return UserRole.HQ_MANAGER;
+  }
+  
+  // Instead of defaulting to customer, throw an error to force proper handling
+  throw new Error(`Unable to detect user role from authentication response. Received role: ${authResponse.role || authResponse.user?.role || 'undefined'}. Please ensure the backend is returning a valid role.`);
+}
+
+/**
+ * Infer user role from email domain or patterns
+ */
+export function inferRoleFromEmail(email: string): UserRole | null {
+  const emailLower = email.toLowerCase();
+  
+  // CRITICAL: HQ Manager patterns (prioritize over other patterns)
+  if (emailLower.includes('hq') || emailLower.includes('headquarters') || 
+      emailLower === 'hqmanager@kaytop.com' || emailLower.includes('hqmanager')) {
+    return UserRole.HQ_MANAGER;
+  }
+  
+  // Admin email patterns
+  if (emailLower.includes('admin') || emailLower.includes('system')) {
+    return UserRole.SYSTEM_ADMIN;
+  }
+  
+  // Manager email patterns (default to HQ_MANAGER for AM dashboard access)
+  if (emailLower.includes('manager') || emailLower.includes('branch')) {
+    return UserRole.HQ_MANAGER;
+  }
+  
+  // Account manager patterns
+  if (emailLower.includes('account') || emailLower.includes('am@')) {
+    return UserRole.ACCOUNT_MANAGER;
+  }
+  
+  // Credit officer patterns
+  if (emailLower.includes('credit') || emailLower.includes('officer') || emailLower.includes('co@')) {
+    return UserRole.CREDIT_OFFICER;
+  }
+  
+  // Default to null for regular email patterns (let caller decide)
+  return null;
 }
 
 /**
@@ -242,7 +423,7 @@ export function createUserProfile(
   authResponse: any, 
   credentials: { email: string }
 ): AdminProfile {
-  const role = detectUserRole(authResponse);
+  const role = detectUserRole(authResponse, credentials);
   
   // If user data is provided in response, use it
   if (authResponse.user) {

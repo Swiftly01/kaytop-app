@@ -72,16 +72,56 @@ function parseJWTPayload(token: string): any {
 }
 
 /**
- * Extract user role from token
+ * Extract user role from token with backend role mapping
  */
 function extractUserRole(token: string): UserRole | null {
   const payload = parseJWTPayload(token);
   if (!payload) return null;
   
-  // Check if role exists in payload and is valid
-  const role = payload.role;
-  if (role && Object.values(UserRole).includes(role)) {
-    return role as UserRole;
+  // Get role from JWT payload
+  const backendRole = payload.role;
+  if (!backendRole) return null;
+  
+  // Handle backend role mapping - same logic as roleUtils.ts
+  const roleMapping: Record<string, UserRole> = {
+    'system_admin': UserRole.SYSTEM_ADMIN,
+    'systemadmin': UserRole.SYSTEM_ADMIN,
+    'admin': UserRole.SYSTEM_ADMIN,
+    'branch_manager': UserRole.HQ_MANAGER, // Map branch_manager to HQ_MANAGER for AM dashboard access
+    'branchmanager': UserRole.HQ_MANAGER,
+    'manager': UserRole.HQ_MANAGER, // Generic manager -> HQ_MANAGER
+    'account_manager': UserRole.ACCOUNT_MANAGER,
+    'accountmanager': UserRole.ACCOUNT_MANAGER,
+    'hq_manager': UserRole.HQ_MANAGER,
+    'hqmanager': UserRole.HQ_MANAGER,
+    'headquarters_manager': UserRole.HQ_MANAGER,
+    'headquartersmanager': UserRole.HQ_MANAGER,
+    'credit_officer': UserRole.CREDIT_OFFICER,
+    'creditofficer': UserRole.CREDIT_OFFICER,
+    'officer': UserRole.CREDIT_OFFICER,
+    'customer': UserRole.CUSTOMER,
+    'user': UserRole.CUSTOMER, // Backend returns 'user' for various roles - this is the key mapping
+    'client': UserRole.CUSTOMER
+  };
+  
+  // First try direct mapping
+  if (Object.values(UserRole).includes(backendRole as UserRole)) {
+    return backendRole as UserRole;
+  }
+  
+  // Then try role mapping
+  const normalizedRole = backendRole.toLowerCase().replace(/[-_\s]/g, '');
+  const mappedRole = roleMapping[normalizedRole] || roleMapping[backendRole.toLowerCase()];
+  
+  if (mappedRole) {
+    return mappedRole;
+  }
+  
+  // Special case: if backend returns 'user' and we can't determine the specific role,
+  // we need additional context. For now, default to customer but this should be handled
+  // by the auth service during login with proper role detection.
+  if (backendRole.toLowerCase() === 'user') {
+    return UserRole.CUSTOMER;
   }
   
   return null;
@@ -182,19 +222,28 @@ export function middleware(request: NextRequest) {
 
   // Get authentication data from cookies
   const token = request.cookies.get('token')?.value;
-  const role = request.cookies.get('role')?.value as UserRole;
+  const cookieRole = request.cookies.get('role')?.value as UserRole;
 
   // Handle authentication logic
   const tokenExpired = token ? isTokenExpired(token) : true;
-  const isAuthenticated = !!(token && !tokenExpired && role);
+  const isAuthenticated = !!(token && !tokenExpired && cookieRole);
   const needsAuth = requiresAuth(pathname);
   const isAuthPath = isAuthRoute(pathname);
   const isPublicPath = isPublicRoute(pathname);
 
+  // Determine user role - prioritize cookie role over JWT parsing
+  let userRole: UserRole | null = null;
+  if (cookieRole && Object.values(UserRole).includes(cookieRole)) {
+    userRole = cookieRole;
+  } else if (token) {
+    // Fallback to extracting from token if cookie role is missing/invalid
+    userRole = extractUserRole(token);
+  }
+
   // If user is authenticated and trying to access auth pages, redirect to dashboard
-  if (isAuthenticated && isAuthPath) {
-    const userRole = extractUserRole(token) || role;
+  if (isAuthenticated && isAuthPath && userRole) {
     const dashboardUrl = getDefaultDashboard(userRole);
+    console.log('🔄 Authenticated user accessing auth page, redirecting to:', dashboardUrl);
     return NextResponse.redirect(new URL(dashboardUrl, request.url));
   }
 
@@ -205,25 +254,25 @@ export function middleware(request: NextRequest) {
     if (pathname !== '/auth/login') {
       loginUrl.searchParams.set('returnUrl', pathname);
     }
+    console.log('🔒 Unauthenticated user accessing protected route, redirecting to login');
     return NextResponse.redirect(loginUrl);
   }
 
   // If user is authenticated and accessing protected route
-  if (isAuthenticated && needsAuth) {
-    const userRole = extractUserRole(token) || role;
-    
+  if (isAuthenticated && needsAuth && userRole) {
     // Check if user has permission for this route
     if (!hasRoutePermission(userRole, pathname)) {
       // Redirect to user's default dashboard
       const dashboardUrl = getDefaultDashboard(userRole);
+      console.log('🚫 User lacks permission for route, redirecting to:', dashboardUrl, 'User role:', userRole);
       return NextResponse.redirect(new URL(dashboardUrl, request.url));
     }
   }
 
   // Handle root path redirect for authenticated users
-  if (pathname === '/' && isAuthenticated) {
-    const userRole = extractUserRole(token) || role;
+  if (pathname === '/' && isAuthenticated && userRole) {
     const dashboardUrl = getDefaultDashboard(userRole);
+    console.log('🏠 Root path access, redirecting to dashboard:', dashboardUrl);
     return NextResponse.redirect(new URL(dashboardUrl, request.url));
   }
 

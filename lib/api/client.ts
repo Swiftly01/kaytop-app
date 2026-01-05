@@ -229,6 +229,8 @@ class UnifiedHttpClient implements UnifiedApiClient {
   }
 
   private transformResponse<T>(responseData: any, url: string): ApiResponse<T> {
+    console.log('🔄 Transforming API response for:', url);
+    
     // Apply endpoint-specific transformations using the unified transformer
     if (url.includes('/dashboard/kpi')) {
       const transformedData = DataTransformers.transformDashboardKPIs(responseData.data || responseData);
@@ -239,7 +241,8 @@ class UnifiedHttpClient implements UnifiedApiClient {
       };
     }
     
-    if (url.includes('/admin/users') || url.includes('/users/filter')) {
+    // User management endpoints
+    if (url.includes('/admin/users') || url.includes('/users/filter') || url.includes('/admin/staff/my-staff')) {
       if (Array.isArray(responseData.data) || Array.isArray(responseData)) {
         const transformedData = DataTransformers.transformPaginatedResponse(
           responseData,
@@ -260,8 +263,20 @@ class UnifiedHttpClient implements UnifiedApiClient {
       }
     }
     
+    // Profile endpoints
+    if (url.includes('/users/profile')) {
+      const transformedData = DataTransformers.transformUser(responseData.data || responseData);
+      return {
+        success: true,
+        data: transformedData as T,
+        message: responseData.message
+      };
+    }
+    
+    // Loan management endpoints
     if (url.includes('/loans/')) {
-      if (Array.isArray(responseData.data) || Array.isArray(responseData)) {
+      // Handle paginated loan responses (like /loans/disbursed)
+      if (responseData.data && responseData.meta) {
         const transformedData = DataTransformers.transformPaginatedResponse(
           responseData,
           DataTransformers.transformLoan
@@ -271,18 +286,58 @@ class UnifiedHttpClient implements UnifiedApiClient {
           data: transformedData as T,
           message: responseData.message
         };
-      } else if (responseData.data?.id || responseData.id) {
-        const transformedData = DataTransformers.transformLoan(responseData.data || responseData);
+      }
+      // Handle direct array responses
+      else if (Array.isArray(responseData.data) || Array.isArray(responseData)) {
+        const transformedData = DataTransformers.transformPaginatedResponse(
+          responseData,
+          DataTransformers.transformLoan
+        );
         return {
           success: true,
           data: transformedData as T,
           message: responseData.message
         };
+      } 
+      // Handle single loan responses
+      else if (responseData.data?.id || responseData.id || (Array.isArray(responseData) && responseData.length > 0)) {
+        // Handle customer loans endpoint which returns array directly
+        if (Array.isArray(responseData)) {
+          const transformedData = responseData.map(DataTransformers.transformLoan);
+          return {
+            success: true,
+            data: transformedData as T,
+            message: 'Success'
+          };
+        } else {
+          const transformedData = DataTransformers.transformLoan(responseData.data || responseData);
+          return {
+            success: true,
+            data: transformedData as T,
+            message: responseData.message
+          };
+        }
       }
     }
     
+    // Savings management endpoints
     if (url.includes('/savings/')) {
-      if (Array.isArray(responseData.data) || Array.isArray(responseData)) {
+      // Handle savings transactions
+      if (url.includes('/transactions/all')) {
+        if (Array.isArray(responseData.data) || Array.isArray(responseData)) {
+          const transformedData = DataTransformers.transformPaginatedResponse(
+            responseData,
+            DataTransformers.transformTransaction
+          );
+          return {
+            success: true,
+            data: transformedData as T,
+            message: responseData.message
+          };
+        }
+      }
+      // Handle savings accounts
+      else if (Array.isArray(responseData.data) || Array.isArray(responseData)) {
         const transformedData = DataTransformers.transformPaginatedResponse(
           responseData,
           DataTransformers.transformSavingsAccount
@@ -292,7 +347,9 @@ class UnifiedHttpClient implements UnifiedApiClient {
           data: transformedData as T,
           message: responseData.message
         };
-      } else if (responseData.data?.id || responseData.id) {
+      } 
+      // Handle single savings account (customer savings)
+      else if (responseData.data?.id || responseData.id) {
         const transformedData = DataTransformers.transformSavingsAccount(responseData.data || responseData);
         return {
           success: true,

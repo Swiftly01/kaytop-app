@@ -106,12 +106,16 @@ export default function BranchDetailsPage({ params }: { params: Promise<{ id: st
         // Fetch branch details from API
         const branchDetails = await branchService.getBranchById(id);
         
-        // Fetch users by branch (credit officers and customers)
-        const branchUsers = await userService.getUsersByBranch(id, { page: 1, limit: 100 });
+        // Convert branch ID back to branch name for user lookup
+        let branchName = branchDetails.name;
         
-        // Filter credit officers and customers
-        const officers = branchUsers.data.filter(user => user.role === 'credit_officer');
-        const customers = branchUsers.data.filter(user => user.role === 'customer');
+        // Fetch users by branch (credit officers and customers)
+        const branchUsers = await userService.getUsersByBranch(branchName, { page: 1, limit: 100 });
+        
+        // Filter credit officers and customers - ensure data exists
+        const usersData = branchUsers?.data || [];
+        const officers = usersData.filter(user => user.role === 'credit_officer');
+        const customers = usersData.filter(user => user.role === 'customer');
         
         setCreditOfficers(officers);
         

@@ -223,7 +223,7 @@ export default function PaymentScheduleModal({
       className="fixed inset-0 z-50 flex items-center justify-end"
       style={{
         background: 'rgba(52, 64, 84, 0.7)',
-        backdropFilter: 'blur(8px)',
+        backdropFilter: 'blur(16px)',
       }}
       onClick={handleBackdropClick}
       role="dialog"

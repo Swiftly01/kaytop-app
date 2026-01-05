@@ -215,6 +215,12 @@ export default function UnifiedLoginForm({ onSuccess, redirectPath }: UnifiedLog
         setErrors({ general: 'Connection failed. Please check your internet connection and try again.' });
       } else if (error.message?.includes('No authentication token')) {
         setErrors({ general: 'Login successful but no token received. Please contact support.' });
+      } else if (error.message?.includes('Unable to determine user role')) {
+        setErrors({ general: 'Your account role could not be determined. Please contact support to verify your account permissions.' });
+      } else if (error.message?.includes('Unable to detect user role')) {
+        setErrors({ general: 'Login successful but user role could not be determined. Please contact support if this is incorrect.' });
+      } else if (error.message?.includes('Invalid role received')) {
+        setErrors({ general: 'Login successful but received an unknown user role. Please contact support if this is incorrect.' });
       } else {
         setErrors({ general: error.message || 'Login failed. Please try again.' });
       }

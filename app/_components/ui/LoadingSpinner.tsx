@@ -117,9 +117,11 @@ export function LoadingOverlay({
 
   return (
     <div 
-      className={`fixed inset-0 z-50 flex items-center justify-center ${
-        backdrop ? 'bg-black bg-opacity-50' : ''
-      }`}
+      className={`fixed inset-0 z-50 flex items-center justify-center`}
+      style={{
+        backgroundColor: backdrop ? 'rgba(52, 64, 84, 0.7)' : 'transparent',
+        backdropFilter: backdrop ? 'blur(16px)' : 'none'
+      }}
     >
       <div className="bg-white rounded-lg p-6 shadow-lg max-w-sm mx-4">
         <div className="flex flex-col items-center text-center">

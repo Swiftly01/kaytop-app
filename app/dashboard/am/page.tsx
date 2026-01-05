@@ -14,6 +14,7 @@ import Pagination from '@/app/_components/ui/Pagination';
 import { EmptyState } from '@/app/_components/ui/EmptyState';
 import { DashboardFiltersModal, DashboardFilters } from '@/app/_components/ui/DashboardFiltersModal';
 import { unifiedDashboardService } from '@/lib/services/unifiedDashboard';
+import { extractValue, extractNumericValue } from '@/lib/utils/dataExtraction';
 
 type TabValue = 'disbursements' | 're-collections' | 'savings' | 'missed-payments';
 type TimePeriod = 'last_24_hours' | 'last_7_days' | 'last_30_days' | 'custom' | null;
@@ -202,26 +203,26 @@ export default function AccountManagerDashboard() {
     return [
       {
         label: "Portfolio Value",
-        value: dashboardData.portfolioValue,
-        change: dashboardData.performanceMetrics.portfolioGrowthRate * 100,
+        value: extractNumericValue(dashboardData.portfolioValue, 0),
+        change: extractNumericValue(dashboardData.performanceMetrics?.portfolioGrowthRate, 0) * 100,
         changeLabel: "vs last month",
         isCurrency: true,
       },
       {
         label: "Total Customers",
-        value: dashboardData.totalCustomers,
-        change: dashboardData.recentActivity.newCustomersThisMonth,
+        value: extractNumericValue(dashboardData.totalCustomers, 0),
+        change: extractNumericValue(dashboardData.recentActivity?.newCustomersThisMonth, 0),
         changeLabel: "new this month",
       },
       {
         label: "Active Loans",
-        value: dashboardData.activeLoans,
-        change: dashboardData.performanceMetrics.loanConversionRate * 100,
+        value: extractNumericValue(dashboardData.activeLoans, 0),
+        change: extractNumericValue(dashboardData.performanceMetrics?.loanConversionRate, 0) * 100,
         changeLabel: "conversion rate",
       },
       {
         label: "Monthly Disbursements",
-        value: dashboardData.monthlyDisbursements,
+        value: extractNumericValue(dashboardData.monthlyDisbursements, 0),
         change: 12.5,
         changeLabel: "vs last month",
         isCurrency: true,
@@ -235,21 +236,21 @@ export default function AccountManagerDashboard() {
     return [
       {
         label: "Monthly Recollections",
-        value: dashboardData.monthlyRecollections,
+        value: extractNumericValue(dashboardData.monthlyRecollections, 0),
         change: 8.3,
         changeLabel: "vs last month",
         isCurrency: true,
       },
       {
         label: "Savings Collected",
-        value: dashboardData.savingsCollected,
+        value: extractNumericValue(dashboardData.savingsCollected, 0),
         change: 15.2,
         changeLabel: "vs last month",
         isCurrency: true,
       },
       {
         label: "Missed Payments",
-        value: dashboardData.missedPayments,
+        value: extractNumericValue(dashboardData.missedPayments, 0),
         change: -5.1,
         changeLabel: "vs last month",
       },

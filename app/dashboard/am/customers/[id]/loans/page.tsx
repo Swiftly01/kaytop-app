@@ -88,7 +88,7 @@ export default function AMCustomerLoansPage({ params }: PageProps) {
   });
 
   // Fetch customer loans data
-  const fetchCustomerLoans = async (page: number = 1) => {
+  const fetchCustomerLoans = async () => {
     try {
       setIsLoading(true);
       setApiError(null);
@@ -110,7 +110,7 @@ export default function AMCustomerLoansPage({ params }: PageProps) {
       // Calculate loan statistics
       const activeLoans = loansData.filter(loan => loan.status === 'active').length;
       const completedLoans = loansData.filter(loan => loan.status === 'completed').length;
-      const overdueLoans = loansData.filter(loan => loan.status === 'overdue').length;
+      const overdueLoans = loansData.filter(loan => loan.status === 'defaulted').length; // Use 'defaulted' instead of 'overdue'
       const totalLoanValue = loansData.reduce((sum, loan) => sum + (loan.amount || 0), 0);
 
       const stats: StatSection[] = [
@@ -118,22 +118,29 @@ export default function AMCustomerLoansPage({ params }: PageProps) {
           label: 'Total Loans',
           value: loansData.length,
           change: 0, // Mock change
+          changeLabel: 'No change this month',
+          isCurrency: false,
         },
         {
           label: 'Active Loans',
           value: activeLoans,
           change: 0, // Mock change
+          changeLabel: 'No change this month',
+          isCurrency: false,
         },
         {
           label: 'Total Value',
           value: totalLoanValue,
           change: 0, // Mock change
+          changeLabel: 'No change this month',
           isCurrency: true,
         },
         {
           label: 'Overdue Loans',
           value: overdueLoans,
           change: 0, // Mock change
+          changeLabel: 'No change this month',
+          isCurrency: false,
         },
       ];
       setLoanStatistics(stats);
@@ -149,13 +156,14 @@ export default function AMCustomerLoansPage({ params }: PageProps) {
 
   // Load initial data
   useEffect(() => {
-    fetchCustomerLoans(1);
+    fetchCustomerLoans();
   }, [id]);
 
   // Refetch when page changes
   useEffect(() => {
-    if (!isLoading) {
-      fetchCustomerLoans(currentPage);
+    if (!isLoading && currentPage > 1) {
+      // Only refetch if we're not on the first page and not currently loading
+      fetchCustomerLoans();
     }
   }, [currentPage]);
 
@@ -382,7 +390,7 @@ export default function AMCustomerLoansPage({ params }: PageProps) {
                 <div className="text-red-800 font-medium mb-2">Error Loading Loans</div>
                 <div className="text-red-700 text-sm mb-4">{apiError}</div>
                 <button
-                  onClick={() => fetchCustomerLoans(currentPage)}
+                  onClick={() => fetchCustomerLoans()}
                   className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm"
                 >
                   Try Again

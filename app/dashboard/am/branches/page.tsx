@@ -14,6 +14,7 @@ import { DateRange } from 'react-day-picker';
 import { unifiedDashboardService } from '@/lib/services/unifiedDashboard';
 import { unifiedUserService } from '@/lib/services/unifiedUser';
 import { useAuth } from '@/app/contexts/AuthContext';
+import { extractValue } from '@/lib/utils/dataExtraction';
 
 type TimePeriod = 'last_24_hours' | 'last_7_days' | 'last_30_days' | 'custom' | null;
 
@@ -98,24 +99,31 @@ export default function AMBranchesPage() {
       const stats: StatSection[] = [
         {
           label: 'All Branches',
-          value: dashboardData.branches.value,
-          change: dashboardData.branches.change,
+          value: extractValue(dashboardData.branches.value, 0),
+          change: extractValue(dashboardData.branches.change, 0),
+          changeLabel: extractValue(dashboardData.branches.changeLabel, 'No change this month'),
+          isCurrency: extractValue(dashboardData.branches.isCurrency, false),
         },
         {
           label: "All CO's",
-          value: dashboardData.creditOfficers.value,
-          change: dashboardData.creditOfficers.change,
+          value: extractValue(dashboardData.creditOfficers.value, 0),
+          change: extractValue(dashboardData.creditOfficers.change, 0),
+          changeLabel: extractValue(dashboardData.creditOfficers.changeLabel, 'No change this month'),
+          isCurrency: extractValue(dashboardData.creditOfficers.isCurrency, false),
         },
         {
           label: 'All Customers',
-          value: dashboardData.customers.value,
-          change: dashboardData.customers.change,
+          value: extractValue(dashboardData.customers.value, 0),
+          change: extractValue(dashboardData.customers.change, 0),
+          changeLabel: extractValue(dashboardData.customers.changeLabel, 'No change this month'),
+          isCurrency: extractValue(dashboardData.customers.isCurrency, false),
         },
         {
           label: 'Active Loans',
-          value: dashboardData.activeLoans.value,
-          change: dashboardData.activeLoans.change,
-          isCurrency: false,
+          value: extractValue(dashboardData.activeLoans.value, 0),
+          change: extractValue(dashboardData.activeLoans.change, 0),
+          changeLabel: extractValue(dashboardData.activeLoans.changeLabel, 'No change this month'),
+          isCurrency: extractValue(dashboardData.activeLoans.isCurrency, false),
         },
       ];
       setBranchStatistics(stats);
@@ -141,8 +149,9 @@ export default function AMBranchesPage() {
     }
   }, [authLoading, isAuthenticated, router]);
 
-  const handleRowClick = (branchId: string) => {
-    router.push(`/dashboard/am/branches/${branchId}`);
+  const handleRowClick = (row: any) => {
+    // Extract the ID from the row object
+    router.push(`/dashboard/am/branches/${row.id}`);
   };
 
   const handlePeriodChange = (period: TimePeriod) => {

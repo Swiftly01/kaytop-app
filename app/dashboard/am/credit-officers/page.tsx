@@ -11,8 +11,8 @@ import { Checkbox } from '@/app/_components/ui/Checkbox';
 import { useToast } from '@/app/hooks/useToast';
 import { ToastContainer } from '@/app/_components/ui/ToastContainer';
 import { unifiedDashboardService } from '@/lib/services/unifiedDashboard';
-
-type TimePeriod = '12months' | '30days' | '7days' | '24hours' | null;
+import { extractValue } from '@/lib/utils/dataExtraction';
+import type { TimePeriod } from '@/app/_components/ui/FilterControls';
 
 interface CreditOfficer {
   id: string;
@@ -28,7 +28,7 @@ interface CreditOfficer {
 export default function AMCreditOfficersPage() {
   const router = useRouter();
   const { toasts, removeToast, success, error } = useToast();
-  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('12months');
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('last_30_days');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedOfficers, setSelectedOfficers] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -91,18 +91,24 @@ export default function AMCreditOfficersPage() {
       const stats: StatSection[] = [
         {
           label: 'Total Credit Officers',
-          value: dashboardData.creditOfficers.value,
-          change: dashboardData.creditOfficers.change,
+          value: extractValue(dashboardData.creditOfficers.value, 0),
+          change: extractValue(dashboardData.creditOfficers.change, 0),
+          changeLabel: extractValue(dashboardData.creditOfficers.changeLabel, 'No change this month'),
+          isCurrency: extractValue(dashboardData.creditOfficers.isCurrency, false),
         },
         {
           label: 'Active Credit Officers',
           value: mockCreditOfficers.filter(co => co.status === 'Active').length,
           change: 5.2,
+          changeLabel: '+5.2% this month',
+          isCurrency: false,
         },
         {
           label: 'Branches Covered',
           value: new Set(mockCreditOfficers.map(co => co.branch)).size,
           change: 0,
+          changeLabel: 'No change this month',
+          isCurrency: false,
         },
       ];
       setCreditOfficersStatistics(stats);

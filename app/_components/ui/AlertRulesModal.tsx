@@ -234,7 +234,7 @@ export default function AlertRulesModal({ isOpen, onClose, onSave, alertData }: 
       className="fixed inset-0 z-[1000] flex items-center justify-center p-4 sm:p-0"
       style={{
         background: 'rgba(52, 64, 84, 0.7)',
-        backdropFilter: 'blur(8px)',
+        backdropFilter: 'blur(16px)',
         transition: 'all 200ms ease-in-out'
       }}
       onClick={handleBackdropClick}

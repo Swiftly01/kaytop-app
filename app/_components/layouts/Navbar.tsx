@@ -120,7 +120,12 @@ export default function Navbar(): JSX.Element {
 
       {isOpen && (
         <div
-          className="fixed inset-0 bg-opacity-40 "
+          className="fixed inset-0"
+          style={{
+            backgroundColor: 'rgba(52, 64, 84, 0.7)',
+            backdropFilter: 'blur(16px)',
+            zIndex: 40
+          }}
           onClick={() => setIsOpen(false)}
         ></div>
       )}

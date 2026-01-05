@@ -156,21 +156,28 @@ export default function CreditOfficerDetailsPage({ params }: { params: Promise<{
           label: 'All Customers',
           value: 0, // Would come from API
           change: 0,
+          changeLabel: 'No change this month',
+          isCurrency: false,
         },
         {
           label: 'Active loans',
           value: 0, // Would come from API
           change: 0,
+          changeLabel: 'No change this month',
+          isCurrency: false,
         },
         {
           label: 'Loans Processed',
           value: 0, // Would come from API
           change: 0,
+          changeLabel: 'No change this month',
+          isCurrency: false,
         },
         {
           label: 'Loan Amount',
           value: 0, // Would come from API
           change: 0,
+          changeLabel: 'No change this month',
           isCurrency: true
         },
       ];

@@ -5,6 +5,7 @@ import { DateRange } from 'react-day-picker';
 import { StatisticsCard } from "@/app/_components/ui/StatisticsCard";
 import { PerformanceCard } from "@/app/_components/ui/PerformanceCard";
 import FilterControls from "@/app/_components/ui/FilterControls";
+import type { TimePeriod } from "@/app/_components/ui/FilterControls";
 import TabNavigation from "@/app/_components/ui/TabNavigation";
 import Table from "@/app/_components/ui/Table";
 import { ToastContainer } from '@/app/_components/ui/ToastContainer';
@@ -14,9 +15,6 @@ import Pagination from '@/app/_components/ui/Pagination';
 import { EmptyState } from '@/app/_components/ui/EmptyState';
 import { DashboardFiltersModal, DashboardFilters } from '@/app/_components/ui/DashboardFiltersModal';
 import { dashboardService } from '@/lib/services/dashboard';
-import { bulkLoansService } from '@/lib/services/bulkLoans';
-import { userService } from '@/lib/services/users';
-import { savingsService } from '@/lib/services/savings';
 import type { DashboardKPIs, DashboardParams } from '@/lib/api/types';
 
 type TabValue = 'disbursements' | 're-collections' | 'savings' | 'missed-payments';
@@ -24,7 +22,7 @@ type TabValue = 'disbursements' | 're-collections' | 'savings' | 'missed-payment
 export default function SystemAdminDashboard() {
   const { toasts, removeToast, success, error: showError } = useToast();
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
-  const [timePeriod, setTimePeriod] = useState<string | null>('12months');
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>('last_30_days');
   const [activeTab, setActiveTab] = useState<TabValue>('disbursements');
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -82,17 +80,17 @@ export default function SystemAdminDashboard() {
   };
 
   // Handler for time period changes
-  const handleTimePeriodChange = (period: string | null) => {
+  const handleTimePeriodChange = (period: TimePeriod) => {
     setTimePeriod(period);
     
     const params: DashboardParams = {};
     
-    if (period && period !== '12months') {
+    if (period && period !== 'custom') {
       // Map period to API timeFilter values
       const timeFilterMap: Record<string, DashboardParams['timeFilter']> = {
-        '24hours': 'last_24_hours',
-        '7days': 'last_7_days',
-        '30days': 'last_30_days',
+        'last_24_hours': 'last_24_hours',
+        'last_7_days': 'last_7_days',
+        'last_30_days': 'last_30_days',
       };
       
       params.timeFilter = timeFilterMap[period];
@@ -178,31 +176,53 @@ export default function SystemAdminDashboard() {
     // Debug: Log the dashboard data structure
     console.log('🔍 Dashboard data structure:', JSON.stringify(dashboardData, null, 2));
     
+    // Helper function to safely extract values from nested structure
+    const extractValue = (data: any) => {
+      // Handle nested structure: data.value.value or direct structure: data.value
+      if (data && typeof data === 'object') {
+        if (data.value && typeof data.value === 'object' && 'value' in data.value) {
+          // Nested structure
+          return {
+            value: data.value.value || 0,
+            change: data.value.change || 0,
+            changeLabel: data.value.changeLabel || '',
+            isCurrency: data.value.isCurrency || false,
+          };
+        } else if ('value' in data) {
+          // Direct structure
+          return {
+            value: data.value || 0,
+            change: data.change || 0,
+            changeLabel: data.changeLabel || '',
+            isCurrency: data.isCurrency || false,
+          };
+        }
+      }
+      // Fallback
+      return {
+        value: 0,
+        change: 0,
+        changeLabel: '',
+        isCurrency: false,
+      };
+    };
+    
     return [
       {
         label: "All Branches",
-        value: dashboardData.branches?.value || 0,
-        change: dashboardData.branches?.change || 0,
-        changeLabel: dashboardData.branches?.changeLabel || '',
+        ...extractValue(dashboardData.branches),
       },
       {
         label: "All CO's",
-        value: dashboardData.creditOfficers?.value || 0,
-        change: dashboardData.creditOfficers?.change || 0,
-        changeLabel: dashboardData.creditOfficers?.changeLabel || '',
+        ...extractValue(dashboardData.creditOfficers),
       },
       {
         label: "All Customers",
-        value: dashboardData.customers?.value || 0,
-        change: dashboardData.customers?.change || 0,
-        changeLabel: dashboardData.customers?.changeLabel || '',
+        ...extractValue(dashboardData.customers),
       },
       {
         label: "Loans Processed",
-        value: dashboardData.loansProcessed?.value || 0,
-        change: dashboardData.loansProcessed?.change || 0,
-        changeLabel: dashboardData.loansProcessed?.changeLabel || '',
-        isCurrency: dashboardData.loansProcessed?.isCurrency || false,
+        ...extractValue(dashboardData.loansProcessed),
       },
     ];
   };
@@ -210,25 +230,49 @@ export default function SystemAdminDashboard() {
   const getMiddleCardSections = () => {
     if (!dashboardData) return [];
     
+    // Helper function to safely extract values from nested structure
+    const extractValue = (data: any) => {
+      // Handle nested structure: data.value.value or direct structure: data.value
+      if (data && typeof data === 'object') {
+        if (data.value && typeof data.value === 'object' && 'value' in data.value) {
+          // Nested structure
+          return {
+            value: data.value.value || 0,
+            change: data.value.change || 0,
+            changeLabel: data.value.changeLabel || '',
+            isCurrency: data.value.isCurrency || false,
+          };
+        } else if ('value' in data) {
+          // Direct structure
+          return {
+            value: data.value || 0,
+            change: data.change || 0,
+            changeLabel: data.changeLabel || '',
+            isCurrency: data.isCurrency || false,
+          };
+        }
+      }
+      // Fallback
+      return {
+        value: 0,
+        change: 0,
+        changeLabel: '',
+        isCurrency: false,
+      };
+    };
+    
     return [
       {
         label: "Loan Amounts",
-        value: dashboardData.loanAmounts?.value || 0,
-        change: dashboardData.loanAmounts?.change || 0,
-        changeLabel: dashboardData.loanAmounts?.changeLabel || '',
-        isCurrency: dashboardData.loanAmounts?.isCurrency || false,
+        ...extractValue(dashboardData.loanAmounts),
       },
       {
         label: "Active Loans",
-        value: dashboardData.activeLoans?.value || 0,
-        change: dashboardData.activeLoans?.change || 0,
-        changeLabel: dashboardData.activeLoans?.changeLabel || '',
+        ...extractValue(dashboardData.activeLoans),
       },
       {
         label: "Missed Payments",
-        value: dashboardData.missedPayments?.value || 0,
-        change: dashboardData.missedPayments?.change || 0,
-        changeLabel: dashboardData.missedPayments?.changeLabel || '',
+        ...extractValue(dashboardData.missedPayments),
       },
     ];
   };
@@ -347,7 +391,7 @@ export default function SystemAdminDashboard() {
           {/* Filter Controls - Position: y:198px */}
           <div style={{ marginBottom: '56px' }}>
             <FilterControls 
-              selectedPeriod={timePeriod as '12months' | '30days' | '7days' | '24hours' | null}
+              selectedPeriod={timePeriod}
               onDateRangeChange={handleDateRangeChange}
               onPeriodChange={handleTimePeriodChange}
               onFilter={handleFilterClick}

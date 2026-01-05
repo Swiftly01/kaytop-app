@@ -10,12 +10,12 @@ import { ToastContainer } from '@/app/_components/ui/ToastContainer';
 import { useToast } from '@/app/hooks/useToast';
 import Pagination from '@/app/_components/ui/Pagination';
 import { StatisticsCardSkeleton, TableSkeleton } from '@/app/_components/ui/Skeleton';
-import { userService } from '@/lib/services/users';
+import { unifiedUserService } from '@/lib/services/unifiedUser';
 import { dashboardService } from '@/lib/services/dashboard';
+import { extractValue } from '@/lib/utils/dataExtraction';
 import type { User } from '@/lib/api/types';
 import { DateRange } from 'react-day-picker';
-
-type TimePeriod = '12months' | '30days' | '7days' | '24hours' | null;
+import type { TimePeriod } from '@/app/_components/ui/FilterControls';
 
 interface Customer {
   id: string;
@@ -44,7 +44,7 @@ const transformUserToCustomer = (user: User): Customer => ({
 
 export default function CustomersPage() {
   const { toasts, removeToast, success, error } = useToast();
-  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('12months');
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('last_30_days');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -79,8 +79,8 @@ export default function CustomersPage() {
       setIsLoading(true);
       setApiError(null);
 
-      // Fetch all users without role filter - let backend return all users
-      const allUsersResponse = await userService.getAllUsers({
+      // Fetch all users and filter customers on frontend
+      const allUsersResponse = await unifiedUserService.getUsers({
         page: 1,
         limit: 1000, // Get all users to filter on frontend
         ...(filters?.branch && { branch: filters.branch }),
@@ -113,18 +113,24 @@ export default function CustomersPage() {
       setTotalCustomers(totalCustomers);
       setTotalPages(totalPages);
 
-      // Fetch dashboard statistics for customers count
+      // Fetch dashboard statistics for active loans (keep this from dashboard)
       const dashboardData = await dashboardService.getKPIs();
+      
+      // Use actual filtered customer count instead of dashboard proxy
       const stats: StatSection[] = [
         {
           label: 'Total Customers',
-          value: dashboardData.customers.value,
-          change: dashboardData.customers.change,
+          value: totalCustomers, // Use actual filtered customer count
+          change: 0, // TODO: Calculate actual change when we have historical data
+          changeLabel: 'No change data available',
+          isCurrency: false,
         },
         {
           label: 'Active Loans',
-          value: dashboardData.activeLoans.value,
-          change: dashboardData.activeLoans.change,
+          value: extractValue(dashboardData.activeLoans.value, 0),
+          change: extractValue(dashboardData.activeLoans.change, 0),
+          changeLabel: extractValue(dashboardData.activeLoans.changeLabel, 'No change this month'),
+          isCurrency: extractValue(dashboardData.activeLoans.isCurrency, false),
         },
       ];
       setCustomerStatistics(stats);
@@ -199,7 +205,7 @@ export default function CustomersPage() {
         mobileNumber: updatedCustomer.phoneNumber,
       };
 
-      await userService.updateUser(updatedCustomer.id, updateData);
+      await unifiedUserService.updateUser(updatedCustomer.id, updateData);
       
       // Refresh the data
       await fetchCustomersData(currentPage, advancedFilters);

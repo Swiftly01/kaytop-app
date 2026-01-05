@@ -403,7 +403,11 @@ export function AccessibleModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{
+        backgroundColor: 'rgba(52, 64, 84, 0.7)',
+        backdropFilter: 'blur(16px)'
+      }}
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onClose();

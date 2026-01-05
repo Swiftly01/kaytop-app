@@ -144,22 +144,28 @@ export default function AMCreditOfficerDetailsPage({ params }: { params: Promise
           label: 'Total Collections',
           value: mockCollections.reduce((sum, col) => sum + col.amount, 0),
           change: 12.5,
+          changeLabel: '+12.5% this month',
           isCurrency: true,
         },
         {
           label: 'Loans Disbursed',
           value: mockLoans.length,
           change: 8.3,
+          changeLabel: '+8.3% this month',
+          isCurrency: false,
         },
         {
           label: 'Active Customers',
           value: new Set([...mockCollections.map(c => c.customerName), ...mockLoans.map(l => l.customerName)]).size,
           change: 5.7,
+          changeLabel: '+5.7% this month',
+          isCurrency: false,
         },
         {
           label: 'Collection Rate',
           value: 95.2,
           change: 2.1,
+          changeLabel: '+2.1% this month',
           isCurrency: false,
         },
       ];

@@ -35,22 +35,48 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<AdminProfile | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isClient, setIsClient] = useState(false);
   const router = useRouter();
 
-  // Initialize auth state from localStorage
+  // Set client flag after hydration
   useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // Initialize auth state from localStorage only after hydration
+  useEffect(() => {
+    if (!isClient) return;
+
     const initializeAuth = () => {
       try {
         const storedToken = authService.getToken();
         const storedUser = authService.getUser();
 
+        console.log('🔍 AuthContext initialization:', {
+          hasToken: !!storedToken,
+          hasUser: !!storedUser,
+          userRole: storedUser?.role,
+          isAuthenticated: storedToken && storedUser && authService.isAuthenticated()
+        });
+
         if (storedToken && storedUser && authService.isAuthenticated()) {
           setToken(storedToken);
           setUser(storedUser);
+          console.log('✅ Auth state initialized successfully:', {
+            userEmail: storedUser.email,
+            userRole: storedUser.role
+          });
         } else {
           // Clear invalid auth data only if we're not on auth pages
           const currentPath = window.location.pathname;
           const isAuthPage = currentPath.includes('/auth/') || currentPath === '/';
+          console.log('❌ Invalid auth data detected:', {
+            currentPath,
+            isAuthPage,
+            hasToken: !!storedToken,
+            hasUser: !!storedUser,
+            isAuthenticated: storedToken && storedUser ? authService.isAuthenticated() : false
+          });
           if (!isAuthPage) {
             console.log('🔄 Clearing invalid auth data and redirecting to login');
             authService.logout();
@@ -69,7 +95,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
 
     initializeAuth();
-  }, []);
+  }, [isClient]);
 
   const login = async (credentials: LoginCredentials): Promise<void> => {
     setIsLoading(true);
@@ -176,7 +202,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const updateUser = (updatedUser: AdminProfile): void => {
     setUser(updatedUser);
-    // Update stored user data
+    // Update stored user data only on client side
     if (typeof window !== 'undefined') {
       localStorage.setItem('auth-user', JSON.stringify(updatedUser));
     }
@@ -186,7 +212,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (user && user.role) {
       return getDefaultDashboard(user.role as UserRole);
     }
-    return '/dashboard/system-admin';
+    // Don't default to system-admin, instead redirect to login
+    return '/auth/login';
   };
 
   const canAccessRoute = (path: string): boolean => {

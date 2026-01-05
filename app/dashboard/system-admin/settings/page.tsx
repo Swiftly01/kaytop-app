@@ -2157,7 +2157,7 @@ export default function SettingsPage() {
 
       {/* Password Change Modal */}
       {showPasswordModal && (
-        <div className="fixed inset-0 bg-[rgba(52,64,84,0.7)] backdrop-blur-[8px] flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-[rgba(52,64,84,0.7)] backdrop-blur-[16px] flex items-center justify-center z-50">
           <div 
             className="bg-white rounded-lg shadow-lg"
             style={{
@@ -2431,7 +2431,18 @@ export default function SettingsPage() {
 
       {/* Profile Picture Upload Modal */}
       {showProfilePictureModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div 
+          className="fixed inset-0 flex items-center justify-center z-50"
+          style={{
+            backgroundColor: 'rgba(52, 64, 84, 0.7)',
+            backdropFilter: 'blur(16px)'
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowProfilePictureModal(false);
+            }
+          }}
+        >
           <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-[#021C3E]">

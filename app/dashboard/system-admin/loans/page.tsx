@@ -29,7 +29,7 @@ const BRANCH_ID = 'igando-branch';
 const BRANCH_NAME = 'Igando Branch';
 
 type TabId = 'all' | 'active' | 'completed' | 'missed';
-type TimePeriod = '12months' | '30days' | '7days' | '24hours' | null;
+import type { TimePeriod } from '@/app/_components/ui/FilterControls';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -199,7 +199,7 @@ export default function LoansPage() {
   };
 
   // Additional state variables (moved from below)
-  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('12months');
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('last_30_days');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedLoans, setSelectedLoans] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);

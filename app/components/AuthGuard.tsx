@@ -135,7 +135,7 @@ export function BranchManagerGuard({ children }: { children: ReactNode }) {
 
 export function AccountManagerGuard({ children }: { children: ReactNode }) {
   return (
-    <AuthGuard allowedRoles={[UserRole.SYSTEM_ADMIN, UserRole.BRANCH_MANAGER, UserRole.ACCOUNT_MANAGER]}>
+    <AuthGuard allowedRoles={[UserRole.SYSTEM_ADMIN, UserRole.BRANCH_MANAGER, UserRole.ACCOUNT_MANAGER, UserRole.HQ_MANAGER]}>
       {children}
     </AuthGuard>
   );

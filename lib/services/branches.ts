@@ -155,38 +155,96 @@ class BranchAPIService implements BranchService {
         // Fallback: Create branch details from available data
         console.warn('Branch details endpoint not available, creating from available data');
         
-        // Get users by branch to calculate statistics
-        const { userService } = await import('./users');
-        const branchUsers = await userService.getUsersByBranch(id, { page: 1, limit: 1000 });
-        
-        const creditOfficers = branchUsers.data.filter(user => user.role === 'credit_officer');
-        const customers = branchUsers.data.filter(user => user.role === 'customer');
-        
-        // Create mock branch details
-        const branchDetails: BranchDetails = {
-          id,
-          name: `Branch ${id}`,
-          code: `BR${id.padStart(3, '0')}`,
-          address: 'Address not available',
-          state: 'Lagos',
-          region: 'Lagos State',
-          status: 'active',
-          dateCreated: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          statistics: {
-            totalCreditOfficers: creditOfficers.length,
-            totalCustomers: customers.length,
-            activeLoans: Math.floor(customers.length * 0.7), // Estimate 70% have active loans
-            totalDisbursed: customers.length * 50000, // Estimate ₦50,000 per customer
-            creditOfficersGrowth: 5.2,
-            customersGrowth: 12.8,
-            activeLoansGrowth: -2.1,
-            totalDisbursedGrowth: 8.5,
+        try {
+          // Get users by branch to calculate statistics
+          const { userService } = await import('./users');
+          
+          // Convert branch ID back to branch name for user lookup
+          // If ID is name-based (e.g., "lagos-branch"), convert to proper name
+          // If ID is numeric, try to get branch name from branches list
+          let branchName = id;
+          
+          if (id.includes('-')) {
+            // Convert kebab-case back to proper name
+            branchName = id.split('-').map(word => 
+              word.charAt(0).toUpperCase() + word.slice(1)
+            ).join(' ');
+          } else if (/^\d+$/.test(id)) {
+            // Numeric ID - need to get branch name from branches list
+            try {
+              const branchesResponse = await apiClient.get<string[]>(API_ENDPOINTS.USERS.BRANCHES);
+              if (branchesResponse.success && branchesResponse.data) {
+                const branchIndex = parseInt(id) - 1;
+                if (branchIndex >= 0 && branchIndex < branchesResponse.data.length) {
+                  branchName = branchesResponse.data[branchIndex];
+                }
+              }
+            } catch (branchError) {
+              console.warn('Could not fetch branch names for numeric ID lookup');
+            }
           }
-        };
+          
+          const branchUsers = await userService.getUsersByBranch(branchName, { page: 1, limit: 1000 });
+          
+          // Ensure branchUsers.data exists and is an array before filtering
+          const usersData = branchUsers?.data || [];
+          const creditOfficers = usersData.filter(user => user.role === 'credit_officer');
+          const customers = usersData.filter(user => user.role === 'customer');
+          
+          // Create mock branch details
+          const branchDetails: BranchDetails = {
+            id,
+            name: branchName,
+            code: `BR${id.toString().padStart(3, '0')}`,
+            address: 'Address not available',
+            state: 'Lagos',
+            region: 'Lagos State',
+            status: 'active',
+            dateCreated: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            statistics: {
+              totalCreditOfficers: creditOfficers.length,
+              totalCustomers: customers.length,
+              activeLoans: Math.floor(customers.length * 0.7), // Estimate 70% have active loans
+              totalDisbursed: customers.length * 50000, // Estimate ₦50,000 per customer
+              creditOfficersGrowth: 5.2,
+              customersGrowth: 12.8,
+              activeLoansGrowth: -2.1,
+              totalDisbursedGrowth: 8.5,
+            }
+          };
 
-        return branchDetails;
+          return branchDetails;
+        } catch (fallbackError) {
+          console.error('Fallback branch details creation failed:', fallbackError);
+          
+          // Final fallback: Create minimal branch details without user data
+          const branchDetails: BranchDetails = {
+            id,
+            name: `Branch ${id}`,
+            code: `BR${id.toString().padStart(3, '0')}`,
+            address: 'Address not available',
+            state: 'Lagos',
+            region: 'Lagos State',
+            status: 'active',
+            dateCreated: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            statistics: {
+              totalCreditOfficers: 0,
+              totalCustomers: 0,
+              activeLoans: 0,
+              totalDisbursed: 0,
+              creditOfficersGrowth: 0,
+              customersGrowth: 0,
+              activeLoansGrowth: 0,
+              totalDisbursedGrowth: 0,
+            }
+          };
+
+          return branchDetails;
+        }
       }
     } catch (error) {
       console.error('Branch details fetch error:', error);

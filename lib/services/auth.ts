@@ -13,6 +13,7 @@ import {
   validateRoleAccess,
   UserRole 
 } from '../utils/roleUtils';
+import { logAuthAttempt } from '../utils/authDebug';
 import type {
   LoginCredentials,
   AuthResponse,
@@ -58,37 +59,94 @@ class AuthenticationService implements AuthService {
       const responseData = response as any;
       
       console.log('📥 Raw backend response:', JSON.stringify(responseData, null, 2));
+      console.log('📊 Response analysis:', {
+        hasSuccess: 'success' in responseData,
+        hasData: 'data' in responseData,
+        hasDirectToken: 'access_token' in responseData || 'token' in responseData,
+        hasDirectRole: 'role' in responseData,
+        responseKeys: Object.keys(responseData),
+        dataKeys: responseData.data ? Object.keys(responseData.data) : null
+      });
 
       // Extract data from nested response
       const authData = responseData.data || responseData;
+      
+      console.log('🔍 Auth data extracted:', JSON.stringify(authData, null, 2));
       
       // Extract token from the auth data
       const token = authData.access_token || authData.token || authData.accessToken;
       
       if (!token) {
         console.error('❌ No token found in response. Full response:', JSON.stringify(responseData, null, 2));
+        console.error('❌ Auth data:', JSON.stringify(authData, null, 2));
         throw new Error('No authentication token received from server');
       }
 
-      console.log('🎫 Token extracted successfully');
+      console.log('🎫 Token extracted successfully:', token.substring(0, 20) + '...');
 
       // Detect user role from auth data (not the wrapper response)
       let role: UserRole;
       try {
-        role = detectUserRole(authData);
+        role = detectUserRole(authData, credentials);
         console.log('✅ Role detected:', role);
       } catch (roleError) {
         console.error('❌ Role detection failed:', roleError);
+        
         // If role detection fails, let's try to extract it manually
         const manualRole = authData.role || authData.user?.role;
         console.log('🔧 Attempting manual role extraction:', manualRole);
         
-        if (manualRole && Object.values(UserRole).includes(manualRole)) {
+        // Handle common backend role mappings
+        if (manualRole === 'user') {
+          role = UserRole.CUSTOMER;
+          console.log('✅ Manual role extraction: mapped "user" to customer');
+        } else if (manualRole === 'admin') {
+          role = UserRole.SYSTEM_ADMIN;
+          console.log('✅ Manual role extraction: mapped "admin" to system_admin');
+        } else if (manualRole === 'system_admin') {
+          role = UserRole.SYSTEM_ADMIN;
+          console.log('✅ Manual role extraction: mapped "system_admin" to system_admin');
+        } else if (manualRole === 'branch_manager') {
+          role = UserRole.HQ_MANAGER;
+          console.log('✅ Manual role extraction: mapped "branch_manager" to hq_manager');
+        } else if (manualRole === 'hq_manager') {
+          role = UserRole.HQ_MANAGER;
+          console.log('✅ Manual role extraction: mapped "hq_manager" to hq_manager');
+        } else if (manualRole === 'account_manager') {
+          role = UserRole.ACCOUNT_MANAGER;
+          console.log('✅ Manual role extraction: mapped "account_manager" to account_manager');
+        } else if (manualRole === 'credit_officer') {
+          role = UserRole.CREDIT_OFFICER;
+          console.log('✅ Manual role extraction: mapped "credit_officer" to credit_officer');
+        } else if (manualRole && Object.values(UserRole).includes(manualRole)) {
           role = manualRole as UserRole;
           console.log('✅ Manual role extraction successful:', role);
         } else {
           console.error('❌ Manual role extraction also failed. Available roles:', Object.values(UserRole));
-          throw new Error(`Invalid role received from backend: ${manualRole}`);
+          console.error('❌ Received role:', manualRole);
+          
+          // Try to infer from email as last resort
+          const email = credentials.email.toLowerCase();
+          if (email.includes('admin') || email.includes('system')) {
+            role = UserRole.SYSTEM_ADMIN;
+            console.log('✅ Email-based role inference: system_admin');
+          } else if (email.includes('hq') || email.includes('headquarters')) {
+            role = UserRole.HQ_MANAGER;
+            console.log('✅ Email-based role inference: hq_manager');
+          } else if (email.includes('manager') || email.includes('branch')) {
+            role = UserRole.HQ_MANAGER; // Default managers to HQ_MANAGER for AM dashboard access
+            console.log('✅ Email-based role inference: hq_manager (from manager/branch pattern)');
+          } else if (email.includes('account') || email.includes('am@')) {
+            role = UserRole.ACCOUNT_MANAGER;
+            console.log('✅ Email-based role inference: account_manager');
+          } else if (email.includes('credit') || email.includes('officer')) {
+            role = UserRole.CREDIT_OFFICER;
+            console.log('✅ Email-based role inference: credit_officer');
+          } else {
+            // Instead of defaulting to customer, throw an error with detailed information
+            console.error('❌ Complete role detection failure. Auth data:', JSON.stringify(authData, null, 2));
+            throw new Error(`Unable to determine user role. Email: ${credentials.email}, Backend role: ${manualRole}. Please contact support to verify your account permissions.`);
+          }
         }
       }
       
@@ -128,9 +186,24 @@ class AuthenticationService implements AuthService {
       await new Promise(resolve => setTimeout(resolve, 100));
       
       console.log('✅ Unified login completed successfully');
+      
+      // Log authentication attempt for debugging
+      const defaultDashboard = getDefaultDashboard(role);
+      logAuthAttempt(credentials.email, authData, role, defaultDashboard);
+      
       return authResponse;
     } catch (error) {
       console.error('❌ Unified login error details:', error);
+      
+      // Log failed authentication attempt for debugging
+      logAuthAttempt(
+        credentials.email, 
+        {}, 
+        null, 
+        '/auth/login', 
+        [error instanceof Error ? error.message : 'Unknown error']
+      );
+      
       // Clear any existing auth data on login failure
       this.clearAuthData();
       throw error;

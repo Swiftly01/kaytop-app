@@ -15,12 +15,11 @@ import { StatisticsCardSkeleton, TableSkeleton } from '@/app/_components/ui/Skel
 import { reportsService } from '@/lib/services/reports';
 import type { Report, ReportStatistics, ReportFilters as APIReportFilters } from '@/lib/api/types';
 import { DateRange } from 'react-day-picker';
-
-type TimePeriod = '12months' | '30days' | '7days' | '24hours' | null;
+import type { TimePeriod } from '@/app/_components/ui/FilterControls';
 
 export default function ReportsPage() {
   const { toasts, removeToast, success, error } = useToast();
-  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('12months');
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('last_30_days');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedReports, setSelectedReports] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -150,11 +149,15 @@ export default function ReportsPage() {
         label: 'Total Reports',
         value: reportStatistics.totalReports.count,
         change: reportStatistics.totalReports.growth,
+        changeLabel: `${reportStatistics.totalReports.growth >= 0 ? '+' : ''}${reportStatistics.totalReports.growth}% this month`,
+        isCurrency: false,
       },
       {
         label: 'Missed Reports',
         value: reportStatistics.missedReports.count,
         change: reportStatistics.missedReports.growth,
+        changeLabel: `${reportStatistics.missedReports.growth >= 0 ? '+' : ''}${reportStatistics.missedReports.growth}% this month`,
+        isCurrency: false,
       },
     ];
 

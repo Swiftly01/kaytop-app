@@ -89,7 +89,7 @@ export default function LoansPageLoanDetailsModal({
     <>
       {/* Backdrop with blur effect */}
       <div
-        className="fixed inset-0 bg-[rgba(52,64,84,0.7)] backdrop-blur-[8px]"
+        className="fixed inset-0 bg-[rgba(52,64,84,0.7)] backdrop-blur-[16px]"
         style={{ zIndex: 50 }}
         onClick={onClose}
         aria-hidden="true"

@@ -4,6 +4,7 @@ import { Suspense } from 'react';
 import UnifiedLoginForm from '@/app/_components/ui/auth/UnifiedLoginForm';
 import Logo from '@/app/_components/ui/Logo';
 import { LoadingSpinner } from '@/app/_components/ui/LoadingSpinner';
+import AuthDebugPanel from '@/app/_components/debug/AuthDebugPanel';
 
 export default function UnifiedLoginPage() {
   return (
@@ -40,6 +41,9 @@ export default function UnifiedLoginPage() {
           © 2024 Your Company. All rights reserved.
         </p>
       </div>
+      
+      {/* Debug Panel (development only) */}
+      <AuthDebugPanel />
     </div>
   );
 }
