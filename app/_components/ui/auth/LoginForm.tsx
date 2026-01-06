@@ -52,8 +52,17 @@ export default function LoginForm() {
       const role = response.role;
       auth(accessToken, role);
       setCookie(accessToken, role);
-      toast.success("You have logged in successfuly");
-      router.push(ROUTES.Bm.DASHBOARD);
+      toast.success("You have logged in successfully");
+      
+      // Role-based routing after login
+      const roleDashboardRoutes: Record<string, string> = {
+        BRANCH_MANAGER: ROUTES.Bm.DASHBOARD,
+        ADMIN: "/dashboard/system-admin",
+        ACCOUNT_MANAGER: "/dashboard/am",
+      };
+      
+      const targetDashboard = roleDashboardRoutes[role.toUpperCase()] || ROUTES.Bm.DASHBOARD;
+      router.push(targetDashboard);
     } catch (error: AxiosError | unknown) {
       const err = error as AxiosError;
 

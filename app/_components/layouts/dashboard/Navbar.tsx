@@ -63,9 +63,7 @@ export default async function Navbar(): Promise<JSX.Element> {
           </div>
         </div>
 
-        <AuthProvider>
-          <ProfileDropdown data={profile} />
-        </AuthProvider>
+        <ProfileDropdown data={profile} />
       </div>
     </nav>
   );

@@ -8,13 +8,13 @@ const PROTECTED_ROUTES = [
   '/settings'
 ];
 
-// Public routes that don't require authentication
-const PUBLIC_ROUTES = [
-  '/auth',
-  '/',
-  '/about',
-  '/contact'
-];
+// Role-based dashboard routes (integrated from proxy.ts)
+const ROLE_DASHBOARD_ROUTES: Record<string, string> = {
+  BRANCH_MANAGER: '/dashboard/bm',
+  ADMIN: '/dashboard/system-admin',
+  ACCOUNT_MANAGER: '/dashboard/am',
+  USER: '/dashboard/bm', // Default fallback
+};
 
 /**
  * Check if token is expired
@@ -71,6 +71,7 @@ export function middleware(request: NextRequest) {
 
   // Get authentication data from cookies
   const token = request.cookies.get('token')?.value;
+  const role = request.cookies.get('role')?.value;
 
   // Handle authentication logic
   const tokenExpired = token ? isTokenExpired(token) : true;
@@ -78,10 +79,11 @@ export function middleware(request: NextRequest) {
   const needsAuth = requiresAuth(pathname);
   const isAuthPath = isAuthRoute(pathname);
 
-  // If user is authenticated and trying to access auth pages, redirect to dashboard
-  if (isAuthenticated && isAuthPath) {
-    console.log('🔄 Authenticated user accessing auth page, redirecting to dashboard');
-    return NextResponse.redirect(new URL('/dashboard/bm', request.url));
+  // If user is authenticated and trying to access auth pages, redirect to appropriate dashboard
+  if (isAuthenticated && isAuthPath && role) {
+    const targetDashboard = ROLE_DASHBOARD_ROUTES[role.toUpperCase()] || '/dashboard/bm';
+    console.log(`🔄 Authenticated ${role} user accessing auth page, redirecting to ${targetDashboard}`);
+    return NextResponse.redirect(new URL(targetDashboard, request.url));
   }
 
   // If route requires auth but user is not authenticated
@@ -95,10 +97,21 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  // Handle role-based dashboard routing (integrated from proxy.ts)
+  if (isAuthenticated && token && role && pathname.startsWith('/dashboard')) {
+    const targetDashboard = ROLE_DASHBOARD_ROUTES[role.toUpperCase()];
+    
+    if (targetDashboard && !pathname.startsWith(targetDashboard)) {
+      console.log(`🎯 Role-based redirect: ${role} -> ${targetDashboard}`);
+      return NextResponse.redirect(new URL(targetDashboard, request.url));
+    }
+  }
+
   // Handle root path redirect for authenticated users
-  if (pathname === '/' && isAuthenticated) {
-    console.log('🏠 Root path access, redirecting to dashboard');
-    return NextResponse.redirect(new URL('/dashboard/bm', request.url));
+  if (pathname === '/' && isAuthenticated && role) {
+    const targetDashboard = ROLE_DASHBOARD_ROUTES[role.toUpperCase()] || '/dashboard/bm';
+    console.log(`🏠 Root path access, redirecting ${role} to ${targetDashboard}`);
+    return NextResponse.redirect(new URL(targetDashboard, request.url));
   }
 
   // Allow the request to continue
