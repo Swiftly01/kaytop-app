@@ -1,6 +1,5 @@
 "use client";
 
-import { useAuth } from "@/app/context/AuthContext";
 import { ProfileResponse } from "@/app/types/settings";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -13,7 +12,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 import toast from "react-hot-toast";
 import SpinnerLg from "./SpinnerLg";
 import Link from "next/link";

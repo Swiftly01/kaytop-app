@@ -1,4 +1,3 @@
-import { AuthProvider } from "@/app/context/AuthContext";
 import { profileService } from "@/app/services/profileService";
 import logo from "@/public/logo.png";
 import { AxiosError } from "axios";

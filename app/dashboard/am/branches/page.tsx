@@ -13,7 +13,6 @@ import AdvancedFiltersModal, { AdvancedFilters } from '@/app/_components/ui/Adva
 import { DateRange } from 'react-day-picker';
 import { unifiedDashboardService } from '@/lib/services/unifiedDashboard';
 import { unifiedUserService } from '@/lib/services/unifiedUser';
-import { useAuth } from '@/app/contexts/AuthContext';
 import { extractValue } from '@/lib/utils/dataExtraction';
 
 type TimePeriod = 'last_24_hours' | 'last_7_days' | 'last_30_days' | 'custom' | null;
@@ -33,7 +32,6 @@ const transformBranchesToTableData = (branches: any[]): BranchRecord[] => {
 export default function AMBranchesPage() {
   const router = useRouter();
   const { toasts, removeToast, success, error } = useToast();
-  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('last_30_days');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedBranches, setSelectedBranches] = useState<string[]>([]);

@@ -11,7 +11,6 @@ import { useToast } from '@/app/hooks/useToast';
 import Pagination from '@/app/_components/ui/Pagination';
 import { StatisticsCardSkeleton, TableSkeleton } from '@/app/_components/ui/Skeleton';
 import { unifiedUserService } from '@/lib/services/unifiedUser';
-import { useAuth } from '@/app/contexts/AuthContext';
 import type { User } from '@/lib/api/types';
 import { DateRange } from 'react-day-picker';
 
@@ -52,7 +51,6 @@ const transformToCustomer = (customer: any): Customer => ({
 
 export default function AMCustomersPage() {
   const { toasts, removeToast, success, error } = useToast();
-  const { user, isAuthenticated, isLoading: authLoading, token } = useAuth();
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('last_30_days');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
