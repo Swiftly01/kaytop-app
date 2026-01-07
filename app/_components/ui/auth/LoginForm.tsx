@@ -11,7 +11,7 @@ import { useState } from "react";
 import { AuthService } from "@/app/services/authService";
 import { handleAxiosError } from "@/lib/errorHandler";
 import { AxiosError } from "axios";
-import { useAuth } from "@/app/contexts/AuthContext";
+import { useAuth } from "@/app/context/AuthContext";
 import { ROUTES } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import Spinner from "../Spinner";

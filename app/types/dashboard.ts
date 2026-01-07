@@ -1,9 +1,18 @@
+import { AxiosError } from "axios";
+import { ApiResponseError } from "./auth";
+
 export interface MetricProps {
   title: string;
   value?: string;
   change?: string;
   changeColor?: "green" | "red";
   border: boolean;
+}
+
+export interface SummaryProps {
+  label: string;
+  value?: string | number;
+  [key: string]: string | number | undefined;
 }
 
 export interface DashboardKpi {
@@ -160,5 +169,30 @@ export interface DashboardKpiResponse {
   message?: string;
 }
 
+export enum PaginationKey {
+  loan_page = "loanPage",
+  recollection_page = "recollectionPage",
+  savings_page = "savingsPage",
+  missed_payment_page = "missedPaymentPage",
+  credit_officers_page = "creditOfficersPage",
+  credit_officer_loan_disbursed_Page = "creditOfficerLoanDisbursedPage",
+  credit_officer_loan_collection_page = "creditOfficerLoanCollectionPage",
+  branch_customer_page = "customerPage",
+  branch_customer_savings_page = "branchCustomerSavingsPage",
+  branch_loan_page = "branchLoanPage",
+  active_loan_id = "loanId",
+  payment_schedule_page = "paymentSchedulePage",
+  customer_id = "customerId",
+  loan_page_id = "loanPageId",
+  loan_page_repayment = "loanPageRepayment",
+  active_loan_page = "activeLoanPage",
+  completed_loan_page = "completeLoanPage"
+}
 
-export type PaginationKey = "loanPage" | "recollectionPage" | "savingsPage" | "missedPaymentPage";
+export interface TableStateProps {
+  isLoading: boolean;
+  error?: AxiosError<ApiResponseError> | null;
+  isEmpty: boolean;
+  colSpan: number;
+  emptyMessage?: string;
+}

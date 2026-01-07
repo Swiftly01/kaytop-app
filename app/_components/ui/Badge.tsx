@@ -1,7 +1,7 @@
 import { badgeConfig } from "@/lib/badgeConfig";
 import { JSX } from "react";
 
-type BadgeStatus = keyof typeof badgeConfig;
+export type BadgeStatus = keyof typeof badgeConfig;
 
 interface BadgeProps {
   badge: BadgeStatus;

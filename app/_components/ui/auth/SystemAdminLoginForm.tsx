@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/app/contexts/AuthContext';
+import { useAuth } from '@/app/context/AuthContext';
 import { Checkbox } from '@/app/_components/ui/Checkbox';
 import Link from 'next/link';
 

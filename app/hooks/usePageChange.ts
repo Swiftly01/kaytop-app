@@ -2,16 +2,28 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { PaginationKey } from "../types/dashboard";
 
 export function usePageChange() {
-  const searhParams = useSearchParams();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
 
-  function handlePageChange(page: number, key: PaginationKey) {
-    const params = new URLSearchParams(searhParams.toString());
-    params.set(key, page.toString());
+  function setParams(value: number, key: PaginationKey) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set(key, value.toString());
 
     router.push(`${pathname}?${params.toString()}`);
   }
 
-  return { handlePageChange };
+  /**
+   * Used for table pagination
+   */
+
+  function handlePageChange(page: number, key: PaginationKey) {
+    return setParams(page, key);
+  }
+
+  function setContextParam(parameter: number, key: PaginationKey) {
+    return setParams(parameter, key);
+  }
+
+  return { handlePageChange, setContextParam };
 }

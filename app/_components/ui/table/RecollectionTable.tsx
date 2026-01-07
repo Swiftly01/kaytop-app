@@ -3,14 +3,21 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { JSX } from "react";
 import Pagination from "../Pagination";
 import Badge from "../Badge";
+import { ApiResponseError } from "@/app/types/auth";
+import { AxiosError } from "axios";
+import TableState from "./TableState";
 
 interface TableProps {
+  isLoading: boolean;
+  error: AxiosError<ApiResponseError> | null;
   item?: LoanRecollectionItem[];
   meta?: Meta;
   onPageChange?: (page: number) => void;
 }
 
 export default function RecollectionTable({
+  isLoading,
+  error,
   item,
   meta,
   onPageChange,
@@ -29,6 +36,14 @@ export default function RecollectionTable({
           </tr>
         </thead>
         <tbody>
+          <TableState
+            isLoading={isLoading}
+            error={error}
+            isEmpty={!isLoading && item?.length === 0}
+            colSpan={6}
+            emptyMessage="No loan recollection data available yet!!"
+          />
+
           {item?.map((loan, index) => {
             return (
               <tr key={index}>

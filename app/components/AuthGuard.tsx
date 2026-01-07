@@ -7,7 +7,7 @@
 
 import { useEffect, ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import { LoadingSpinner } from '../_components/ui/LoadingSpinner';
 import { UserRole, validateRoleAccess, getDefaultDashboard } from '../../lib/utils/roleUtils';
 

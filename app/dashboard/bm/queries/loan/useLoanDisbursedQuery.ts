@@ -1,22 +1,17 @@
+import { useUrlPagination } from "@/app/hooks/useUrlPagination";
 import { DashboardService } from "@/app/services/dashboardService";
-import { LoanDisbursedResponse } from "@/app/types/dashboard";
+import { ApiResponseError } from "@/app/types/auth";
+import { LoanDisbursedResponse, PaginationKey } from "@/app/types/dashboard";
 
 import { useQuery } from "@tanstack/react-query";
 import { AxiosError } from "axios";
-import { useSearchParams } from "next/navigation";
-
-interface LoanDisbursedErrorResponse {
-  message?: string;
-}
 
 export function useLoanDisbursedQuery() {
-  const searchParams = useSearchParams();
-  const page = Number(searchParams.get("loanPage") ?? "1");
-  const limit = 10;
+  const { page, limit } = useUrlPagination(PaginationKey.loan_page);
 
   const { isLoading, error, data } = useQuery<
     LoanDisbursedResponse,
-    AxiosError<LoanDisbursedErrorResponse>
+    AxiosError<ApiResponseError>
   >({
     queryKey: ["loan-disbursed", page, limit],
 

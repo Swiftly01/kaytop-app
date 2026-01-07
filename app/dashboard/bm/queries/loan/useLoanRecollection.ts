@@ -1,18 +1,15 @@
+import { useUrlPagination } from "@/app/hooks/useUrlPagination";
 import { DashboardService } from "@/app/services/dashboardService";
-import { LoanRecollectionResponse } from "@/app/types/dashboard";
+import { LoanRecollectionResponse, PaginationKey } from "@/app/types/dashboard";
 import { useQuery } from "@tanstack/react-query";
 import { AxiosError } from "axios";
-import { useSearchParams } from "next/navigation";
-import { meta } from "zod/v4/core";
 
 interface LoanRecollectionErrorResponse {
   message?: string;
 }
 
 export function useLoanRecollection() {
-  const searchParams = useSearchParams();
-  const page = Number(searchParams.get("recollectionPage") ?? "1");
-  const limit = 10;
+  const { page, limit } = useUrlPagination(PaginationKey.recollection_page);
 
   const { isLoading, error, data } = useQuery<
     LoanRecollectionResponse,

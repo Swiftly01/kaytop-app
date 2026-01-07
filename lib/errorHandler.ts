@@ -1,7 +1,7 @@
 import axios, { AxiosError } from "axios";
-import  toast from "react-hot-toast";
-import validationError from "./validationError";
-import { ValidationErrorResponse } from "@/app/types/auth";
+import toast from "react-hot-toast";
+import { nestValidationError, validationError } from "./validationMapper";
+import { NestValidationErrorResponse, ValidationErrorResponse } from "@/app/types/auth";
 import { FieldError } from "react-hook-form";
 
 export function handleAxiosError<TField extends string>(
@@ -24,27 +24,34 @@ export function handleAxiosError<TField extends string>(
     if (status === 422) {
       const data = error.response.data as ValidationErrorResponse;
 
-      if (data.errors) {
-        if (!setError) {
-          console.warn("setError missing for validation errors");
-          return toast.error("Validation failed");
-        }
-
+      if (data.errors && setError) {
         validationError<TField>(data.errors, setError);
 
         return toast.error("Validation error. Please check your input");
       }
     }
+    
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if(status === 400 && Array.isArray((error.response.data as any)?.message)){
 
-    //400-499 client errors
-    if (status >= 400 && status < 500) {
-      const data = error.response.data as ValidationErrorResponse;
+      if(!setError){
+        return toast.error("Validation failed")
+      }
 
-      console.log(data);
+      const data = error.response.data as NestValidationErrorResponse;
+      nestValidationError<TField>(data.message, setError)
+        return toast.error("Validation error. Please check your input");
 
-      const message = data.message || "Request failed";
-      return toast.error(message);
     }
+
+      // Other client errors
+    if (status >= 400 && status < 500) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = error.response.data as any;
+      return toast.error(data.message || "Request failed");
+    }
+
+    
 
     // 500+ Server errors
     if (status >= 500) {

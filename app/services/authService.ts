@@ -1,6 +1,8 @@
+import apiClient from "@/lib/apiClient";
 import { apiBaseUrl } from "@/lib/config";
 import axios from "axios";
 import {
+  ChangePasswordData,
   ForgotPasswordData,
   ForgotPasswordResponse,
   LoginData,
@@ -37,20 +39,38 @@ export class AuthService {
       `${apiBaseUrl}/otp/verify`,
       data
     );
-   // console.log(response);
+    // console.log(response);
     return response.data;
   }
 
   static async sendOtp(data: OtpData): Promise<VerifyOtpResponse> {
-    const response = await axios.post<VerifyOtpResponse>(`${apiBaseUrl}/otp/send`, data);
-   // console.log(response);
+    const response = await axios.post<VerifyOtpResponse>(
+      `${apiBaseUrl}/otp/send`,
+      data
+    );
+    // console.log(response);
     return response.data;
   }
 
-  static async resetPassword(data: ResetPasswordData): Promise<ResetPasswordResponse>{
-    const response = await axios.post<ResetPasswordResponse>(`${apiBaseUrl}/auth/reset-password`, data);
-   // console.log(response);
+  static async resetPassword(
+    data: ResetPasswordData
+  ): Promise<ResetPasswordResponse> {
+    const response = await axios.post<ResetPasswordResponse>(
+      `${apiBaseUrl}/auth/reset-password`,
+      data
+    );
+    // console.log(response);
     return response.data;
-
   }
+
+  static async changePassword(data: ChangePasswordData) {
+    const response = await apiClient.post(
+      `${apiBaseUrl}/auth/change-password`,
+      data
+    );
+    console.log(response);
+    return response.data;
+  }
+
+
 }

@@ -1,7 +1,7 @@
 import { BackendValidationErrors } from "@/app/types/auth";
 import { FieldError } from "react-hook-form";
 
-export default function validationError<TField extends string>(
+export function validationError<TField extends string>(
   backendErrors: BackendValidationErrors,
   setError: (field: TField, error: FieldError) => void
 ) {
@@ -11,6 +11,20 @@ export default function validationError<TField extends string>(
     setError(field as TField, {
       type: "server",
       message,
+    });
+  });
+}
+
+export function nestValidationError<TField extends string>(
+  messages: string[],
+  setError: (field: TField, error: FieldError) => void
+) {
+  messages.forEach((msg) => {
+    const field = msg.split(" ")[0];
+
+    setError(field as TField, {
+      type: "server",
+      message: msg,
     });
   });
 }

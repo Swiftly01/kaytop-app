@@ -112,7 +112,10 @@ export class DashboardService {
     }
   }
 
-  static async getMissedPayment({ page, limit }: MissedPaymentProps): Promise<MissedPaymentResponse> {
+  static async getMissedPayment({
+    page,
+    limit,
+  }: MissedPaymentProps): Promise<MissedPaymentResponse> {
     try {
       const response = await apiClient.get(`${apiBaseUrl}/loans/missed`, {
         params: {
@@ -120,11 +123,11 @@ export class DashboardService {
           limit,
         },
       });
-   //   console.log(response);
+      //   console.log(response);
       return response.data;
     } catch (error: AxiosError | unknown) {
       const err = error as AxiosError;
-    //  console.log("Error fetching disbursed volume", err.response?.data);
+      //  console.log("Error fetching disbursed volume", err.response?.data);
       throw err;
     }
   }
