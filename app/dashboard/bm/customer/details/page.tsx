@@ -14,10 +14,7 @@ export default function page(): JSX.Element {
         <div className="flex flex-wrap gap-6 my-5 lg:flex-nowrap">
           <div className="flex flex-col items-center w-full gap-4 px-5 bg-white rounded-lg sm:flex-row">
             <div className="w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48">
-              <PieChart data={[
-                { value: 70, color: '#039855' },
-                { value: 30, color: '#F79009' }
-              ]} />
+              <PieChart />
             </div>
 
             <div className="text-center sm:text-left">
@@ -37,10 +34,7 @@ export default function page(): JSX.Element {
           </div>
           <div className="flex flex-col items-center w-full gap-4 px-5 bg-white rounded-lg sm:flex-row">
             <div className="w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48">
-              <PieChart data={[
-                { value: 60, color: '#7F56D9' },
-                { value: 40, color: '#F04438' }
-              ]} />
+              <PieChart />
             </div>
 
             <div className="text-center sm:text-left">
