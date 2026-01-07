@@ -12,8 +12,14 @@ import {
 } from "recharts";
 import { LoanDisbursedVolumeResponse } from "@/app/types/dashboard";
 import { formatCurrency } from "@/lib/utils";
+import { AxiosError } from "axios";
+import { ApiResponseError } from "@/app/types/auth";
+import SpinnerLg from "./SpinnerLg";
+import ErrorMessage from "./table/ErrorMessage";
 
 interface ChartProps {
+  isLoading: boolean;
+  error: AxiosError<ApiResponseError> | null;
   data: LoanDisbursedVolumeResponse[];
 }
 
@@ -25,7 +31,22 @@ interface ChartProps {
 //   { date: "2025-11-29", loanCount: 1, totalAmount: 20000 },
 // ];
 
-export default function DisbursementLineChart({ data }: ChartProps) {
+export default function DisbursementLineChart({
+  isLoading,
+  error,
+  data,
+}: ChartProps) {
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <SpinnerLg />
+      </div>
+    );
+  }
+
+  if(error){
+    return  <ErrorMessage error={error} />
+  }
   return (
     <ResponsiveContainer width="100%" height={350}>
       <LineChart data={data} margin={{ top: 5, right: 5, left: 25, bottom: 5 }}>

@@ -11,11 +11,13 @@ interface FilterOption {
 }
 
 interface FilterProps {
+  isLoading: boolean;
   filterField: string;
   options: FilterOption[];
 }
 
 export default function Filter({
+  isLoading,
   filterField,
   options,
 }: FilterProps): JSX.Element {
@@ -38,7 +40,7 @@ export default function Filter({
           key={option.value}
           onClick={() => handleClick(option.value)}
           active={option.value === currentFilter ? true : undefined}
-          disabled={option.value === currentFilter}
+          disabled={option.value === currentFilter || isLoading}
         >
           {option.label}
         </FilterButton>

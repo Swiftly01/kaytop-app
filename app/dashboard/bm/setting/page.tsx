@@ -1,14 +1,24 @@
-import Button from "@/app/_components/ui/Button";
-import Input from "@/app/_components/ui/Input";
-import { MetricProps } from "@/app/types/dashboard";
+import ChangePasswordForm from "@/app/_components/ui/auth/ChangePasswordForm";
+import SettingsForm from "@/app/_components/ui/SettingsForm";
+import { profileService } from "@/app/services/profileService";
 import { Switch } from "@/components/ui/switch";
-import { loans as dashboardData } from "@/lib/utils";
-import Link from "next/link";
+import { AxiosError } from "axios";
 import { JSX } from "react";
 
-const metricData: MetricProps[] = dashboardData;
+export const metadata = {
+  title: "Settings"
+}
 
-export default function page(): JSX.Element {
+export default async function page(): Promise<JSX.Element> {
+  let profile = undefined;
+
+  try {
+    profile = await profileService.getProfile();
+  } catch (err: AxiosError | unknown) {
+    const error = err as AxiosError;
+    console.error("Failed to fetch profile:", error.message);
+  }
+
   return (
     <div className="drawer-content">
       <div className="container h-full px-5 pt-4 mx-auto max-w-7xl">
@@ -26,52 +36,7 @@ export default function page(): JSX.Element {
                 Account Information
               </h1>
 
-              <img src="/profile-picture.svg" alt="profile picture" />
-
-              <form action="">
-                <input type="file" name="" id="" className="py-4" />
-                <div>
-                  <label
-                    className="font-semibold text-neutral-700"
-                    htmlFor="name"
-                  >
-                    Name
-                  </label>
-
-                  <Input type="text" placeholder="Jackson Wallace" id="name" />
-                </div>
-
-                <div>
-                  <label
-                    className="font-semibold text-neutral-700"
-                    htmlFor="email"
-                  >
-                    Phone Number
-                  </label>
-
-                  <Input type="text" placeholder="070 0000 0000" id="phone" />
-                </div>
-
-                <div>
-                  <label
-                    className="font-semibold text-neutral-700"
-                    htmlFor="email"
-                  >
-                    Email
-                  </label>
-
-                  <Input
-                    type="text"
-                    placeholder="hello@jackson5.com"
-                    id="phone"
-                  />
-                </div>
-                <div className="my-5">
-                  <Button fullWidth={true} variant="tertiary">
-                    Update
-                  </Button>
-                </div>
-              </form>
+              <SettingsForm data={profile} /> 
             </div>
           </div>
 
@@ -82,7 +47,7 @@ export default function page(): JSX.Element {
             aria-label="Security & Login"
           />
           <div className="tab-content">
-            <div  className="grid items-start grid-cols-1 md:grid-cols-2 xl:grid-cols-[450px_470px] gap-5">
+            <div className="grid items-start grid-cols-1 md:grid-cols-2 xl:grid-cols-[450px_470px] gap-5">
               <div className="py-6 bg-white rounded-md px-7">
                 <h1 className="text-lg font-semibold pb-7 text-neutral-700">
                   Security
@@ -109,14 +74,14 @@ export default function page(): JSX.Element {
                       <img src="/phone.svg" alt="google-icon" />
                       <p>SMS Authentication</p>
                     </div>
-                    <Switch defaultChecked />
+                    <Switch  disabled />
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 ml-1">
                       <img src="/google.svg" alt="google-icon" />
                       <p>Email Authentication</p>
                     </div>
-                    <Switch />
+                    <Switch disabled />
                   </div>
                 </div>
               </div>
@@ -134,63 +99,9 @@ export default function page(): JSX.Element {
                     Change your password below
                   </p>
 
-                  <div className="my-5 border-b border-gray-200"></div>
-
-                  <form action="">
-                    <div>
-                      <label
-                        className="font-semibold text-gray-400"
-                        htmlFor="name"
-                      >
-                        Current password
-                      </label>
-
-                      <Input
-                        type="password"
-                        placeholder="*********"
-                        id="name"
-                      />
-                    </div>
-
-                    <div>
-                      <label
-                        className="font-semibold text-gray-400"
-                        htmlFor="name"
-                      >
-                        New password
-                      </label>
-                      <Input
-                        type="password"
-                        placeholder="*********"
-                        id="name"
-                      />{" "}
-                    </div>
-
-                    <div>
-                      <label
-                        className="font-semibold text-gray-400"
-                        htmlFor="name"
-                      >
-                        Confirm New password
-                      </label>
-                      <Input
-                        type="password"
-                        placeholder="*********"
-                        id="name"
-                      />{" "}
-                    </div>
-                    <div className="my-5">
-                      <Button fullWidth={true} variant="tertiary">
-                        Change Password
-                      </Button>
-                      <Link
-                        className="flex justify-center px-5 py-2 my-2 font-medium transition-all duration-300 rounded-md cursor-pointer text-brand-purple hover:bg-brand-purple hover:text-white"
-                        href="/"
-                      >
-                        Cancel
-                      </Link>
-                    </div>
-                  </form>
+                  <div className="my-5 border-b border-gray-200">
+                    <ChangePasswordForm />
+                  </div>
                 </div>
               </div>
             </div>

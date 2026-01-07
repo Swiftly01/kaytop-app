@@ -1,15 +1,22 @@
 import React, { JSX } from "react";
 import Pagination from "../Pagination";
-import {  Meta, Savings } from "@/app/types/dashboard";
+import { Meta, Savings } from "@/app/types/dashboard";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { AxiosError } from "axios";
+import { ApiResponseError } from "@/app/types/auth";
+import TableState from "./TableState";
 
 interface TableProps {
+  isLoading: boolean;
+  error: AxiosError<ApiResponseError> | null;
   item?: Savings[];
   meta?: Meta;
   onPageChange?: (page: number) => void;
 }
 
 export default function SavingsTable({
+  isLoading,
+  error,
   item,
   meta,
   onPageChange,
@@ -25,10 +32,16 @@ export default function SavingsTable({
             <th>Type</th>
             <th>Amount saved</th>
             <th>Date saved</th>
-            
           </tr>
         </thead>
         <tbody>
+          <TableState
+            isLoading={isLoading}
+            error={error}
+            isEmpty={!isLoading && item?.length === 0}
+            colSpan={6}
+            emptyMessage="No savings data available yet!!"
+          />
           {item?.map((saving, index) => {
             return (
               <tr key={index}>

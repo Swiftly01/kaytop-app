@@ -5,7 +5,6 @@ import { getLinkClass, isActiveRoute, ROUTES } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 import { MenuItem } from "@/app/types/routes";
 
-
 const data: MenuItem[] = [
   {
     icon: "/dashboard.svg",
@@ -36,10 +35,9 @@ export default function Sidebar(): JSX.Element {
               <li key={i}>
                 <Link
                   href={item.link}
-                  className={`relative flex items-center gap-3 px-3 py-2 overflow-hidden transition-colors duration-300 rounded-md cursor-pointer
-                    ${getLinkClass(isActive)}
-                    before:absolute before:top-0 before:left-0 before:h-full before:bg-brand-purple/70 before:transition-all before:duration-300
-                  `}
+                  className={`relative flex items-center gap-3 px-3 py-2 overflow-hidden transition-colors duration-300 rounded-md cursor-pointer text-neutral-700 hover:text-white before:absolute before:top-0 before:left-0 before:w-0 before:h-full before:bg-brand-purple/70 before:transition-all before:duration-300 hover:before:w-full ${getLinkClass(
+                    isActive
+                  )}`}
                 >
                   <span className="shrink-0">
                     <img src={item.icon} alt={item.label} className="w-5 h-5" />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/app/context/AuthContext";
+import { ProfileResponse } from "@/app/types/settings";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -15,26 +16,37 @@ import { ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import toast from "react-hot-toast";
+import SpinnerLg from "./SpinnerLg";
+import Link from "next/link";
 
-export default function ProfileDropdown() {
+interface ProfileProps {
+  data?: ProfileResponse;
+}
+
+export default function ProfileDropdown({ data }: ProfileProps) {
+ 
   const [open, setOpen] = useState(false);
   const { logOut } = useAuth();
   const router = useRouter();
   const handleLogout = () => {
-    console.log("logging out");
     logOut();
     toast.success("You have successfully logged out");
     router.push(ROUTES.Bm.Auth.LOGIN);
   };
 
+  const src =
+    data && data.profilePicture !== null ? data.profilePicture : "/avatar.svg";
+
   return (
     <DropdownMenu onOpenChange={setOpen}>
       <DropdownMenuTrigger className="flex items-center gap-2 transition outline-none cursor-pointer hover:opacity-80">
-        <span className="font-medium">Lanre Okedele</span>
+        <span className="font-medium">{data?.firstName}</span>
 
         <Avatar className="h-7 w-7">
-          <AvatarImage src="/avatar.svg" alt="avatar" />
-          <AvatarFallback>LO</AvatarFallback>
+          <AvatarImage src={src} alt="avatar" />
+          <AvatarFallback>
+            <SpinnerLg />
+          </AvatarFallback>
         </Avatar>
 
         <ChevronDown
@@ -45,9 +57,11 @@ export default function ProfileDropdown() {
 
       <DropdownMenuContent align="end" className="w-48">
         <DropdownMenuLabel>My Account</DropdownMenuLabel>
-
-        <DropdownMenuItem className="cursor-pointer">Profile</DropdownMenuItem>
-        <DropdownMenuItem className="cursor-pointer">Settings</DropdownMenuItem>
+        <Link href={ROUTES.Bm.SETTING}>
+          <DropdownMenuItem className="cursor-pointer">
+            Settings
+          </DropdownMenuItem>
+        </Link>
 
         <DropdownMenuSeparator />
         <DropdownMenuItem
