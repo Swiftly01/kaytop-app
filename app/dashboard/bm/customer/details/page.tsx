@@ -123,7 +123,7 @@ export default function page(): JSX.Element {
               <h1 className="text-sm text-neutral-700">23rd Nov, 2025</h1>
             </div>
           </div>
-          <RepaymentProgress paid={35000} total={60000} />
+          {/* <RepaymentProgress paid={35000} total={60000} /> */}
 
           <div className="drawer drawer-end">
             <input id="my-drawer-5" type="checkbox" className="drawer-toggle" />
@@ -154,7 +154,7 @@ export default function page(): JSX.Element {
         <div>
           <p className="pb-5 text-md">Transaction History</p>
           <div className="p-10 bg-white">
-            <Table />
+            {/* <Table /> */}
           </div>
         </div>
       </div>

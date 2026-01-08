@@ -31,7 +31,7 @@ type LoginData = z.infer<typeof schema>;
 
 export default function LoginForm() {
   const [isSubmitting, setisSubmitting] = useState(false);
-  const { login } = useAuth();
+  const { login: auth, setCookie } = useAuth();
   const router = useRouter();
   const {
     register,
@@ -46,14 +46,17 @@ export default function LoginForm() {
     setisSubmitting(true);
 
     try {
-      await login({
-        email: data.email,
-        password: data.password,
-        userType: 'branch-manager'
-      });
-      toast.success("You have logged in successfully");
+      const response = await AuthService.login(data);
+
+      const accessToken = response.access_token;
+      const role = response.role;
+      auth(accessToken, role);
+      setCookie(accessToken, role);
+      toast.success("You have logged in successfuly");
+      router.push(ROUTES.Bm.DASHBOARD);
     } catch (error: AxiosError | unknown) {
       const err = error as AxiosError;
+
       handleAxiosError(err, setError);
     } finally {
       setisSubmitting(false);

@@ -28,7 +28,7 @@ export function useApi<T>(
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { logout } = useAuth();
+  const { logOut } = useAuth();
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const executeApiCall = useCallback(async (): Promise<void> => {
@@ -57,7 +57,7 @@ export function useApi<T>(
         
         // Handle authentication errors
         if (err.status === 401 || err.type === 'auth') {
-          logout();
+          logOut();
           setError('Session expired. Please login again.');
         } else {
           setError(err.message || 'An error occurred');
@@ -69,7 +69,7 @@ export function useApi<T>(
         setLoading(false);
       }
     }
-  }, [apiCall, logout]);
+  }, [apiCall, logOut]);
 
   const reset = useCallback(() => {
     setData(null);

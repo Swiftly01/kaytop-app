@@ -142,7 +142,7 @@ function VerifyOtpPageContent() {
 
     try {
       // Import authService dynamically to avoid SSR issues
-      const { authService } = await import('@/lib/services/auth');
+      // const { authService } = await import('@/lib/services/auth');
       
       await OtpService.verify({
             email: email!,
@@ -182,7 +182,7 @@ function VerifyOtpPageContent() {
 
     try {
       // Import authService dynamically to avoid SSR issues
-      const { authService } = await import('@/lib/services/auth');
+      // const { authService } = await import('@/lib/services/auth');
       
       await OtpService.send({
         email,
