@@ -1,11 +1,17 @@
 import { CreditOfficerProfile, Summary } from "@/app/types/creditOfficer";
 import { CustomerData } from "@/app/types/customer";
-import { MetricProps, SummaryProps } from "@/app/types/dashboard";
+import { DashboardKpi, MetricProps, SummaryProps } from "@/app/types/dashboard";
 import {
   ActiveLoanData,
   LoanDetailsApiResponse,
   SavingsProgressResponse,
 } from "@/app/types/loan";
+import {
+  ReportById,
+  ReportByIdResponse,
+  ReportStatus,
+  ReportType,
+} from "@/app/types/report";
 import { MenuItem, Routes } from "@/app/types/routes";
 import { clsx, type ClassValue } from "clsx";
 import dayjs from "dayjs";
@@ -62,6 +68,10 @@ interface DashboardMetrics {
 
 interface DashboardMetricsInput {
   data?: DashboardMetrics;
+}
+
+interface DashboardReportMetrics {
+  data?: DashboardKpi;
 }
 
 interface BranchLoanMetrics extends DashboardMetrics {
@@ -237,6 +247,34 @@ export function getCustomerMetrics({
   ];
 }
 
+export function getReportMetrics({
+  data,
+}: DashboardReportMetrics): MetricProps[] {
+  
+  return [
+    {
+      title: "Total Reports",
+      value: data?.reportStats.totalReports.toString(),
+      border: false,
+    },
+    {
+      title: "Total Approved",
+      value: data?.reportStats.totalApproved.toString(),
+      border: true,
+    },
+     {
+      title: "Total Pending",
+      value: data?.reportStats.totalPending.toString(),
+      border: true,
+    },
+     {
+      title: "Total Declined",
+      value: data?.reportStats.totalDeclined.toString(),
+      border: true,
+    },
+  ];
+}
+
 export function mapSavingsProgressData(
   data: SavingsProgressResponse
 ): SummaryProps[] {
@@ -271,8 +309,11 @@ export function mapOtherLoanDetailsData(
   data: LoanDetailsApiResponse
 ): SummaryProps[] {
   return [
-    { label: "Amount borrowed", value: formatCurrency(Number(data.loanDetails.amount)) },
-    { label: "Date disbursed", value:formatDate(data.loanDetails.createdAt) },
+    {
+      label: "Amount borrowed",
+      value: formatCurrency(Number(data.loanDetails.amount)),
+    },
+    { label: "Date disbursed", value: formatDate(data.loanDetails.createdAt) },
   ];
 }
 
@@ -281,108 +322,121 @@ export function mapLoanIntrestData(
 ): SummaryProps[] {
   return [
     { label: "Intrest Rate", value: data.loanDetails.interestRate },
-    { label: "Loan status", value:data.loanDetails.status },
+    { label: "Loan status", value: data.loanDetails.status },
   ];
 }
 
+export function mapReportDetails(data: ReportById): SummaryProps[] {
+  return [
+    { label: "Report Id", value: `ReportId ${data.id}` },
+    { label: "Credit Officer", value: data.submittedBy.role.replace("_", " ") },
+    { label: "Branch", value: data.branch },
+  ];
+}
 
+export function mapReportLoanDetails(data: ReportById): SummaryProps[] {
+  return [
+    {
+      label: "Loans Disbursed",
+      value: formatCurrency(Number(data.totalLoansDisbursed)),
+    },
+    {
+      label: " Loans Recollections",
+      value: formatCurrency(Number(data.totalRecollections)),
+    },
+    {
+      label: "Savings Collected",
+      value: formatCurrency(Number(data.totalSavingsProcessed)),
+    },
+    {
+      label: "Repayments Collected",
+      value: formatCurrency(Number(data.totalRecollections)),
+    },
+    {
+      label: "Date Sent",
+      value: formatDate(data.reportDate),
+    },
+    {
+      label: "Start Date",
+      value: data.startDate,
+    },
+    {
+      label: "Description",
+      value: data.description,
+    },
+    {
+      label: "Title",
+      value: data.title,
+    },
+    {
+      label: "Branch",
+      value: data.branch,
+    },
+  ];
+}
 
-export const reports: MetricProps[] = [
-  {
-    title: "Total Reports",
-    value: "42,094",
-    change: "+6% this month",
-    changeColor: "green",
-    border: false,
-  },
-  {
-    title: "Missed Reports",
-    value: "15,350",
-    change: "+6% this month",
-    changeColor: "green",
-    border: true,
-  },
+//Type predicate
+export function isReportStatus(value: string): value is ReportStatus {
+  return Object.values(ReportStatus).includes(value as ReportStatus);
+}
+
+export function isReportType(value: string | null): value is ReportType {
+  return (
+    typeof value === "string" &&
+    REPORT_TYPE_OPTIONS.some((option) => option.value === value)
+  );
+}
+
+export const REPORT_TYPE_OPTIONS: { value: ReportType; label: string }[] = [
+  { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
+  { value: "monthly", label: "Monthly" },
+  { value: "quarterly", label: "Quarterly" },
+  { value: "annual", label: "Annual" },
+  { value: "custom", label: "Custom" },
 ];
 
-export const loans: MetricProps[] = [
-  {
-    title: "Total Loans",
-    value: "42,094",
-    change: "+6% this month",
-    changeColor: "green",
-    border: false,
-  },
-  {
-    title: "Active Loans",
-    value: "15,350",
-    change: "+6% this month",
-    changeColor: "green",
-    border: true,
-  },
+// const status = getEnumParam(
+//   searchParams.get("status"),
+//   Object.values(ReportStatus),
+//   ReportStatus.PENDING
+// );
 
-  {
-    title: "Completed  Loans",
-    value: "15,350",
-    change: "+6% this month",
-    changeColor: "green",
-    border: true,
-  },
-];
+// export function getEnumParam<T extends string>(
+//   value: string | null,
+//   allowed: readonly T[],
+//   fallback: T
+// ): T {
+//   return value && allowed.includes(value as T) ? (value as T) : fallback;
+// }
 
-export const customer: MetricProps[] = [
-  {
-    title: "Total Customers",
-    value: "42,094",
-    change: "+6% this month",
-    changeColor: "green",
-    border: false,
-  },
-  {
-    title: "Active Loans",
-    value: "15,350",
-    change: "+6% this month",
-    changeColor: "green",
-    border: true,
-  },
-];
-
-export const creditOficcer: MetricProps[] = [
-  {
-    title: "Total Credit Officers",
-    value: "42,094",
-    change: "+6% this month",
-    changeColor: "green",
-    border: false,
-  },
-];
-
-export const data: MetricProps[] = [
-  {
-    title: "All Customers",
-    value: "42,094",
-    change: "+6% this month",
-    changeColor: "green",
-    border: false,
-  },
-  {
-    title: "All CO's",
-    value: "15,350",
-    change: "+6% this month",
-    changeColor: "green",
-    border: true,
-  },
-  {
-    title: "Loans Processed",
-    value: "28,350",
-    change: "-26% this month",
-    changeColor: "red",
-    border: true,
-  },
-  {
-    title: "Loan Amount",
-    value: "₦50,350.00",
-    change: "+40% this month",
-    changeColor: "green",
-    border: true,
-  },
-];
+// export const data: MetricProps[] = [
+//   {
+//     title: "All Customers",
+//     value: "42,094",
+//     change: "+6% this month",
+//     changeColor: "green",
+//     border: false,
+//   },
+//   {
+//     title: "All CO's",
+//     value: "15,350",
+//     change: "+6% this month",
+//     changeColor: "green",
+//     border: true,
+//   },
+//   {
+//     title: "Loans Processed",
+//     value: "28,350",
+//     change: "-26% this month",
+//     changeColor: "red",
+//     border: true,
+//   },
+//   {
+//     title: "Loan Amount",
+//     value: "₦50,350.00",
+//     change: "+40% this month",
+//     changeColor: "green",
+//     border: true,
+//   },
+// ];
