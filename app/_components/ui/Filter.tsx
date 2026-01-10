@@ -5,29 +5,30 @@ import { usePathname, useSearchParams, useRouter } from "next/navigation";
 
 
 
-interface FilterOption {
-  value: string;
+interface FilterOption<T extends string> {
+  value: T;
   label: string;
 }
 
-interface FilterProps {
+interface FilterProps<T extends string> {
   isLoading: boolean;
   filterField: string;
-  options: FilterOption[];
+  options: FilterOption<T>[];
 }
 
-export default function Filter({
+export default function Filter<T extends string>({
   isLoading,
   filterField,
   options,
-}: FilterProps): JSX.Element {
+}: FilterProps<T>): JSX.Element {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
 
-  const currentFilter = searchParams.get(filterField) ?? options.at(0)?.value;
+  const currentFilter =  (searchParams.get(filterField) as T | null) ?? options[0]?.value;
 
-  function handleClick(value: string) {
+
+  function handleClick(value: T) {
     const params = new URLSearchParams(searchParams.toString())
     params.set(filterField, value);
     router.push(`${pathname}?${params.toString()}`)
