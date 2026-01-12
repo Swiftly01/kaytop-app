@@ -4,7 +4,7 @@ import React, { JSX } from "react";
 
 export default function page(): JSX.Element {
   return (
-    <div className="w-full max-w-lg p-10 mx-5 bg-white rounded-lg">
+        <div className="bg-white rounded-xl shadow-md p-10 w-full mx-auto max-w-md md:max-w-xl mt-6">
       <h1 className="text-3xl font-medium text-neutral-700">
         Security Verification
       </h1>

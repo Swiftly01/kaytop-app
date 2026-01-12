@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import {
   ResponsiveContainer,
   BarChart,
@@ -13,6 +13,7 @@ import {
   Cell,
 } from "recharts";
 import { useCustomerFlow } from "./AddCustomerFlow/AddCustomerFlowProvider";
+import CreateLoanModal from "./loans/CreateLoanModal";
 
 type Payment = {
   name: string;
@@ -67,6 +68,7 @@ const payments: Payment[] = [
 
 export default function AgentDashboardPage() {
    const { start } = useCustomerFlow();
+   const [isLoanModalOpen, setLoanModalOpen] = useState(false);
 
   return (
     <div className="space-y-6 pb-12">
@@ -219,7 +221,7 @@ export default function AgentDashboardPage() {
               <p className="text-sm text-slate-500">Add yourself or import from CSV</p>
             </button>
 
-            <button className="flex-1 bg-white p-4 rounded-xl shadow border text-left">
+            <button  onClick={() => setLoanModalOpen(true)} className="flex-1 bg-white p-4 rounded-xl shadow border text-left">
               <p className="font-semibold">New loan application</p>
               <p className="text-sm text-slate-500">Dive into the editor and start creating</p>
             </button>
@@ -258,7 +260,14 @@ export default function AgentDashboardPage() {
         </aside>
       </div>
 
+            {/*  Loan Modal */}
+      <CreateLoanModal
+        open={isLoanModalOpen}
+        onClose={() => setLoanModalOpen(false)}
+      />
+
       {/* Responsive adjustments note: the layout is fully responsive via grid/flex */}
+
     </div>
   );
 }

@@ -9,6 +9,7 @@ type ButtonProps = {
   onClick?: () => void;
   loading?: boolean;
   disabled?: boolean;
+  type?: "button" | "submit" | "reset"; // <-- add this
 };
 
 const variants = {
@@ -33,11 +34,13 @@ export default function Button({
   onClick,
   loading = false,
   disabled = false,
+  type = "button", // default type
   ...props
 }: ButtonProps) {
   const isDisabled = disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer";
   return (
     <button
+    type={type}
       {...props}
       onClick={onClick}
       className={`relative  rounded-md 

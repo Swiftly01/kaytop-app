@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
-import Button from "../Button";
-// import Input from "../Input";
+import Button from "../../Button";
+// import Input from "../../Input";
 import { ROUTES } from "@/lib/utils";
 import z, { email } from "zod";
 import { useForm } from "react-hook-form";
@@ -10,8 +10,8 @@ import { useState } from "react";
 import { AxiosError } from "axios";
 import { AuthService } from "@/app/services/authService";
 import { handleAxiosError } from "@/lib/errorHandler";
-import Spinner from "../Spinner";
-import Error from "../Error";
+import Spinner from "../../Spinner";
+import Error from "../../Error";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { useLocalStorageState } from "@/app/hooks/useLocalStorage";
@@ -44,7 +44,7 @@ export default function ForgotPasswordForm() {
       setEmail(data.email)
       toast.success(response.message);
       console.log(response);
-      router.push(ROUTES.Bm.Auth.VERIFY_OTP);
+      router.push(ROUTES.User.Auth.VERIFY_OTP);
     } catch (error: AxiosError | unknown) {
       const err = error as AxiosError;
       console.log(err);
@@ -75,7 +75,7 @@ export default function ForgotPasswordForm() {
         </Button>
         <Link
           className="flex justify-center px-5 py-2 my-2 font-medium transition-all duration-300 rounded-md cursor-pointer text-brand-purple hover:bg-brand-purple hover:text-white"
-          href={ROUTES.Bm.Auth.LOGIN}
+          href={ROUTES.User.Auth.LOGIN}
         >
           Cancel
         </Link>

@@ -10,6 +10,8 @@ import {
   OtpData,
   ResetPasswordData,
   ResetPasswordResponse,
+  SignupData,
+  SignupResponse,
   VerifyOtpResponse,
 } from "../types/auth";
 
@@ -72,5 +74,12 @@ export class AuthService {
     return response.data;
   }
 
+  static async signup(data: SignupData): Promise<SignupResponse> {
+    const response = await axios.post<SignupResponse>(
+      `${apiBaseUrl}/auth/signup`,
+      data
+    );
+    return response.data;
+  }
 
 }

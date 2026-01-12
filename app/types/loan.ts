@@ -186,3 +186,21 @@ export interface LoanDetailsResponse {
   meta?: Meta
 
 }
+
+/* ===================== LOAN SUMMARY ===================== */
+
+export interface LoanSummaryResponse {
+  totalLoans: number;
+  activeLoans: number;
+  completedLoans: number;
+  overdueLoans: number;
+  totalOutstanding: number;
+}
+
+/* ===================== DISBURSEMENT SUMMARY ===================== */
+
+export interface DisbursementSummaryResponse {
+  totalDisbursed: number;
+  totalLoansDisbursed: number;
+  averageLoanAmount: number;
+}

@@ -40,10 +40,10 @@ export default function DashboardLayout({
                 <Link href="/dashboard" className="px-3 py-1 rounded-md bg-white/10">
                   Dashboard
                 </Link>
-                <Link href="/customers" className="px-3 py-1 rounded-md hover:bg-white/5">
+                <Link href="/dashboard/agent/customer" className="px-3 py-1 rounded-md hover:bg-white/5">
                   Customers
                 </Link>
-                <Link href="/loans" className="px-3 py-1 rounded-md hover:bg-white/5">
+                <Link href="/dashboard/agent/loans" className="px-3 py-1 rounded-md hover:bg-white/5">
                   Loans
                 </Link>
               </nav>
@@ -54,11 +54,14 @@ export default function DashboardLayout({
               <button className="hidden md:inline-flex items-center gap-2 bg-white/10 px-3 py-1 rounded-md">
                 Search
               </button>
+              
+              <Link href="/dashboard/agent/settings">
               <img
                 src="/avatar.jpg"
                 alt="avatar"
-                className="h-8 w-8 rounded-full object-cover"
+                className="h-8 w-8 rounded-full object-cover cursor-pointer"
               />
+            </Link>
             </div>
           </div>
         </div>

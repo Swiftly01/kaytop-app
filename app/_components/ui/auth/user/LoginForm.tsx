@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import z from "zod";
-import Error from "../Error";
+import Error from "../../Error";
 import { useState } from "react";
 import { AuthService } from "@/app/services/authService";
 import { handleAxiosError } from "@/lib/errorHandler";
@@ -14,7 +14,7 @@ import { AxiosError } from "axios";
 import { useAuth } from "@/app/context/AuthContext";
 import { ROUTES } from "@/lib/utils";
 import { useRouter } from "next/navigation";
-import Spinner from "../Spinner";
+import Spinner from "../../Spinner";
 import toast from "react-hot-toast";
 import { Input } from "@/components/ui/input";
 
@@ -66,7 +66,7 @@ export default function LoginForm() {
   };
   return (
     <form className="my-2" onSubmit={handleSubmit(onSubmit)}>
-      <div>
+      <div className="mb-4">
         <label htmlFor="email">Email</label>
         <Input
           type="email"
@@ -74,6 +74,7 @@ export default function LoginForm() {
           id="email"
           disabled={isSubmitting}
           {...register("email")}
+          className="mt-1"
         />
         {errors.email && <Error error={errors.email.message} />}
       </div>
@@ -86,6 +87,7 @@ export default function LoginForm() {
           id="password"
           disabled={isSubmitting}
           {...register("password")}
+          className="mt-1"
         />
         {errors.password && <Error error={errors.password.message} />}
       </div>
@@ -96,7 +98,7 @@ export default function LoginForm() {
           <label htmlFor="terms text-sm">Keep me signed in</label>
         </div>
         <Link
-          href={ROUTES.Bm.Auth.FORGOT_PASSWORD}
+          href={ROUTES.User.Auth.FORGOT_PASSWORD}
           className="text-sm text-accent"
         >
           Forgot password?

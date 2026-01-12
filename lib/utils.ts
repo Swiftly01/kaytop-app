@@ -30,6 +30,14 @@ export const ROUTES: Routes = {
     REPORT: "/dashboard/bm/report",
     SETTING: "/dashboard/bm/setting",
   },
+  User: {
+    Auth: {
+      LOGIN: "/auth/user/login",
+      VERIFY_OTP: "/auth/user/verify-otp",
+      FORGOT_PASSWORD: "/auth/user/forgot-password",
+      RESET_PASSWORD: "/auth/user/reset-password",
+    },
+  }
 };
 
 export function formatDate(date?: string | Date | null) {
