@@ -5,6 +5,9 @@ import React, { useState } from "react";
 import { Menu, X } from "lucide-react";
 import { AddCustomerFlowProvider } from "./AddCustomerFlow/AddCustomerFlowProvider";
 import AddCustomerFlowModal from "./AddCustomerFlow/AddCustomerFlowModal";
+import { Toaster } from "react-hot-toast";
+
+
 
 export default function DashboardLayout({
   children,
@@ -131,6 +134,7 @@ export default function DashboardLayout({
       <footer className="w-full py-4 text-center text-sm text-gray-500">
         © 2025 Kaytop MI. All rights reserved.
       </footer>
+       <Toaster position="top-right" />
     </div>
   );
 }
