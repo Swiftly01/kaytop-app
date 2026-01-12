@@ -2,14 +2,14 @@ import React from "react";
 
 type ButtonProps = {
   children: React.ReactNode;
-  variant?: "primary" | "secondary" | "tertiary" | "danger";
+  variant?: "primary" | "tertiary" | "danger" | "secondary";
   size?: "sm" | "md" | "lg";
+  type?: "button" | "submit" | "reset" ;
   fullWidth?: boolean;
   className?: string;
   onClick?: () => void;
   loading?: boolean;
   disabled?: boolean;
-  type?: "button" | "submit" | "reset"; // <-- add this
 };
 
 const variants = {
@@ -29,18 +29,18 @@ export default function Button({
   children,
   variant = "primary",
   size = "md",
+  type = "submit",
   fullWidth = false,
   className = "",
   onClick,
   loading = false,
   disabled = false,
-  type = "button", // default type
+  // type = "button", // default type
   ...props
 }: ButtonProps) {
   const isDisabled = disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer";
   return (
     <button
-    type={type}
       {...props}
       onClick={onClick}
       className={`relative  rounded-md 
@@ -57,6 +57,7 @@ export default function Button({
                        
                        `}
       disabled={disabled}
+      type={type}
     >
       {children}
     </button>

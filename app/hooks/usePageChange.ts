@@ -6,7 +6,7 @@ export function usePageChange() {
   const router = useRouter();
   const pathname = usePathname();
 
-  function setParams(value: number, key: PaginationKey) {
+  function setParams(value: number | string, key: PaginationKey) {
     const params = new URLSearchParams(searchParams.toString());
     params.set(key, value.toString());
 
@@ -21,7 +21,7 @@ export function usePageChange() {
     return setParams(page, key);
   }
 
-  function setContextParam(parameter: number, key: PaginationKey) {
+  function setContextParam(parameter: number | string, key: PaginationKey) {
     return setParams(parameter, key);
   }
 
