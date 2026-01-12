@@ -27,7 +27,7 @@ export default function Button({
   children,
   variant = "primary",
   size = "md",
-  type = "button",
+  type = "submit",
   fullWidth = false,
   className = "",
   disabled = false,
