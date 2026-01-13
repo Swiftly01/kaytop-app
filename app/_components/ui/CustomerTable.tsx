@@ -95,7 +95,7 @@ export function CustomerTable({
               <td className="p-4">{c.mobileNumber}</td>
               <td className="p-4">{c.email}</td>
               <td className="p-4 text-center">{c?.createdAt
-                    ? new Date(c.createdAt).toLocaleDateString()
+                    ? new Date(c.createdAt).toDateString()
                     : "—"}</td>
 
               <td className="p-4 flex gap-3">

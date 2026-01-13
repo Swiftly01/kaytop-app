@@ -1,3 +1,4 @@
+import { StatusBadge } from "@/app/dashboard/agent/loans/page";
 import { CreditOfficerProfile, Summary } from "@/app/types/creditOfficer";
 import { CustomerData } from "@/app/types/customer";
 import { DashboardKpi, MetricProps, SummaryProps } from "@/app/types/dashboard";
@@ -84,6 +85,7 @@ interface DashboardReportMetrics {
 
 interface BranchLoanMetrics extends DashboardMetrics {
   totalLoans: number;
+  overdueLoans: number;
 }
 
 interface BranchLoanMetricsInput {
@@ -238,6 +240,28 @@ export function getBranchLoanMetrics({
   ];
 }
 
+export function getUserBranchLoanMetrics({
+  data,
+}: BranchLoanMetricsInput): MetricProps[] {
+  return [
+    {
+      title: "Total Loans",
+      value: data?.totalLoans.toString(),
+      border: false,
+    },
+    {
+      title: "Active Loans",
+      value: data?.activeLoans.toString(),
+      border: true,
+    },
+    {
+      title: "Missed Loans",
+      value: data?.overdueLoans.toString(),
+      border: true,
+    }
+  ];
+}
+
 export function getCustomerMetrics({
   data,
 }: DashboardMetricsInput): MetricProps[] {
@@ -313,6 +337,15 @@ export function mapLoanDetailsData(
   ];
 }
 
+export function mapUserLoanDetailsData(
+  data: LoanDetailsApiResponse
+): SummaryProps[] {
+  return [
+    { label: "Loan Id", value: data.loanDetails.id },
+    { label: "Borrower", value: (data.customerDetails.firstName + " " + data.customerDetails.lastName) },
+  ];
+}
+
 export function mapOtherLoanDetailsData(
   data: LoanDetailsApiResponse
 ): SummaryProps[] {
@@ -329,8 +362,8 @@ export function mapLoanIntrestData(
   data: LoanDetailsApiResponse
 ): SummaryProps[] {
   return [
-    { label: "Intrest Rate", value: data.loanDetails.interestRate },
-    { label: "Loan status", value: data.loanDetails.status },
+    { label: "Intrest Rate", value: `${data.loanDetails.interestRate}%` },
+     { label: "Loan status", value:  data.loanDetails.status.toUpperCase() },
   ];
 }
 

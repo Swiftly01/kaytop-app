@@ -12,8 +12,8 @@ export interface MetricProps {
 
 export interface SummaryProps {
   label: string;
-  value?: string | number;
-  [key: string]: string | number | undefined;
+  value?: string | number | React.ReactNode;
+  [key: string]: string | number | React.ReactNode | undefined;
 }
 
 export interface ReportStats {

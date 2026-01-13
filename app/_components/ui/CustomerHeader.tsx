@@ -4,13 +4,14 @@ import DateRangePicker from "./Date";
 import FilterButton from "./FilterButton";
 
 interface CustomerHeaderProps {
+  title?: string;
   isLoading: boolean;
   data?: {
     branch: string;
   };
 }
 
-export function CustomerHeader({ data, isLoading }: CustomerHeaderProps) {
+export function CustomerHeader({ title = "Customers", data, isLoading }: CustomerHeaderProps) {
   const {
     open,
     setOpen,
@@ -23,10 +24,10 @@ export function CustomerHeader({ data, isLoading }: CustomerHeaderProps) {
   return (
     <>
       <div className="flex justify-between items-center">
-        <h1 className="text-xl font-semibold">Customers</h1>
+        <h1 className="text-2xl font-semibold">{title}</h1>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between mt-10 gap-y-2">
+      <div className="flex flex-wrap items-center justify-between mt-8 gap-y-2">
         <div className="flex flex-wrap items-center gap-1 px-1 py-1 bg-white rounded-sm w-fit">
           <DashboardFilter isLoading={isLoading} />
         </div>
