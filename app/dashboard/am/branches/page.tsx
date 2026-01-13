@@ -14,6 +14,7 @@ import { DateRange } from 'react-day-picker';
 import { unifiedDashboardService } from '@/lib/services/unifiedDashboard';
 import { unifiedUserService } from '@/lib/services/unifiedUser';
 import { extractValue } from '@/lib/utils/dataExtraction';
+import { useAuth } from '@/app/context/AuthContext';
 
 type TimePeriod = 'last_24_hours' | 'last_7_days' | 'last_30_days' | 'custom' | null;
 
@@ -31,6 +32,7 @@ const transformBranchesToTableData = (branches: any[]): BranchRecord[] => {
 
 export default function AMBranchesPage() {
   const router = useRouter();
+  const { session, isLoading: authLoading } = useAuth();
   const { toasts, removeToast, success, error } = useToast();
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('last_30_days');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
@@ -138,14 +140,14 @@ export default function AMBranchesPage() {
   // Load initial data - only when authenticated
   useEffect(() => {
     // Wait for authentication to complete before fetching data
-    if (!authLoading && isAuthenticated) {
+    if (!authLoading && session) {
       console.log('🔐 Authentication confirmed, loading branch data...');
       fetchBranchData();
-    } else if (!authLoading && !isAuthenticated) {
+    } else if (!authLoading && !session) {
       console.log('❌ Not authenticated, redirecting to login...');
-      router.push('/auth/login');
+      router.push('/auth/bm/login');
     }
-  }, [authLoading, isAuthenticated, router]);
+  }, [authLoading, session, router]);
 
   const handleRowClick = (row: any) => {
     // Extract the ID from the row object
@@ -314,7 +316,7 @@ export default function AMBranchesPage() {
   }
 
   // Redirect to login if not authenticated (this should be handled by middleware, but just in case)
-  if (!isAuthenticated) {
+  if (!session) {
     return null;
   }
 

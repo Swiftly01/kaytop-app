@@ -202,18 +202,34 @@ export class UnifiedAPIErrorHandler {
    * Log error with enhanced context for debugging and monitoring
    */
   static logErrorWithContext(error: any, context: ErrorContext): void {
+    // Safely extract error properties, handling cases where error might be null/undefined
+    const safeError = error || {};
+    
     const errorLog = {
       timestamp: context.timestamp || new Date().toISOString(),
       error: {
-        message: error.message,
-        status: error.status,
-        type: error.type,
-        stack: error.stack,
+        message: safeError.message || 'Unknown error',
+        status: safeError.status || 'Unknown status',
+        type: safeError.type || 'Unknown type',
+        stack: safeError.stack || 'No stack trace',
+        // Include all enumerable properties
+        ...Object.getOwnPropertyNames(safeError).reduce((acc, key) => {
+          try {
+            acc[key] = safeError[key];
+          } catch (e) {
+            acc[key] = 'Unable to serialize';
+          }
+          return acc;
+        }, {} as any),
+        // Include details if available
+        details: safeError.details || null,
+        // Include response data if available
+        response: safeError.response?.data || null,
       },
       context: {
         endpoint: context.endpoint,
         method: context.method,
-        requestData: context.requestData,
+        requestData: context.requestData ? JSON.stringify(context.requestData).substring(0, 1000) : null, // Limit size
         userId: context.userId || authenticationManager.getCurrentUser()?.id,
       },
       userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : 'server',
@@ -222,6 +238,9 @@ export class UnifiedAPIErrorHandler {
     };
     
     console.error('🚨 Unified API Error Log:', errorLog);
+    
+    // Also log the raw error for debugging
+    console.error('🔍 Raw Error Object:', error);
     
     // In production, send to error tracking service
     if (process.env.NODE_ENV === 'production') {

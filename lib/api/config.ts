@@ -174,7 +174,7 @@ export const API_ENDPOINTS = {
   USERS: {
     PROFILE: '/users/profile',
     ME: '/users/me',
-    PROFILE_PICTURE: '/users/me/profile-picture',
+    // PROFILE_PICTURE: '/users/me/profile-picture', // Not available on backend - use PATCH /users/me instead
     FILTER: '/users/filter',
     MY_BRANCH: '/users/my-branch',
     STATES: '/users/states',
@@ -264,6 +264,7 @@ export const API_ENDPOINTS = {
     APPROVE: (id: string) => `/reports/${id}/approve`,
     DECLINE: (id: string) => `/reports/${id}/decline`,
     STATISTICS: '/reports/statistics',
+    DASHBOARD_STATS: '/reports/dashboard/stats',
   },
   
   // Activity Logs endpoints

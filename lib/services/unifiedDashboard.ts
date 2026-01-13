@@ -4,6 +4,8 @@
  */
 
 import { unifiedApiClient } from '../api/client';
+import { branchPerformanceService } from './branchPerformance';
+import { accurateDashboardService } from './accurateDashboard';
 import type {
   DashboardParams,
   DashboardKPIs,
@@ -33,17 +35,49 @@ class UnifiedDashboardAPIService implements UnifiedDashboardService {
    * Works for all user roles - backend handles role-based filtering
    */
   async getKPIs(params?: DashboardParams): Promise<DashboardKPIs> {
-    const queryParams = new URLSearchParams();
-    
-    if (params?.timeFilter) queryParams.append('timeFilter', params.timeFilter);
-    if (params?.startDate) queryParams.append('startDate', params.startDate);
-    if (params?.endDate) queryParams.append('endDate', params.endDate);
-    if (params?.branch) queryParams.append('branch', params.branch);
-
-    const endpoint = `/dashboard/kpi${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    
-    const response: ApiResponse<DashboardKPIs> = await unifiedApiClient.get(endpoint);
-    return response.data;
+    try {
+      // Use accurate dashboard service to get real data instead of mock calculations
+      const accurateData = await accurateDashboardService.getAccurateKPIs(params);
+      
+      // Get calculated branch performance
+      const branchPerformance = await branchPerformanceService.calculateBranchPerformance(params);
+      
+      // Merge accurate data with calculated branch performance
+      return {
+        ...accurateData,
+        bestPerformingBranches: branchPerformance.bestPerformingBranches,
+        worstPerformingBranches: branchPerformance.worstPerformingBranches,
+      };
+      
+    } catch (error) {
+      console.error('Dashboard KPI fetch error:', error);
+      
+      // Fallback: try to get branch performance even if accurate data fails
+      try {
+        const branchPerformance = await branchPerformanceService.calculateBranchPerformance(params);
+        
+        // Return minimal dashboard data with calculated branch performance
+        return {
+          branches: { value: 0, change: 0, changeLabel: 'No data available', isCurrency: false },
+          creditOfficers: { value: 0, change: 0, changeLabel: 'No data available', isCurrency: false },
+          customers: { value: 0, change: 0, changeLabel: 'No data available', isCurrency: false },
+          loansProcessed: { value: 0, change: 0, changeLabel: 'No data available', isCurrency: false },
+          loanAmounts: { value: 0, change: 0, changeLabel: 'No data available', isCurrency: true },
+          activeLoans: { value: 0, change: 0, changeLabel: 'No data available', isCurrency: false },
+          missedPayments: { value: 0, change: 0, changeLabel: 'No data available', isCurrency: false },
+          bestPerformingBranches: branchPerformance.bestPerformingBranches,
+          worstPerformingBranches: branchPerformance.worstPerformingBranches,
+          // Report statistics KPIs (default values when no data available)
+          totalReports: { value: 0, change: 0, changeLabel: 'No data available', isCurrency: false },
+          pendingReports: { value: 0, change: 0, changeLabel: 'No data available', isCurrency: false },
+          approvedReports: { value: 0, change: 0, changeLabel: 'No data available', isCurrency: false },
+          missedReports: { value: 0, change: 0, changeLabel: 'No data available', isCurrency: false },
+        };
+      } catch (branchError) {
+        console.error('Branch performance calculation also failed:', branchError);
+        throw error;
+      }
+    }
   }
 
   /**
@@ -71,16 +105,16 @@ class UnifiedDashboardAPIService implements UnifiedDashboardService {
   }
 
   /**
-   * Get branch performance data from KPIs
+   * Get branch performance data from calculated metrics
    */
   async getBranchPerformance(params?: DashboardParams): Promise<BranchPerformance[]> {
     try {
-      const kpis = await this.getKPIs(params);
+      const branchPerformance = await branchPerformanceService.calculateBranchPerformance(params);
       
       // Combine best and worst performing branches
       return [
-        ...kpis.bestPerformingBranches,
-        ...kpis.worstPerformingBranches
+        ...branchPerformance.bestPerformingBranches,
+        ...branchPerformance.worstPerformingBranches
       ];
     } catch (error) {
       console.error('Branch performance fetch error:', error);

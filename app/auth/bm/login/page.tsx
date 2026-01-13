@@ -3,10 +3,6 @@
 import LoginForm from "@/app/_components/ui/auth/LoginForm";
 import { JSX, useEffect, useState } from "react";
 
-export const metadata = {
-  title: "Login",
-};
-
 export default function page(): JSX.Element {
   const [isClient, setIsClient] = useState(false);
 

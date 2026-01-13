@@ -4,7 +4,10 @@
  */
 
 import { apiClient } from '../api/client';
-import { API_ENDPOINTS } from '../api/config';
+import { API_ENDPOINTS, API_CONFIG } from '../api/config';
+import { logAuthDebugInfo, testAuthentication } from '../debug/authDebug';
+import { authenticationManager } from '../api/authManager';
+import { autoFixAuthentication } from '../utils/authFix';
 import type {
   ActivityLog,
   ActivityLogFilters,
@@ -19,8 +22,43 @@ export interface ActivityLogsService {
 class ActivityLogsAPIService implements ActivityLogsService {
   async getActivityLogs(filters: ActivityLogFilters = {}): Promise<PaginatedResponse<ActivityLog>> {
     try {
+      // Enhanced authentication debugging
+      console.log('🔍 Running comprehensive auth debug for Activity Logs...');
+      logAuthDebugInfo();
+
+      // Test authentication directly
+      const authTest = await testAuthentication();
+      console.log('🔍 Direct auth test result:', authTest);
+
+      // Check if user is authenticated
+      const authState = authenticationManager.getAuthState();
+      if (!authState.isAuthenticated || !authState.tokens?.accessToken) {
+        console.error('❌ User not authenticated for Activity Logs request');
+        console.log('🔧 Attempting to auto-fix authentication...');
+
+        const fixResult = await autoFixAuthentication();
+        if (fixResult.success) {
+          console.log('✅ Authentication fixed, retrying request...');
+          // Continue with the request after fixing auth
+        } else {
+          console.error('❌ Failed to fix authentication:', fixResult.message);
+          console.error('💡 TROUBLESHOOTING: User needs to log in manually');
+
+          // Return empty data instead of throwing to prevent UI crash
+          return {
+            data: [],
+            pagination: {
+              total: 0,
+              page: parseInt(filters.page?.toString() || '1'),
+              limit: parseInt(filters.limit?.toString() || '50'),
+              totalPages: 0
+            }
+          };
+        }
+      }
+
       const params = new URLSearchParams();
-      
+
       // Add filter parameters
       if (filters.userId) params.append('userId', filters.userId);
       if (filters.userRole) params.append('userRole', filters.userRole);
@@ -33,7 +71,29 @@ class ActivityLogsAPIService implements ActivityLogsService {
       if (filters.limit) params.append('limit', filters.limit.toString());
 
       const url = `${API_ENDPOINTS.ACTIVITY_LOGS.LIST}${params.toString() ? `?${params.toString()}` : ''}`;
-      const response = await apiClient.get<any>(url);
+
+      console.log('🔍 Activity Logs Request Debug:', {
+        url,
+        endpoint: API_ENDPOINTS.ACTIVITY_LOGS.LIST,
+        params: Object.fromEntries(params.entries()),
+        baseUrl: API_CONFIG.BASE_URL,
+        timestamp: new Date().toISOString(),
+        authState: {
+          isAuthenticated: authState.isAuthenticated,
+          hasToken: !!authState.tokens?.accessToken,
+          tokenLength: authState.tokens?.accessToken?.length,
+          userRole: authState.user?.role
+        }
+      });
+
+      const response = await apiClient.get<any>(url, { suppressErrorLog: true });
+
+      console.log('✅ Activity logs response received:', {
+        responseType: typeof response,
+        isArray: Array.isArray(response),
+        hasData: !!response?.data,
+        keys: response ? Object.keys(response) : []
+      });
 
       // Backend returns direct data format, not wrapped in success/data
       if (response && typeof response === 'object') {
@@ -61,16 +121,58 @@ class ActivityLogsAPIService implements ActivityLogsService {
       }
 
       throw new Error('Failed to fetch activity logs - invalid response format');
-    } catch (error) {
-      console.error('Activity logs fetch error:', error);
-      throw error;
+    } catch (error: any) {
+      // If it's a 404 error, provide helpful guidance and return empty data
+      if (error?.status === 404) {
+        console.warn('⚠️ Activity Logs endpoint not found (404). Returning empty data.');
+
+        // Return empty data instead of throwing to prevent UI crash
+        return {
+          data: [],
+          pagination: {
+            total: 0,
+            page: parseInt(filters.page?.toString() || '1'),
+            limit: parseInt(filters.limit?.toString() || '50'),
+            totalPages: 0
+          }
+        };
+      }
+
+      console.error('❌ Activity logs fetch error:', {
+        error: error instanceof Error ? error.message : error,
+        status: error?.status,
+        details: error?.details,
+        url: `${API_ENDPOINTS.ACTIVITY_LOGS.LIST}`,
+        filters,
+        timestamp: new Date().toISOString(),
+        errorType: typeof error,
+        errorConstructor: error?.constructor?.name,
+        errorKeys: error ? Object.keys(error) : [],
+        rawError: error
+      });
+
+      // Log comprehensive auth debug info
+      console.error('🔍 Authentication Debug Info:');
+      logAuthDebugInfo();
+
+      // Return empty data instead of throwing to prevent UI crash
+      console.log('🔄 Returning empty activity logs to prevent UI crash');
+      return {
+        data: [],
+        pagination: {
+          total: 0,
+          page: parseInt(filters.page?.toString() || '1'),
+          limit: parseInt(filters.limit?.toString() || '50'),
+          totalPages: 0
+        }
+      };
     }
   }
 
   async getUserActivityLogs(userId: string, filters: Omit<ActivityLogFilters, 'userId'> = {}): Promise<PaginatedResponse<ActivityLog>> {
     try {
       const params = new URLSearchParams();
-      
+
       // Add filter parameters (excluding userId since it's in the URL)
       if (filters.userRole) params.append('userRole', filters.userRole);
       if (filters.actionType) params.append('actionType', filters.actionType);
@@ -82,7 +184,15 @@ class ActivityLogsAPIService implements ActivityLogsService {
       if (filters.limit) params.append('limit', filters.limit.toString());
 
       const url = `${API_ENDPOINTS.ACTIVITY_LOGS.BY_USER(userId)}${params.toString() ? `?${params.toString()}` : ''}`;
-      const response = await apiClient.get<any>(url);
+
+      console.log('🔍 User Activity Logs Request:', {
+        url,
+        userId,
+        endpoint: API_ENDPOINTS.ACTIVITY_LOGS.BY_USER(userId),
+        params: Object.fromEntries(params.entries())
+      });
+
+      const response = await apiClient.get<any>(url, { suppressErrorLog: true });
 
       // Backend returns direct data format, not wrapped in success/data
       if (response && typeof response === 'object') {
@@ -110,8 +220,29 @@ class ActivityLogsAPIService implements ActivityLogsService {
       }
 
       throw new Error('Failed to fetch user activity logs - invalid response format');
-    } catch (error) {
-      console.error('User activity logs fetch error:', error);
+    } catch (error: any) {
+      console.error('User activity logs fetch error:', {
+        error: error.message,
+        status: error.status,
+        userId,
+        endpoint: API_ENDPOINTS.ACTIVITY_LOGS.BY_USER(userId),
+        filters
+      });
+
+      // If endpoint returns 404, it might not be implemented yet
+      if (error.status === 404) {
+        console.warn(`⚠️ User activity logs endpoint not found (404) for user ${userId}. Returning empty result.`);
+        return {
+          data: [],
+          pagination: {
+            total: 0,
+            page: parseInt(filters.page?.toString() || '1'),
+            limit: parseInt(filters.limit?.toString() || '50'),
+            totalPages: 0
+          }
+        };
+      }
+
       throw error;
     }
   }

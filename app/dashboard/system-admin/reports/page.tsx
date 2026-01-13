@@ -13,11 +13,14 @@ import ReportsFiltersModal, { ReportsFilters } from '@/app/_components/ui/Report
 import ReportDetailsModal, { ReportDetailsData } from '@/app/_components/ui/ReportDetailsModal';
 import { StatisticsCardSkeleton, TableSkeleton } from '@/app/_components/ui/Skeleton';
 import { reportsService } from '@/lib/services/reports';
+import { dashboardService } from '@/lib/services/dashboard';
 import type { Report, ReportStatistics, ReportFilters as APIReportFilters } from '@/lib/api/types';
 import { DateRange } from 'react-day-picker';
 import type { TimePeriod } from '@/app/_components/ui/FilterControls';
+import { useAuth } from '@/app/context/AuthContext';
 
 export default function ReportsPage() {
+  const { session } = useAuth();
   const { toasts, removeToast, success, error } = useToast();
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('last_30_days');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
@@ -65,16 +68,16 @@ export default function ReportsPage() {
         let startDate: Date;
 
         switch (selectedPeriod) {
-          case '24hours':
+          case 'last_24_hours':
             startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
             break;
-          case '7days':
+          case 'last_7_days':
             startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
             break;
-          case '30days':
+          case 'last_30_days':
             startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
             break;
-          case '12months':
+          case 'custom':
           default:
             startDate = new Date(now);
             startDate.setMonth(now.getMonth() - 12);
@@ -103,18 +106,34 @@ export default function ReportsPage() {
         apiFilters.reportType = appliedFilters.reportType.toLowerCase() as 'daily' | 'weekly' | 'monthly';
       }
 
-      // Fetch reports and statistics
+      // Fetch reports and statistics with error handling
       const [reportsResponse, statisticsResponse] = await Promise.all([
         reportsService.getAllReports(apiFilters),
-        reportsService.getReportStatistics({
-          dateFrom: apiFilters.dateFrom,
-          dateTo: apiFilters.dateTo,
-          branchId: apiFilters.branchId,
+        dashboardService.getReportStatistics({
+          startDate: apiFilters.dateFrom,
+          endDate: apiFilters.dateTo,
+          branch: apiFilters.branchId,
+        }).catch(statsError => {
+          console.warn('Failed to fetch report statistics, using defaults:', statsError);
+          // Return default statistics if the call fails
+          return {
+            totalReports: { count: 0, growth: 0 },
+            submittedReports: { count: 0, growth: 0 },
+            pendingReports: { count: 0, growth: 0 },
+            approvedReports: { count: 0, growth: 0 },
+            missedReports: { count: 0, growth: 0 },
+          };
         }),
       ]);
 
-      setReports(reportsResponse.data);
-      setTotalReports(reportsResponse.pagination.total);
+      // Safely handle reports response structure
+      const reportsData = Array.isArray(reportsResponse?.data) ? reportsResponse.data : [];
+      const paginationData = reportsResponse?.pagination || {};
+      
+      setReports(reportsData);
+      // Handle pagination safely - backend might not return pagination object
+      const totalCount = paginationData.total || reportsData.length || 0;
+      setTotalReports(totalCount);
       setReportStatistics(statisticsResponse);
 
     } catch (err) {
@@ -191,9 +210,21 @@ export default function ReportsPage() {
     }
   };
 
-  const handleReportClick = (report: Report) => {
-    setSelectedReportForDetails(report);
-    setDetailsModalOpen(true);
+  const handleReportClick = async (report: Report) => {
+    try {
+      setLoading(true);
+      
+      // Fetch detailed report information from API
+      const detailedReport = await reportsService.getReportById(report.id);
+      
+      setSelectedReportForDetails(detailedReport);
+      setDetailsModalOpen(true);
+    } catch (err) {
+      console.error('Failed to fetch report details:', err);
+      error('Failed to load report details. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleApproveReport = async () => {
@@ -203,7 +234,7 @@ export default function ReportsPage() {
         
         const approvalData = {
           status: 'approved' as const,
-          approvedBy: 'current-admin-id', // This should come from auth context
+          approvedBy: session?.role || 'system-admin', // Use actual user info when available
           approvedAt: new Date().toISOString(),
         };
 
@@ -219,13 +250,18 @@ export default function ReportsPage() {
           )
         );
         
-        // Update the selected report for details
+        // Update the selected report for details to reflect the approval
         setSelectedReportForDetails(updatedReport);
         
         success(`Report "${selectedReportForDetails.reportId}" approved successfully!`);
         
-        // Refresh statistics
-        await fetchReportsData();
+        // Refresh statistics to reflect the change
+        try {
+          await fetchReportsData();
+        } catch (refreshError) {
+          console.warn('Failed to refresh data after approval:', refreshError);
+          // Don't throw error, just log it since the approval was successful
+        }
         
       } catch (err) {
         console.error('Failed to approve report:', err);
@@ -243,7 +279,7 @@ export default function ReportsPage() {
         
         const declineData = {
           status: 'declined' as const,
-          approvedBy: 'current-admin-id', // This should come from auth context
+          approvedBy: session?.role || 'system-admin', // Use actual user info when available
           approvedAt: new Date().toISOString(),
           comments: 'Report declined by system admin',
         };
@@ -264,8 +300,13 @@ export default function ReportsPage() {
         setDetailsModalOpen(false);
         setSelectedReportForDetails(null);
         
-        // Refresh statistics
-        await fetchReportsData();
+        // Refresh statistics to reflect the change
+        try {
+          await fetchReportsData();
+        } catch (refreshError) {
+          console.warn('Failed to refresh data after decline:', refreshError);
+          // Don't throw error, just log it since the decline was successful
+        }
         
       } catch (err) {
         console.error('Failed to decline report:', err);
@@ -517,7 +558,7 @@ export default function ReportsPage() {
           reportData={{
             reportId: selectedReportForDetails.reportId,
             creditOfficer: selectedReportForDetails.creditOfficer,
-            branch: 'Igando Branch',
+            branch: selectedReportForDetails.branch || 'Igando Branch',
             email: selectedReportForDetails.email,
             dateSent: selectedReportForDetails.dateSent,
             timeSent: selectedReportForDetails.timeSent,
@@ -528,6 +569,7 @@ export default function ReportsPage() {
             loansValueDispursed: selectedReportForDetails.loansValueDispursed,
             savingsCollected: selectedReportForDetails.savingsCollected,
             repaymentsCollected: selectedReportForDetails.repaymentsCollected,
+            approvalHistory: selectedReportForDetails.approvalHistory,
           }}
           onApprove={handleApproveReport}
           onDecline={handleDeclineReport}

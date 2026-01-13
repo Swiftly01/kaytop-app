@@ -36,6 +36,7 @@ export default function GlobalSettingsModal({
   const { success, error } = useToast();
   const modalRef = useRef<HTMLDivElement>(null);
   const firstInputRef = useRef<HTMLInputElement>(null);
+  const initializedRef = useRef(false);
 
   // Form state
   const [formData, setFormData] = useState<GlobalSettingsData>(initialData);
@@ -155,10 +156,16 @@ export default function GlobalSettingsModal({
 
   // Initialize form data when initialData changes
   useEffect(() => {
-    if (initialData) {
+    if (initialData && isOpen && !initializedRef.current) {
       setFormData(initialData);
+      initializedRef.current = true;
     }
-  }, [initialData]);
+    
+    // Reset initialization flag when modal closes
+    if (!isOpen) {
+      initializedRef.current = false;
+    }
+  }, [initialData, isOpen]);
 
   // Focus management
   useEffect(() => {

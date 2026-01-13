@@ -31,6 +31,7 @@ export interface RequestConfig {
   headers?: Record<string, string>;
   timeout?: number;
   signal?: AbortSignal;
+  suppressErrorLog?: boolean;
 }
 
 // Authentication Types
@@ -57,6 +58,7 @@ export interface AdminProfile {
   branch?: string;
   state?: string;
   verificationStatus: 'pending' | 'verified' | 'rejected';
+  profilePicture?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -245,6 +247,11 @@ export interface DashboardKPIs {
   missedPayments: StatisticValue;
   bestPerformingBranches: BranchPerformance[];
   worstPerformingBranches: BranchPerformance[];
+  // Report statistics KPIs
+  totalReports: StatisticValue;
+  pendingReports: StatisticValue;
+  approvedReports: StatisticValue;
+  missedReports: StatisticValue;
 }
 
 // Error Types
@@ -286,6 +293,16 @@ export interface Report {
   repaymentsCollected: number;
   createdAt: string;
   updatedAt: string;
+  // Approval history metadata
+  approvedBy?: string;
+  approvedAt?: string;
+  declineReason?: string;
+  approvalHistory?: Array<{
+    action: 'approved' | 'declined';
+    actionBy: string;
+    actionAt: string;
+    comments?: string;
+  }>;
 }
 
 export interface ReportStatistics {

@@ -26,13 +26,13 @@ export function useGlobalErrorHandler(options: GlobalErrorHandlerOptions = {}) {
     // Log error for debugging and monitoring
     if (enableErrorLogging) {
       if (error.status) {
-        errorLogger.logApiError(error, error.url || 'unknown', error.method || 'unknown');
+        errorLogger.logApiError(error.url || 'unknown', error, error.method || 'unknown');
       } else if (error.type === 'network') {
-        errorLogger.logNetworkError(error);
+        errorLogger.logError(error, { type: 'network_error', context });
       } else if (error.status === 401 || error.status === 403) {
-        errorLogger.logAuthError(error, context || 'unknown');
+        errorLogger.logError(error, { type: 'auth_error', context: context || 'unknown' });
       } else {
-        errorLogger.logError(error.message || 'Unknown error', error, context);
+        errorLogger.logError(error, { context });
       }
     }
 

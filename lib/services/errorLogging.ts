@@ -1,261 +1,208 @@
 /**
  * Error Logging Service
- * Centralized error logging for debugging and monitoring
+ * Handles error tracking, logging, and reporting
  */
 
-export interface ErrorLog {
+import { API_CONFIG } from '../api/config';
+
+export interface ErrorLogEntry {
   id: string;
-  timestamp: Date;
-  level: 'error' | 'warning' | 'info';
+  timestamp: string;
+  level: 'error' | 'warn' | 'info' | 'debug';
   message: string;
-  context?: string;
   stack?: string;
+  context?: Record<string, any>;
+  userId?: string;
   userAgent?: string;
   url?: string;
-  userId?: string;
-  sessionId?: string;
-  additionalData?: Record<string, any>;
+  component?: string;
 }
 
-export interface ErrorLoggingConfig {
-  maxLogs: number;
-  enableConsoleLogging: boolean;
-  enableLocalStorage: boolean;
-  enableRemoteLogging: boolean;
-  remoteEndpoint?: string;
+export interface ErrorLogger {
+  logError(error: Error, context?: Record<string, any>): void;
+  logWarning(message: string, context?: Record<string, any>): void;
+  logInfo(message: string, context?: Record<string, any>): void;
+  logDebug(message: string, context?: Record<string, any>): void;
+  getErrorLogs(limit?: number): ErrorLogEntry[];
+  clearErrorLogs(): void;
 }
 
-class ErrorLoggingService {
-  private config: ErrorLoggingConfig;
-  private logs: ErrorLog[] = [];
-  private sessionId: string;
+class ErrorLoggingService implements ErrorLogger {
+  private logs: ErrorLogEntry[] = [];
+  private maxLogs = 1000; // Keep last 1000 logs in memory
 
-  constructor(config: Partial<ErrorLoggingConfig> = {}) {
-    this.config = {
-      maxLogs: 100,
-      enableConsoleLogging: true,
-      enableLocalStorage: true,
-      enableRemoteLogging: false,
-      ...config
+  private generateId(): string {
+    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  private createLogEntry(
+    level: ErrorLogEntry['level'],
+    message: string,
+    stack?: string,
+    context?: Record<string, any>
+  ): ErrorLogEntry {
+    const entry: ErrorLogEntry = {
+      id: this.generateId(),
+      timestamp: new Date().toISOString(),
+      level,
+      message,
+      stack,
+      context,
+      userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : undefined,
+      url: typeof window !== 'undefined' ? window.location.href : undefined,
     };
 
-    this.sessionId = this.generateSessionId();
-    this.loadLogsFromStorage();
-  }
-
-  private generateSessionId(): string {
-    return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  }
-
-  private generateLogId(): string {
-    return `log_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  }
-
-  private loadLogsFromStorage(): void {
-    if (!this.config.enableLocalStorage || typeof window === 'undefined') {
-      return;
-    }
-
-    try {
-      const storedLogs = localStorage.getItem('error-logs');
-      if (storedLogs) {
-        this.logs = JSON.parse(storedLogs).map((log: any) => ({
-          ...log,
-          timestamp: new Date(log.timestamp)
-        }));
+    // Add user ID if available
+    if (typeof window !== 'undefined') {
+      try {
+        const authData = localStorage.getItem('auth_user');
+        if (authData) {
+          const user = JSON.parse(authData);
+          entry.userId = user.id?.toString();
+        }
+      } catch (e) {
+        // Ignore localStorage errors
       }
-    } catch (error) {
-      console.warn('Failed to load error logs from storage:', error);
+    }
+
+    return entry;
+  }
+
+  private addLog(entry: ErrorLogEntry): void {
+    this.logs.unshift(entry);
+    
+    // Keep only the most recent logs
+    if (this.logs.length > this.maxLogs) {
+      this.logs = this.logs.slice(0, this.maxLogs);
+    }
+
+    // Console logging based on configuration
+    if (API_CONFIG.DEBUG || API_CONFIG.LOG_LEVEL === 'debug') {
+      console.log(`[${entry.level.toUpperCase()}] ${entry.message}`, entry);
+    } else if (entry.level === 'error') {
+      console.error(entry.message, entry);
+    } else if (entry.level === 'warn') {
+      console.warn(entry.message, entry);
+    } else if (entry.level === 'info' && ['info', 'debug'].includes(API_CONFIG.LOG_LEVEL)) {
+      console.info(entry.message, entry);
+    }
+
+    // Send to external error tracking service if configured
+    if (API_CONFIG.ENABLE_ERROR_TRACKING && API_CONFIG.ERROR_TRACKING_ENDPOINT) {
+      this.sendToExternalService(entry).catch(err => {
+        console.warn('Failed to send error to tracking service:', err);
+      });
     }
   }
 
-  private saveLogsToStorage(): void {
-    if (!this.config.enableLocalStorage || typeof window === 'undefined') {
-      return;
-    }
+  private async sendToExternalService(entry: ErrorLogEntry): Promise<void> {
+    if (!API_CONFIG.ERROR_TRACKING_ENDPOINT) return;
 
     try {
-      localStorage.setItem('error-logs', JSON.stringify(this.logs));
-    } catch (error) {
-      console.warn('Failed to save error logs to storage:', error);
-    }
-  }
-
-  private async sendToRemote(log: ErrorLog): Promise<void> {
-    if (!this.config.enableRemoteLogging || !this.config.remoteEndpoint) {
-      return;
-    }
-
-    try {
-      await fetch(this.config.remoteEndpoint, {
+      await fetch(API_CONFIG.ERROR_TRACKING_ENDPOINT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(log),
+        body: JSON.stringify(entry),
       });
     } catch (error) {
-      console.warn('Failed to send error log to remote endpoint:', error);
+      // Don't throw errors from error logging to avoid infinite loops
+      console.warn('Error tracking service unavailable:', error);
     }
   }
 
-  private createLog(
-    level: ErrorLog['level'],
-    message: string,
-    context?: string,
-    error?: Error,
-    additionalData?: Record<string, any>
-  ): ErrorLog {
-    const log: ErrorLog = {
-      id: this.generateLogId(),
-      timestamp: new Date(),
-      level,
-      message,
-      context,
-      stack: error?.stack,
-      userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : undefined,
-      url: typeof window !== 'undefined' ? window.location.href : undefined,
-      sessionId: this.sessionId,
-      additionalData
-    };
-
-    // Add user ID if available
-    try {
-      const userData = typeof window !== 'undefined' ? localStorage.getItem('auth-user') : null;
-      if (userData) {
-        const user = JSON.parse(userData);
-        log.userId = user.id;
-      }
-    } catch {
-      // Ignore errors when getting user data
-    }
-
-    return log;
-  }
-
-  private addLog(log: ErrorLog): void {
-    this.logs.push(log);
-
-    // Maintain max logs limit
-    if (this.logs.length > this.config.maxLogs) {
-      this.logs = this.logs.slice(-this.config.maxLogs);
-    }
-
-    // Console logging
-    if (this.config.enableConsoleLogging) {
-      const logMethod = log.level === 'error' ? console.error : 
-                       log.level === 'warning' ? console.warn : console.info;
-      
-      logMethod(`[${log.level.toUpperCase()}] ${log.message}`, {
-        context: log.context,
-        timestamp: log.timestamp,
-        additionalData: log.additionalData
-      });
-    }
-
-    // Save to local storage
-    this.saveLogsToStorage();
-
-    // Send to remote endpoint
-    this.sendToRemote(log);
-  }
-
-  logError(message: string, error?: Error, context?: string, additionalData?: Record<string, any>): void {
-    const log = this.createLog('error', message, context, error, additionalData);
-    this.addLog(log);
-  }
-
-  logWarning(message: string, context?: string, additionalData?: Record<string, any>): void {
-    const log = this.createLog('warning', message, context, undefined, additionalData);
-    this.addLog(log);
-  }
-
-  logInfo(message: string, context?: string, additionalData?: Record<string, any>): void {
-    const log = this.createLog('info', message, context, undefined, additionalData);
-    this.addLog(log);
-  }
-
-  // API-specific logging methods
-  logApiError(error: any, endpoint: string, method: string): void {
-    this.logError(
-      `API ${method} ${endpoint} failed`,
-      error,
-      'API',
+  logError(error: Error, context?: Record<string, any>): void {
+    const entry = this.createLogEntry(
+      'error',
+      error.message,
+      error.stack,
       {
-        endpoint,
-        method,
-        status: error.status,
-        details: error.details
+        ...context,
+        errorName: error.name,
+        errorConstructor: error.constructor.name,
       }
     );
+    this.addLog(entry);
   }
 
-  logAuthError(error: any, action: string): void {
-    this.logError(
-      `Authentication ${action} failed`,
-      error,
-      'Authentication',
-      {
-        action,
-        status: error.status
-      }
-    );
+  logWarning(message: string, context?: Record<string, any>): void {
+    const entry = this.createLogEntry('warn', message, undefined, context);
+    this.addLog(entry);
   }
 
-  logNetworkError(error: any): void {
-    this.logError(
-      'Network error occurred',
-      error,
-      'Network',
-      {
-        type: error.type,
-        code: error.code
-      }
-    );
+  logInfo(message: string, context?: Record<string, any>): void {
+    const entry = this.createLogEntry('info', message, undefined, context);
+    this.addLog(entry);
   }
 
-  // Utility methods
-  getLogs(level?: ErrorLog['level']): ErrorLog[] {
-    if (level) {
-      return this.logs.filter(log => log.level === level);
-    }
-    return [...this.logs];
+  logDebug(message: string, context?: Record<string, any>): void {
+    const entry = this.createLogEntry('debug', message, undefined, context);
+    this.addLog(entry);
   }
 
-  getRecentLogs(minutes: number = 60): ErrorLog[] {
-    const cutoff = new Date(Date.now() - minutes * 60 * 1000);
-    return this.logs.filter(log => log.timestamp > cutoff);
+  getErrorLogs(limit?: number): ErrorLogEntry[] {
+    return limit ? this.logs.slice(0, limit) : [...this.logs];
   }
 
-  clearLogs(): void {
+  clearErrorLogs(): void {
     this.logs = [];
-    this.saveLogsToStorage();
   }
 
-  exportLogs(): string {
-    return JSON.stringify(this.logs, null, 2);
+  // Additional utility methods
+  logApiError(endpoint: string, error: Error, requestData?: any): void {
+    this.logError(error, {
+      type: 'api_error',
+      endpoint,
+      requestData,
+    });
   }
 
-  getErrorSummary(): { total: number; byLevel: Record<string, number>; recent: number } {
-    const byLevel = this.logs.reduce((acc, log) => {
-      acc[log.level] = (acc[log.level] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+  logComponentError(componentName: string, error: Error, props?: any): void {
+    this.logError(error, {
+      type: 'component_error',
+      component: componentName,
+      props,
+    });
+  }
 
-    const recent = this.getRecentLogs(60).length;
+  logNavigationError(route: string, error: Error): void {
+    this.logError(error, {
+      type: 'navigation_error',
+      route,
+    });
+  }
 
-    return {
-      total: this.logs.length,
-      byLevel,
-      recent
-    };
+  logValidationError(field: string, value: any, rule: string): void {
+    this.logWarning(`Validation failed for field: ${field}`, {
+      type: 'validation_error',
+      field,
+      value,
+      rule,
+    });
+  }
+
+  // Performance logging
+  logPerformance(operation: string, duration: number, context?: Record<string, any>): void {
+    const level = duration > 1000 ? 'warn' : 'info'; // Warn if operation takes more than 1 second
+    const message = `Performance: ${operation} took ${duration}ms`;
+    
+    if (level === 'warn') {
+      this.logWarning(message, { ...context, type: 'performance', operation, duration });
+    } else {
+      this.logInfo(message, { ...context, type: 'performance', operation, duration });
+    }
+  }
+
+  // User action logging
+  logUserAction(action: string, context?: Record<string, any>): void {
+    this.logInfo(`User action: ${action}`, {
+      ...context,
+      type: 'user_action',
+      action,
+    });
   }
 }
 
 // Export singleton instance
-export const errorLogger = new ErrorLoggingService({
-  maxLogs: 100,
-  enableConsoleLogging: process.env.NODE_ENV === 'development',
-  enableLocalStorage: true,
-  enableRemoteLogging: false, // Enable when you have a remote logging endpoint
-});
+export const errorLogger = new ErrorLoggingService();

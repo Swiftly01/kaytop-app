@@ -20,6 +20,8 @@ export const transformLoanData = (data: any) => DataTransformers.transformLoan(d
 export const transformDashboardKPIData = (data: any) => DataTransformers.transformDashboardKPIs(data);
 export const transformSavingsData = (data: any) => DataTransformers.transformSavingsAccount(data);
 export const transformTransactionData = (data: any) => DataTransformers.transformTransaction(data);
+export const transformReportData = (data: any) => DataTransformers.transformReport(data);
+export const transformReportStatisticsData = (data: any) => DataTransformers.transformReportStatistics(data);
 
 export class DataTransformers {
   
@@ -162,6 +164,24 @@ export class DataTransformers {
       worstPerformingBranches: DataTransformers.transformBranchPerformance(
         (backendKPIs.topPerformers || backendKPIs.officerPerformance || []).slice().reverse().slice(0, 3)
       ),
+      
+      // Report statistics KPIs (using mock data since backend doesn't provide these yet)
+      totalReports: DataTransformers.transformStatisticValue(
+        backendKPIs.totalReports || 0,
+        calculateMockGrowth(backendKPIs.totalReports || 0)
+      ),
+      pendingReports: DataTransformers.transformStatisticValue(
+        backendKPIs.pendingReports || 0,
+        calculateMockGrowth(backendKPIs.pendingReports || 0)
+      ),
+      approvedReports: DataTransformers.transformStatisticValue(
+        backendKPIs.approvedReports || 0,
+        calculateMockGrowth(backendKPIs.approvedReports || 0)
+      ),
+      missedReports: DataTransformers.transformStatisticValue(
+        backendKPIs.missedReports || 0,
+        calculateMockGrowth(backendKPIs.missedReports || 0)
+      ),
     };
   }
 
@@ -257,6 +277,20 @@ export class DataTransformers {
     let data: any[] = [];
     let pagination: any = {};
 
+    // Handle null or undefined response
+    if (!backendResponse) {
+      console.warn('⚠️ Received null/undefined response, returning empty paginated response');
+      return {
+        data: [],
+        pagination: {
+          page: 1,
+          limit: 10,
+          total: 0,
+          totalPages: 0,
+        },
+      };
+    }
+
     if (backendResponse.success && backendResponse.data) {
       // Format: { success: true, data: { items: [], pagination: {} } }
       if (Array.isArray(backendResponse.data)) {
@@ -279,18 +313,40 @@ export class DataTransformers {
     } else if (Array.isArray(backendResponse)) {
       // Format: direct array
       data = backendResponse;
+    } else if (backendResponse.data) {
+      // Handle case where data is not an array but exists
+      console.warn('⚠️ Backend response data is not an array:', typeof backendResponse.data);
+      data = [];
+    } else {
+      // Fallback: try to extract any array from the response
+      console.warn('⚠️ Unexpected response format, attempting to extract data:', backendResponse);
+      const possibleArrays = Object.values(backendResponse).filter(Array.isArray);
+      data = possibleArrays.length > 0 ? possibleArrays[0] as any[] : [];
     }
 
-    // Transform each item
-    const transformedData = data.map(transformItem);
+    // Transform each item with error handling
+    const transformedData = data.map((item, index) => {
+      try {
+        return transformItem(item);
+      } catch (error) {
+        console.error(`Failed to transform item at index ${index}:`, error, item);
+        return null;
+      }
+    }).filter((item): item is T => item !== null);
 
     // Ensure pagination has default values - handle both meta and pagination formats
     const normalizedPagination = {
       page: pagination.page || pagination.currentPage || 1,
       limit: pagination.limit || pagination.pageSize || pagination.per_page || 10,
       total: pagination.total || pagination.totalItems || data.length,
-      totalPages: pagination.totalPages || pagination.total_pages || Math.ceil((pagination.total || data.length) / (pagination.limit || 10)),
+      totalPages: pagination.totalPages || pagination.total_pages || Math.ceil((pagination.total || data.length) / (pagination.limit || pagination.pageSize || pagination.per_page || 10)),
     };
+
+    console.log('✅ Transformed paginated response:', {
+      originalDataLength: data.length,
+      transformedDataLength: transformedData.length,
+      pagination: normalizedPagination
+    });
 
     return {
       data: transformedData,
@@ -540,8 +596,136 @@ export class DataTransformers {
   }
 
   /**
-   * Transform chart data from backend to frontend format
+   * Transform backend report data to frontend Report interface
+   * Updated to handle actual backend response structure from /reports endpoints
    */
+  static transformReport(backendReport: any): any {
+    console.log('🔄 Transforming report data:', backendReport);
+    
+    // Extract credit officer info from nested user object if present
+    const user = backendReport.user || backendReport.creditOfficer || {};
+    const creditOfficerName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 
+                             backendReport.creditOfficer || 
+                             'Unknown Officer';
+    
+    return {
+      id: backendReport.id?.toString() || backendReport.reportId?.toString() || '',
+      reportId: backendReport.reportId?.toString() || backendReport.id?.toString() || '',
+      creditOfficer: creditOfficerName,
+      creditOfficerId: user.id?.toString() || backendReport.creditOfficerId?.toString() || backendReport.userId?.toString() || '',
+      branch: user.branch || backendReport.branch || backendReport.branchName || '',
+      branchId: backendReport.branchId?.toString() || backendReport.branch_id?.toString() || '',
+      email: user.email || backendReport.email || '',
+      // Handle date and time fields
+      dateSent: backendReport.dateSent || backendReport.date_sent || backendReport.submittedAt || backendReport.createdAt || new Date().toISOString().split('T')[0],
+      timeSent: backendReport.timeSent || backendReport.time_sent || new Date().toISOString().split('T')[1]?.split('.')[0] || '00:00:00',
+      // Normalize report type
+      reportType: DataTransformers.normalizeReportType(backendReport.reportType || backendReport.type),
+      // Normalize status
+      status: DataTransformers.normalizeReportStatus(backendReport.status),
+      // Handle approval status
+      isApproved: backendReport.isApproved || backendReport.status === 'approved',
+      // Convert string numbers to numbers
+      loansDispursed: parseInt(backendReport.loansDispursed) || parseInt(backendReport.loansProcessed) || parseInt(backendReport.totalLoans) || 0,
+      loansValueDispursed: backendReport.loansValueDispursed || backendReport.loanValue || backendReport.totalLoanValue || '0',
+      savingsCollected: backendReport.savingsCollected || backendReport.savingsValue || backendReport.totalSavings || '0',
+      repaymentsCollected: parseInt(backendReport.repaymentsCollected) || parseInt(backendReport.repayments) || parseInt(backendReport.totalRepayments) || 0,
+      createdAt: backendReport.createdAt || backendReport.created_at || new Date().toISOString(),
+      updatedAt: backendReport.updatedAt || backendReport.updated_at || backendReport.createdAt || new Date().toISOString(),
+      // Additional fields for approval workflow
+      approvedBy: backendReport.approvedBy || backendReport.approved_by,
+      approvedAt: backendReport.approvedAt || backendReport.approved_at,
+      declineReason: backendReport.declineReason || backendReport.decline_reason || backendReport.comments,
+    };
+  }
+
+  /**
+   * Transform backend report statistics data to frontend ReportStatistics interface
+   */
+  static transformReportStatistics(backendStats: any): any {
+    console.log('🔄 Transforming report statistics:', backendStats);
+    
+    // Helper function to create statistic value with growth
+    const createStatValue = (count: number, growth: number = 0) => ({
+      count: count || 0,
+      growth: growth || 0
+    });
+    
+    return {
+      totalReports: createStatValue(
+        backendStats.totalReports || backendStats.total || 0,
+        backendStats.totalReportsGrowth || 0
+      ),
+      submittedReports: createStatValue(
+        backendStats.submittedReports || backendStats.submitted || 0,
+        backendStats.submittedReportsGrowth || 0
+      ),
+      pendingReports: createStatValue(
+        backendStats.pendingReports || backendStats.pending || 0,
+        backendStats.pendingReportsGrowth || 0
+      ),
+      approvedReports: createStatValue(
+        backendStats.approvedReports || backendStats.approved || 0,
+        backendStats.approvedReportsGrowth || 0
+      ),
+      missedReports: createStatValue(
+        backendStats.missedReports || backendStats.missed || backendStats.overdue || 0,
+        backendStats.missedReportsGrowth || 0
+      ),
+    };
+  }
+
+  /**
+   * Normalize report type to match frontend expectations
+   */
+  private static normalizeReportType(type: string): 'daily' | 'weekly' | 'monthly' {
+    if (!type) return 'daily';
+    
+    const normalizedType = type.toLowerCase();
+    
+    switch (normalizedType) {
+      case 'daily':
+      case 'day':
+        return 'daily';
+      case 'weekly':
+      case 'week':
+        return 'weekly';
+      case 'monthly':
+      case 'month':
+        return 'monthly';
+      default:
+        return 'daily';
+    }
+  }
+
+  /**
+   * Normalize report status to match frontend expectations
+   */
+  private static normalizeReportStatus(status: string): 'submitted' | 'pending' | 'approved' | 'declined' {
+    if (!status) return 'pending';
+    
+    const normalizedStatus = status.toLowerCase();
+    
+    switch (normalizedStatus) {
+      case 'submitted':
+      case 'submit':
+        return 'submitted';
+      case 'pending':
+      case 'review':
+      case 'under_review':
+        return 'pending';
+      case 'approved':
+      case 'approve':
+      case 'accepted':
+        return 'approved';
+      case 'declined':
+      case 'decline':
+      case 'rejected':
+        return 'declined';
+      default:
+        return 'pending';
+    }
+  }
   static transformChartData(backendData: any): any {
     // Handle different backend response formats
     if (Array.isArray(backendData)) {

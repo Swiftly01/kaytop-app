@@ -79,61 +79,73 @@ export interface BranchService {
 class BranchAPIService implements BranchService {
   async getAllBranches(params?: PaginationParams): Promise<PaginatedResponse<Branch>> {
     try {
-      const queryParams = new URLSearchParams();
+      // Use the working /users/branches endpoint to get branch names
+      const branchesResponse = await apiClient.get<string[]>(API_ENDPOINTS.USERS.BRANCHES);
       
-      if (params?.page) {
-        queryParams.append('page', params.page.toString());
+      if (branchesResponse.success && branchesResponse.data) {
+        // Get users for each branch to build complete branch data
+        const branchPromises = branchesResponse.data.map(async (branchName, index) => {
+          try {
+            // Get users for this branch to calculate statistics
+            const { userService } = await import('./users');
+            const branchUsers = await userService.getUsersByBranch(branchName, { page: 1, limit: 1000 });
+            
+            const usersData = branchUsers?.data || [];
+            const creditOfficers = usersData.filter(user => user.role === 'credit_officer');
+            const customers = usersData.filter(user => user.role === 'customer');
+            
+            // Create branch ID from name (consistent with frontend routing)
+            const branchId = branchName.toLowerCase().replace(/\s+/g, '-');
+            
+            // Get the first user's creation date as branch creation date, or use current date
+            const firstUser = usersData[0];
+            const dateCreated = firstUser?.createdAt || new Date().toISOString();
+            
+            return {
+              id: branchId,
+              name: branchName,
+              code: `BR${(index + 1).toString().padStart(3, '0')}`,
+              address: 'Address not available', // Backend doesn't provide address data
+              state: firstUser?.state || 'Lagos', // Use first user's state or default
+              region: firstUser?.state || 'Lagos State',
+              status: 'active' as const,
+              dateCreated,
+              createdAt: dateCreated,
+              updatedAt: new Date().toISOString(),
+            } as Branch;
+          } catch (error) {
+            console.warn(`Failed to get users for branch ${branchName}:`, error);
+            // Return basic branch info even if user fetch fails
+            const branchId = branchName.toLowerCase().replace(/\s+/g, '-');
+            return {
+              id: branchId,
+              name: branchName,
+              code: `BR${(index + 1).toString().padStart(3, '0')}`,
+              address: 'Address not available',
+              state: 'Lagos',
+              region: 'Lagos State',
+              status: 'active' as const,
+              dateCreated: new Date().toISOString(),
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            } as Branch;
+          }
+        });
+
+        const branches = await Promise.all(branchPromises);
+
+        return {
+          data: branches,
+          pagination: {
+            page: params?.page || 1,
+            limit: params?.limit || 10,
+            total: branches.length,
+            totalPages: Math.ceil(branches.length / (params?.limit || 10))
+          }
+        };
       }
-      
-      if (params?.limit) {
-        queryParams.append('limit', params.limit.toString());
-      }
 
-      // Note: This endpoint doesn't exist in the current API config
-      // We'll use the users/branches endpoint as a fallback
-      const url = `/admin/branches${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-      
-      try {
-        const response = await apiClient.get<PaginatedResponse<Branch>>(url);
-
-        if (response.success && response.data) {
-          return response.data;
-        }
-
-        throw new Error(response.message || 'Failed to fetch branches');
-      } catch (error) {
-        // Fallback: Use users/branches endpoint
-        console.warn('Branch endpoint not available, using fallback');
-        const branchesResponse = await apiClient.get<string[]>(API_ENDPOINTS.USERS.BRANCHES);
-        
-        if (branchesResponse.success && branchesResponse.data) {
-          // Transform string array to Branch objects
-          const branches: Branch[] = branchesResponse.data.map((branchName, index) => ({
-            id: (index + 1).toString(),
-            name: branchName,
-            code: `BR${(index + 1).toString().padStart(3, '0')}`,
-            address: 'Address not available',
-            state: 'Lagos', // Default state
-            region: 'Lagos State',
-            status: 'active' as const,
-            dateCreated: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          }));
-
-          return {
-            data: branches,
-            pagination: {
-              page: params?.page || 1,
-              limit: params?.limit || 10,
-              total: branches.length,
-              totalPages: Math.ceil(branches.length / (params?.limit || 10))
-            }
-          };
-        }
-
-        throw new Error('Failed to fetch branches from fallback endpoint');
-      }
+      throw new Error('Failed to fetch branches from backend');
     } catch (error) {
       console.error('Branches fetch error:', error);
       throw error;
@@ -142,110 +154,126 @@ class BranchAPIService implements BranchService {
 
   async getBranchById(id: string): Promise<BranchDetails> {
     try {
-      // Try to get branch details from a dedicated endpoint
-      try {
-        const response = await apiClient.get<BranchDetails>(`/admin/branches/${id}`);
-
-        if (response.success && response.data) {
-          return response.data;
-        }
-
-        throw new Error(response.message || 'Failed to fetch branch details');
-      } catch (error) {
-        // Fallback: Create branch details from available data
-        console.warn('Branch details endpoint not available, creating from available data');
-        
-        try {
-          // Get users by branch to calculate statistics
-          const { userService } = await import('./users');
-          
-          // Convert branch ID back to branch name for user lookup
-          // If ID is name-based (e.g., "lagos-branch"), convert to proper name
-          // If ID is numeric, try to get branch name from branches list
-          let branchName = id;
-          
-          if (id.includes('-')) {
-            // Convert kebab-case back to proper name
-            branchName = id.split('-').map(word => 
-              word.charAt(0).toUpperCase() + word.slice(1)
-            ).join(' ');
-          } else if (/^\d+$/.test(id)) {
-            // Numeric ID - need to get branch name from branches list
-            try {
-              const branchesResponse = await apiClient.get<string[]>(API_ENDPOINTS.USERS.BRANCHES);
-              if (branchesResponse.success && branchesResponse.data) {
-                const branchIndex = parseInt(id) - 1;
-                if (branchIndex >= 0 && branchIndex < branchesResponse.data.length) {
-                  branchName = branchesResponse.data[branchIndex];
-                }
-              }
-            } catch (branchError) {
-              console.warn('Could not fetch branch names for numeric ID lookup');
-            }
-          }
-          
-          const branchUsers = await userService.getUsersByBranch(branchName, { page: 1, limit: 1000 });
-          
-          // Ensure branchUsers.data exists and is an array before filtering
-          const usersData = branchUsers?.data || [];
-          const creditOfficers = usersData.filter(user => user.role === 'credit_officer');
-          const customers = usersData.filter(user => user.role === 'customer');
-          
-          // Create mock branch details
-          const branchDetails: BranchDetails = {
-            id,
-            name: branchName,
-            code: `BR${id.toString().padStart(3, '0')}`,
-            address: 'Address not available',
-            state: 'Lagos',
-            region: 'Lagos State',
-            status: 'active',
-            dateCreated: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            statistics: {
-              totalCreditOfficers: creditOfficers.length,
-              totalCustomers: customers.length,
-              activeLoans: Math.floor(customers.length * 0.7), // Estimate 70% have active loans
-              totalDisbursed: customers.length * 50000, // Estimate ₦50,000 per customer
-              creditOfficersGrowth: 5.2,
-              customersGrowth: 12.8,
-              activeLoansGrowth: -2.1,
-              totalDisbursedGrowth: 8.5,
-            }
-          };
-
-          return branchDetails;
-        } catch (fallbackError) {
-          console.error('Fallback branch details creation failed:', fallbackError);
-          
-          // Final fallback: Create minimal branch details without user data
-          const branchDetails: BranchDetails = {
-            id,
-            name: `Branch ${id}`,
-            code: `BR${id.toString().padStart(3, '0')}`,
-            address: 'Address not available',
-            state: 'Lagos',
-            region: 'Lagos State',
-            status: 'active',
-            dateCreated: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            statistics: {
-              totalCreditOfficers: 0,
-              totalCustomers: 0,
-              activeLoans: 0,
-              totalDisbursed: 0,
-              creditOfficersGrowth: 0,
-              customersGrowth: 0,
-              activeLoansGrowth: 0,
-              totalDisbursedGrowth: 0,
-            }
-          };
-
-          return branchDetails;
-        }
+      // Convert branch ID back to branch name for user lookup
+      let branchName = id;
+      
+      if (id.includes('-')) {
+        // Convert kebab-case back to proper name
+        branchName = id.split('-').map(word => 
+          word.charAt(0).toUpperCase() + word.slice(1)
+        ).join(' ');
       }
+      
+      // Get users by branch to calculate real statistics
+      const { userService } = await import('./users');
+      const branchUsers = await userService.getUsersByBranch(branchName, { page: 1, limit: 1000 });
+      
+      // Ensure branchUsers.data exists and is an array before filtering
+      const usersData = branchUsers?.data || [];
+      const creditOfficers = usersData.filter(user => user.role === 'credit_officer');
+      const customers = usersData.filter(user => user.role === 'customer');
+      
+      // Get first user for branch metadata
+      const firstUser = usersData[0];
+      const dateCreated = firstUser?.createdAt || new Date().toISOString();
+      
+      // Calculate real statistics from actual user data
+      const totalCreditOfficers = creditOfficers.length;
+      const totalCustomers = customers.length;
+      
+      // Get dashboard KPIs for growth calculations
+      let growthMetrics = {
+        creditOfficersGrowth: 0,
+        customersGrowth: 0,
+        activeLoansGrowth: 0,
+        totalDisbursedGrowth: 0,
+      };
+      
+      try {
+        const { dashboardService } = await import('./dashboard');
+        const dashboardData = await dashboardService.getKPIs();
+        
+        // Extract growth percentages from dashboard data
+        if (dashboardData.creditOfficers?.change) {
+          growthMetrics.creditOfficersGrowth = dashboardData.creditOfficers.change;
+        }
+        if (dashboardData.customers?.change) {
+          growthMetrics.customersGrowth = dashboardData.customers.change;
+        }
+        if (dashboardData.activeLoans?.change) {
+          growthMetrics.activeLoansGrowth = dashboardData.activeLoans.change;
+        }
+        if (dashboardData.loanAmounts?.change) {
+          growthMetrics.totalDisbursedGrowth = dashboardData.loanAmounts.change;
+        }
+      } catch (error) {
+        console.warn('Could not fetch dashboard KPIs for growth metrics:', error);
+      }
+      
+      // Calculate active loans and disbursed amounts from actual loan data
+      let activeLoans = 0;
+      let totalDisbursed = 0;
+      
+      try {
+        // Get all loans from the backend
+        const loansResponse = await apiClient.get<any>(API_ENDPOINTS.LOANS.ALL);
+        
+        let allLoans = [];
+        if (loansResponse.success && loansResponse.data) {
+          allLoans = Array.isArray(loansResponse.data) ? loansResponse.data : [];
+        } else if (Array.isArray(loansResponse)) {
+          allLoans = loansResponse;
+        }
+        
+        // Get customer IDs from this branch
+        const branchCustomerIds = customers.map(customer => customer.id?.toString());
+        
+        // Filter loans for customers in this branch
+        const branchLoans = allLoans.filter(loan => 
+          branchCustomerIds.includes(loan.customerId?.toString()) ||
+          branchCustomerIds.includes(loan.userId?.toString())
+        );
+        
+        // Count active loans (approved, disbursed, or active status)
+        activeLoans = branchLoans.filter(loan => 
+          loan.status === 'approved' || 
+          loan.status === 'disbursed' || 
+          loan.status === 'active'
+        ).length;
+        
+        // Calculate total disbursed amount
+        totalDisbursed = branchLoans
+          .filter(loan => loan.status === 'disbursed' || loan.status === 'active')
+          .reduce((sum, loan) => sum + (parseFloat(loan.amount) || 0), 0);
+          
+      } catch (loanError) {
+        console.warn('Could not fetch loan data for branch statistics:', loanError);
+        // If loan service fails, leave as 0 instead of estimating
+        activeLoans = 0;
+        totalDisbursed = 0;
+      }
+      
+      const branchDetails: BranchDetails = {
+        id,
+        name: branchName,
+        code: `BR${id.toString().padStart(3, '0')}`,
+        address: 'Address not available', // User interface doesn't have address property
+        state: firstUser?.state || 'Lagos',
+        region: firstUser?.state || 'Lagos State',
+        status: 'active',
+        dateCreated,
+        createdAt: dateCreated,
+        updatedAt: new Date().toISOString(),
+        statistics: {
+          totalCreditOfficers,
+          totalCustomers,
+          activeLoans,
+          totalDisbursed,
+          ...growthMetrics,
+        }
+      };
+
+      return branchDetails;
     } catch (error) {
       console.error('Branch details fetch error:', error);
       throw error;

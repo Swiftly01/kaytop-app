@@ -17,6 +17,13 @@ import { DashboardFiltersModal, DashboardFilters } from '@/app/_components/ui/Da
 import { dashboardService } from '@/lib/services/dashboard';
 import type { DashboardKPIs, DashboardParams } from '@/lib/api/types';
 
+import {
+  useDisbursementsQuery,
+  useRecollectionsQuery,
+  useSavingsQuery,
+  useMissedPaymentsQuery
+} from './queries/useSystemAdminQueries';
+
 type TabValue = 'disbursements' | 're-collections' | 'savings' | 'missed-payments';
 
 export default function SystemAdminDashboard() {
@@ -33,17 +40,25 @@ export default function SystemAdminDashboard() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [showFiltersModal, setShowFiltersModal] = useState(false);
   const [activeFilters, setActiveFilters] = useState<DashboardFilters | null>(null);
-  
+  const [isClient, setIsClient] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
   // Dashboard data state
   const [dashboardData, setDashboardData] = useState<DashboardKPIs | null>(null);
   const [dashboardError, setDashboardError] = useState<string | null>(null);
+
+  // Ensure client-side rendering for interactive elements
+  useEffect(() => {
+    setIsClient(true);
+    setMounted(true);
+  }, []);
 
   // Function to fetch dashboard data
   const fetchDashboardData = async (params?: DashboardParams) => {
     try {
       setIsLoading(true);
       setDashboardError(null);
-      
+
       const data = await dashboardService.getKPIs(params);
       setDashboardData(data);
     } catch (error) {
@@ -63,17 +78,17 @@ export default function SystemAdminDashboard() {
   // Handler for date range changes
   const handleDateRangeChange = (range: DateRange | undefined) => {
     setDateRange(range);
-    
+
     const params: DashboardParams = {};
-    
+
     if (range?.from && range?.to) {
       params.timeFilter = 'custom';
       params.startDate = range.from.toISOString().split('T')[0];
       params.endDate = range.to.toISOString().split('T')[0];
     }
-    
+
     fetchDashboardData(params);
-    
+
     if (range?.from && range?.to) {
       success('Date range filter applied successfully!');
     }
@@ -82,9 +97,9 @@ export default function SystemAdminDashboard() {
   // Handler for time period changes
   const handleTimePeriodChange = (period: TimePeriod) => {
     setTimePeriod(period);
-    
+
     const params: DashboardParams = {};
-    
+
     if (period && period !== 'custom') {
       // Map period to API timeFilter values
       const timeFilterMap: Record<string, DashboardParams['timeFilter']> = {
@@ -92,15 +107,15 @@ export default function SystemAdminDashboard() {
         'last_7_days': 'last_7_days',
         'last_30_days': 'last_30_days',
       };
-      
+
       params.timeFilter = timeFilterMap[period];
     }
-    
+
     // Clear date range when using predefined periods
     if (period !== 'custom') {
       setDateRange(undefined);
     }
-    
+
     fetchDashboardData(params);
   };
 
@@ -113,13 +128,13 @@ export default function SystemAdminDashboard() {
   const handleApplyFilters = (filters: DashboardFilters) => {
     setActiveFilters(filters);
     setCurrentPage(1); // Reset to first page
-    
-    const filterCount = 
-      filters.branches.length + 
-      filters.creditOfficers.length + 
-      filters.loanStatus.length + 
+
+    const filterCount =
+      filters.branches.length +
+      filters.creditOfficers.length +
+      filters.loanStatus.length +
       (filters.amountRange.min > 0 || filters.amountRange.max < 1000000 ? 1 : 0);
-    
+
     success(`${filterCount} filter${filterCount > 1 ? 's' : ''} applied successfully!`);
   };
 
@@ -133,9 +148,8 @@ export default function SystemAdminDashboard() {
   const handleTabChange = (tab: TabValue) => {
     setActiveTab(tab);
     setCurrentPage(1); // Reset to first page when changing tabs
+    setSearchQuery(''); // Clear search when changing tabs
     console.log('Active tab changed to:', tab);
-    // TODO: Fetch data for the selected tab from backend API
-    // Example: fetchTabData(tab)
   };
 
   // Handler for page changes
@@ -152,30 +166,30 @@ export default function SystemAdminDashboard() {
   // Bulk action handlers
   const handleBulkDelete = () => {
     if (selectedRows.length === 0) return;
-    
+
     console.log('Bulk deleting:', selectedRows);
     // TODO: Implement bulk delete API call
-    
+
     success(`${selectedRows.length} item${selectedRows.length > 1 ? 's' : ''} deleted successfully!`);
     setSelectedRows([]);
   };
 
   const handleBulkExport = () => {
     if (selectedRows.length === 0) return;
-    
+
     console.log('Bulk exporting:', selectedRows);
     // TODO: Implement bulk export functionality
-    
+
     success(`Exporting ${selectedRows.length} item${selectedRows.length > 1 ? 's' : ''}...`);
   };
 
   // Transform dashboard data for UI components
   const getTopCardSections = () => {
     if (!dashboardData) return [];
-    
+
     // Debug: Log the dashboard data structure
     console.log('🔍 Dashboard data structure:', JSON.stringify(dashboardData, null, 2));
-    
+
     // Helper function to safely extract values from nested structure
     const extractValue = (data: any) => {
       // Handle nested structure: data.value.value or direct structure: data.value
@@ -206,7 +220,7 @@ export default function SystemAdminDashboard() {
         isCurrency: false,
       };
     };
-    
+
     return [
       {
         label: "All Branches",
@@ -229,7 +243,7 @@ export default function SystemAdminDashboard() {
 
   const getMiddleCardSections = () => {
     if (!dashboardData) return [];
-    
+
     // Helper function to safely extract values from nested structure
     const extractValue = (data: any) => {
       // Handle nested structure: data.value.value or direct structure: data.value
@@ -260,7 +274,7 @@ export default function SystemAdminDashboard() {
         isCurrency: false,
       };
     };
-    
+
     return [
       {
         label: "Loan Amounts",
@@ -277,19 +291,11 @@ export default function SystemAdminDashboard() {
     ];
   };
 
-  // State for API-fetched tab data
-  const [tabData, setTabData] = useState<Record<string, any[]>>({
-    disbursements: [],
-    're-collections': [],
-    savings: [],
-    'missed-payments': [],
-  });
-  const [tabDataLoading, setTabDataLoading] = useState<Record<string, boolean>>({
-    disbursements: false,
-    're-collections': false,
-    savings: false,
-    'missed-payments': false,
-  });
+  // Real backend data queries
+  const { data: disbursementsData, isLoading: disbursementsLoading, error: disbursementsError } = useDisbursementsQuery(currentPage, itemsPerPage);
+  const { data: recollectionsData, isLoading: recollectionsLoading, error: recollectionsError } = useRecollectionsQuery(currentPage, itemsPerPage);
+  const { data: savingsData, isLoading: savingsLoading, error: savingsError } = useSavingsQuery(currentPage, itemsPerPage);
+  const { data: missedPaymentsData, isLoading: missedPaymentsLoading, error: missedPaymentsError } = useMissedPaymentsQuery(currentPage, itemsPerPage);
 
   // Handler for sorting
   const handleSort = (column: string) => {
@@ -303,39 +309,83 @@ export default function SystemAdminDashboard() {
     }
   };
 
-  // Get current tab data with search filtering
-  const currentTabData = tabData[activeTab];
-  
-  // Apply search filter
+  // Get current tab data from real backend queries
+  const getCurrentTabData = () => {
+    switch (activeTab) {
+      case 'disbursements':
+        return {
+          data: disbursementsData?.data || [],
+          loading: disbursementsLoading,
+          error: disbursementsError,
+          pagination: disbursementsData?.pagination
+        };
+      case 're-collections':
+        return {
+          data: recollectionsData?.data || [],
+          loading: recollectionsLoading,
+          error: recollectionsError,
+          pagination: recollectionsData?.pagination
+        };
+      case 'savings':
+        return {
+          data: savingsData?.data || [],
+          loading: savingsLoading,
+          error: savingsError,
+          pagination: savingsData?.pagination
+        };
+      case 'missed-payments':
+        return {
+          data: missedPaymentsData?.data || [],
+          loading: missedPaymentsLoading,
+          error: missedPaymentsError,
+          pagination: missedPaymentsData?.pagination
+        };
+      default:
+        return {
+          data: [],
+          loading: false,
+          error: null,
+          pagination: null
+        };
+    }
+  };
+
+  const currentTabInfo = getCurrentTabData();
+  const currentTabData = currentTabInfo.data;
+  const tabDataLoading = currentTabInfo.loading;
+  const tabDataError = currentTabInfo.error;
+
+  // Apply search filter to current tab data
   let filteredData = searchQuery
     ? currentTabData.filter(item => {
-        const searchLower = searchQuery.toLowerCase();
-        return (
-          item.loanId.toLowerCase().includes(searchLower) ||
-          item.name.toLowerCase().includes(searchLower) ||
-          ('status' in item && item.status.toLowerCase().includes(searchLower))
-        );
-      })
+      const searchLower = searchQuery.toLowerCase();
+      return (
+        ('loanId' in item && item.loanId && item.loanId.toLowerCase().includes(searchLower)) ||
+        ('accountId' in item && item.accountId && item.accountId.toLowerCase().includes(searchLower)) ||
+        ('name' in item && item.name && item.name.toLowerCase().includes(searchLower)) ||
+        ('status' in item && item.status && item.status.toLowerCase().includes(searchLower))
+      );
+    })
     : currentTabData;
 
   // Apply advanced filters
   if (activeFilters) {
     filteredData = filteredData.filter(item => {
       // Filter by loan status
-      if (activeFilters.loanStatus.length > 0 && 'status' in item) {
+      if (activeFilters.loanStatus.length > 0 && item.status) {
         if (!activeFilters.loanStatus.includes(item.status)) {
           return false;
         }
       }
 
       // Filter by amount range
-      const amountValue = parseInt(item.amount.replace(/[^0-9]/g, ''));
-      if (amountValue < activeFilters.amountRange.min || amountValue > activeFilters.amountRange.max) {
-        return false;
+      if (item.amount) {
+        const amountValue = parseInt(item.amount.replace(/[^0-9]/g, ''));
+        if (amountValue < activeFilters.amountRange.min || amountValue > activeFilters.amountRange.max) {
+          return false;
+        }
       }
 
-      // Note: Branch and Credit Officer filters would require additional data
-      // For now, we're just filtering by status and amount
       return true;
     });
   }
@@ -343,38 +393,43 @@ export default function SystemAdminDashboard() {
   // Apply sorting
   const sortedData = sortColumn
     ? [...filteredData].sort((a, b) => {
-        let aValue: any = a[sortColumn as keyof typeof a];
-        let bValue: any = b[sortColumn as keyof typeof b];
+      let aValue: any = a[sortColumn as keyof typeof a];
+      let bValue: any = b[sortColumn as keyof typeof b];
 
-        // Handle different data types
-        if (sortColumn === 'loanId') {
-          aValue = parseInt(aValue);
-          bValue = parseInt(bValue);
-        } else if (sortColumn === 'amount') {
-          // Extract numeric value from amount string (e.g., "NGN87,000" -> 87000)
-          aValue = parseInt(aValue.replace(/[^0-9]/g, ''));
-          bValue = parseInt(bValue.replace(/[^0-9]/g, ''));
-        } else if (sortColumn === 'interest') {
-          // Extract numeric value from percentage (e.g., "7.25%" -> 7.25)
-          aValue = parseFloat(aValue?.replace('%', '') || '0');
-          bValue = parseFloat(bValue?.replace('%', '') || '0');
-        } else if (sortColumn === 'dateDisbursed') {
-          aValue = new Date(aValue).getTime();
-          bValue = new Date(bValue).getTime();
-        }
+      // Handle different data types
+      if (sortColumn === 'loanId' || sortColumn === 'accountId') {
+        aValue = parseInt(aValue) || 0;
+        bValue = parseInt(bValue) || 0;
+      } else if (sortColumn === 'amount') {
+        // Extract numeric value from amount string (e.g., "NGN87,000" -> 87000)
+        aValue = parseInt(aValue?.replace(/[^0-9]/g, '') || '0');
+        bValue = parseInt(bValue?.replace(/[^0-9]/g, '') || '0');
+      } else if (sortColumn === 'interest') {
+        // Extract numeric value from percentage (e.g., "7.25%" -> 7.25)
+        aValue = parseFloat(aValue?.replace('%', '') || '0');
+        bValue = parseFloat(bValue?.replace('%', '') || '0');
+      } else if (sortColumn === 'dateDisbursed' || sortColumn === 'dateCollected' || sortColumn === 'dateCreated' || sortColumn === 'dueDate') {
+        aValue = new Date(aValue || 0).getTime();
+        bValue = new Date(bValue || 0).getTime();
+      } else if (sortColumn === 'daysMissed') {
+        aValue = parseInt(aValue) || 0;
+        bValue = parseInt(bValue) || 0;
+      }
 
-        // Compare values
-        if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
-        if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
-        return 0;
-      })
+      // Compare values
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    })
     : filteredData;
 
-  // Apply pagination
-  const totalPages = Math.ceil(sortedData.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedData = sortedData.slice(startIndex, endIndex);
+  // For backend pagination, we use the data as-is since pagination is handled by the API
+  // The filteredData here is just for client-side search/filter, but pagination comes from backend
+  const totalPages = currentTabInfo.pagination?.totalPages || Math.ceil(sortedData.length / itemsPerPage);
+  const totalItems = currentTabInfo.pagination?.total || sortedData.length;
+
+  // Use backend paginated data if available, otherwise use client-side pagination
+  const paginatedData = currentTabInfo.pagination ? currentTabData : sortedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
     <div className="drawer-content flex flex-col min-h-screen">
@@ -390,7 +445,7 @@ export default function SystemAdminDashboard() {
 
           {/* Filter Controls - Position: y:198px */}
           <div style={{ marginBottom: '56px' }}>
-            <FilterControls 
+            <FilterControls
               selectedPeriod={timePeriod}
               onDateRangeChange={handleDateRangeChange}
               onPeriodChange={handleTimePeriodChange}
@@ -518,7 +573,7 @@ export default function SystemAdminDashboard() {
 
           {/* Tab Navigation */}
           <div className="mt-8">
-            <TabNavigation 
+            <TabNavigation
               activeTab={activeTab}
               onTabChange={handleTabChange}
             />
@@ -527,49 +582,61 @@ export default function SystemAdminDashboard() {
           {/* Search Bar */}
           <div className="mt-6 mb-4">
             <div className="relative max-w-md">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setCurrentPage(1); // Reset to first page on search
-                }}
-                placeholder="Search by Loan ID, Name, or Status..."
-                className="w-full px-4 py-2 pl-10 pr-10 text-sm border border-[#D0D5DD] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:border-transparent"
-                aria-label="Search loans"
-              />
-              <svg
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#667085]"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-              {searchQuery && (
-                <button
-                  onClick={() => {
-                    setSearchQuery('');
-                    setCurrentPage(1);
-                  }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#667085] hover:text-[#344054] transition-colors"
-                  aria-label="Clear search"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              {mounted ? (
+                <>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setCurrentPage(1); // Reset to first page on search
+                    }}
+                    placeholder="Search by Loan ID, Name, or Status..."
+                    className="w-full px-4 py-2 pl-10 pr-10 text-sm border border-[#D0D5DD] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:border-transparent"
+                    aria-label="Search loans"
+                    suppressHydrationWarning
+                  />
+                  <svg
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#667085]"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
-                </button>
+                  {searchQuery && (
+                    <button
+                      onClick={() => {
+                        setSearchQuery('');
+                        setCurrentPage(1);
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#667085] hover:text-[#344054] transition-colors"
+                      aria-label="Clear search"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </>
+              ) : (
+                <div className="w-full px-4 py-2 pl-10 pr-10 text-sm border border-[#D0D5DD] rounded-lg bg-gray-50 h-10 flex items-center">
+                  <svg
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#667085]"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <span className="text-[#98A2B3] ml-7">Loading search...</span>
+                </div>
               )}
             </div>
           </div>
 
           {/* Active Filters Chips */}
-          {activeFilters && (
+          {mounted && activeFilters && (
             <div className="mb-4 flex flex-wrap items-center gap-2">
               <span className="text-sm text-[#475467]">Active filters:</span>
               {activeFilters.branches.map((branch) => (
@@ -624,7 +691,7 @@ export default function SystemAdminDashboard() {
           )}
 
           {/* Bulk Actions Bar */}
-          {selectedRows.length > 0 && (
+          {mounted && selectedRows.length > 0 && (
             <div className="mt-4 flex items-center justify-between p-4 bg-[#F4F3FF] border border-[#7F56D9] rounded-lg">
               <span className="text-sm font-medium text-[#5925DC]">
                 {selectedRows.length} item{selectedRows.length > 1 ? 's' : ''} selected
@@ -647,15 +714,30 @@ export default function SystemAdminDashboard() {
           )}
 
           {/* Data Table - Card 5 */}
-          <section 
+          <section
             className="mt-6"
             role="tabpanel"
             id={`${activeTab}-panel`}
             aria-labelledby={`${activeTab}-tab`}
           >
-            {isLoading ? (
+            {tabDataLoading ? (
               <TableSkeleton rows={itemsPerPage} />
-            ) : filteredData.length === 0 ? (
+            ) : tabDataError ? (
+              <div className="bg-white rounded-lg border border-[#EAECF0] p-8">
+                <div className="text-center">
+                  <p className="text-[#E43535] mb-2">Failed to load {activeTab.replace('-', ' ')} data</p>
+                  <p className="text-sm text-[#667085] mb-4">
+                    {tabDataError instanceof Error ? tabDataError.message : 'An error occurred while fetching data'}
+                  </p>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="text-[#7F56D9] hover:text-[#6941C6] font-medium"
+                  >
+                    Try again
+                  </button>
+                </div>
+              </div>
+            ) : paginatedData.length === 0 ? (
               <div className="bg-white rounded-lg border border-[#EAECF0] p-8">
                 <EmptyState
                   title="No results found"
@@ -665,35 +747,35 @@ export default function SystemAdminDashboard() {
                       : `No ${activeTab.replace('-', ' ')} data available at this time.`
                   }
                   action={
-                    searchQuery
+                    mounted && searchQuery
                       ? {
-                          label: 'Clear search',
-                          onClick: () => setSearchQuery(''),
-                        }
+                        label: 'Clear search',
+                        onClick: () => setSearchQuery(''),
+                      }
                       : undefined
                   }
                 />
               </div>
             ) : (
               <>
-                <Table 
-                  data={paginatedData} 
+                <Table
+                  data={paginatedData}
                   tableType={activeTab}
                   sortColumn={sortColumn}
                   sortDirection={sortDirection}
                   onSort={handleSort}
                   onSelectionChange={handleSelectionChange}
                 />
-                
+
                 {/* Pagination Controls */}
                 <div className="mt-4 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-[#475467]">
-                      Showing {sortedData.length > 0 ? startIndex + 1 : 0}-{Math.min(endIndex, sortedData.length)} of {sortedData.length} results
+                      Showing {totalItems > 0 ? ((currentPage - 1) * itemsPerPage) + 1 : 0}-{Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} results
                       {searchQuery && <span className="text-[#7F56D9]"> (filtered)</span>}
                     </span>
                   </div>
-                  
+
                   {totalPages > 1 && (
                     <Pagination
                       totalPages={totalPages}
@@ -717,6 +799,8 @@ export default function SystemAdminDashboard() {
         onClose={() => setShowFiltersModal(false)}
         onApply={handleApplyFilters}
       />
+
+
     </div>
   );
 }

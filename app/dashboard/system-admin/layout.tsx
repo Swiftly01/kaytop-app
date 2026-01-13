@@ -3,7 +3,7 @@ import React from "react";
 
 import SystemAdminSidebar from "@/app/_components/layouts/dashboard/SystemAdminSidebar";
 import Navbar from "@/app/_components/layouts/dashboard/Navbar";
-import { SystemAdminGuard } from "@/app/components/AuthGuard";
+import QueryProvider from "@/app/_components/ui/QueryProvider";
 
 export const metadata: Metadata = {
   title: {
@@ -24,7 +24,7 @@ export default function SystemAdminLayout({
 }) {
   return (
     <div className="bg-[#F4F6FA] min-h-screen">
-      <SystemAdminGuard>
+      <QueryProvider>
         <Navbar />
         <div className="drawer lg:drawer-open" style={{ paddingTop: '70px' }}>
           <input
@@ -36,7 +36,7 @@ export default function SystemAdminLayout({
           <SystemAdminSidebar />
           {children}
         </div>
-      </SystemAdminGuard>
+      </QueryProvider>
     </div>
   );
 }

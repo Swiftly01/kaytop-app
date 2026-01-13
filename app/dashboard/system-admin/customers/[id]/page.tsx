@@ -152,7 +152,7 @@ export default function CustomerDetailsPage({ params }: PageProps) {
         endDate: '',
         paymentSchedule: []
       },
-      transactions: savings?.transactions.map(transaction => ({
+      transactions: savings?.transactions?.map(transaction => ({
         id: String(transaction.id), // Ensure ID is string
         transactionId: String(transaction.id).slice(-8).toUpperCase(),
         type: transaction.type === 'deposit' ? 'Savings' : 'Repayment',

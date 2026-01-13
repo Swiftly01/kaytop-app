@@ -23,46 +23,7 @@ interface BranchFormData {
   assignUsers: string[];
 }
 
-// Transform user data to branch records
-const transformUsersToBranchData = (users: User[]): BranchRecord[] => {
-  // Group users by branch
-  const branchGroups = users.reduce((acc, user) => {
-    if (!user.branch) return acc;
-    
-    if (!acc[user.branch]) {
-      acc[user.branch] = {
-        creditOfficers: 0,
-        customers: 0,
-        users: []
-      };
-    }
-    
-    acc[user.branch].users.push(user);
-    
-    if (user.role === 'credit_officer') {
-      acc[user.branch].creditOfficers++;
-    } else if (user.role === 'customer') {
-      acc[user.branch].customers++;
-    }
-    
-    return acc;
-  }, {} as Record<string, { creditOfficers: number; customers: number; users: User[] }>);
-
-  // Convert to branch records
-  return Object.entries(branchGroups).map(([branchName, data], index) => {
-    // Create a consistent branch ID based on branch name
-    const branchId = branchName.replace(/\s+/g, '-').toLowerCase();
-    
-    return {
-      id: branchId, // Use branch name-based ID for consistency
-      branchId: `ID: BR-${(index + 1).toString().padStart(3, '0')}`, // Display ID
-      name: branchName,
-      cos: data.creditOfficers.toString(),
-      customers: data.customers,
-      dateCreated: data.users[0]?.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0]
-    };
-  });
-};
+import { branchService } from '@/lib/services/branches';
 
 export default function BranchesPage() {
   const router = useRouter();
@@ -99,16 +60,42 @@ export default function BranchesPage() {
       setIsLoading(true);
       setApiError(null);
 
-      // Fetch all users to group by branch
-      const usersResponse = await userService.getAllUsers({ limit: 1000 });
-      const branchRecords = transformUsersToBranchData(usersResponse.data);
-      setBranchData(branchRecords);
+      // Fetch branches directly from branch service (no more user transformation)
+      const branchesResponse = await branchService.getAllBranches({ limit: 1000 });
+      const branchRecords = branchesResponse.data.map(branch => ({
+        id: branch.id,
+        branchId: `ID: ${branch.code}`,
+        name: branch.name,
+        cos: '0', // Will be populated from user data
+        customers: 0, // Will be populated from user data
+        dateCreated: branch.dateCreated.split('T')[0]
+      }));
+
+      // Get user counts for each branch
+      const branchRecordsWithCounts = await Promise.all(
+        branchRecords.map(async (record) => {
+          try {
+            const branchUsers = await userService.getUsersByBranch(record.name, { page: 1, limit: 1000 });
+            const usersData = branchUsers?.data || [];
+            const creditOfficers = usersData.filter(user => user.role === 'credit_officer');
+            const customers = usersData.filter(user => user.role === 'customer');
+            
+            return {
+              ...record,
+              cos: creditOfficers.length.toString(),
+              customers: customers.length,
+            };
+          } catch (error) {
+            console.warn(`Failed to get user counts for branch ${record.name}:`, error);
+            return record; // Return original record if user fetch fails
+          }
+        })
+      );
+
+      setBranchData(branchRecordsWithCounts);
 
       // Fetch dashboard statistics
       const dashboardData = await dashboardService.getKPIs();
-      
-      // Debug: Log the dashboard data structure
-      console.log('🔍 Dashboard KPI data:', JSON.stringify(dashboardData, null, 2));
       
       // Helper function to safely extract values
       const extractValue = (obj: any, fallback: any = 0) => {
@@ -120,41 +107,35 @@ export default function BranchesPage() {
       const stats: StatSection[] = [
         {
           label: 'All Branches',
-          value: extractValue(dashboardData.branches.value, 0),
-          change: extractValue(dashboardData.branches.change, 0),
-          changeLabel: extractValue(dashboardData.branches.changeLabel, 'No change'),
-          isCurrency: extractValue(dashboardData.branches.isCurrency, false),
+          value: extractValue(dashboardData.branches?.value, branchRecordsWithCounts.length),
+          change: extractValue(dashboardData.branches?.change, 0),
+          changeLabel: extractValue(dashboardData.branches?.changeLabel, 'No change'),
+          isCurrency: extractValue(dashboardData.branches?.isCurrency, false),
         },
         {
           label: "All CO's",
-          value: extractValue(dashboardData.creditOfficers.value, 0),
-          change: extractValue(dashboardData.creditOfficers.change, 0),
-          changeLabel: extractValue(dashboardData.creditOfficers.changeLabel, 'No change'),
-          isCurrency: extractValue(dashboardData.creditOfficers.isCurrency, false),
+          value: extractValue(dashboardData.creditOfficers?.value, 0),
+          change: extractValue(dashboardData.creditOfficers?.change, 0),
+          changeLabel: extractValue(dashboardData.creditOfficers?.changeLabel, 'No change'),
+          isCurrency: extractValue(dashboardData.creditOfficers?.isCurrency, false),
         },
         {
           label: 'All Customers',
-          value: extractValue(dashboardData.customers.value, 0),
-          change: extractValue(dashboardData.customers.change, 0),
-          changeLabel: extractValue(dashboardData.customers.changeLabel, 'No change'),
-          isCurrency: extractValue(dashboardData.customers.isCurrency, false),
+          value: extractValue(dashboardData.customers?.value, 0),
+          change: extractValue(dashboardData.customers?.change, 0),
+          changeLabel: extractValue(dashboardData.customers?.changeLabel, 'No change'),
+          isCurrency: extractValue(dashboardData.customers?.isCurrency, false),
         },
         {
           label: 'Active Loans',
-          value: extractValue(dashboardData.activeLoans.value, 0),
-          change: extractValue(dashboardData.activeLoans.change, 0),
-          changeLabel: extractValue(dashboardData.activeLoans.changeLabel, 'No change'),
-          isCurrency: extractValue(dashboardData.activeLoans.isCurrency, false),
+          value: extractValue(dashboardData.activeLoans?.value, 0),
+          change: extractValue(dashboardData.activeLoans?.change, 0),
+          changeLabel: extractValue(dashboardData.activeLoans?.changeLabel, 'No change'),
+          isCurrency: extractValue(dashboardData.activeLoans?.isCurrency, false),
         },
       ];
       
-      // Debug: Log the transformed stats
-      console.log('📊 Transformed branch statistics:', JSON.stringify(stats, null, 2));
       setBranchStatistics(stats);
-      
-      // Debug: Log what we're actually setting
-      console.log('✅ Setting branchStatistics:', stats);
-      console.log('📋 First stat section:', stats[0]);
 
     } catch (err) {
       console.error('Failed to fetch branch data:', err);

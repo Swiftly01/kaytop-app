@@ -58,6 +58,15 @@ interface DashboardMetrics {
   loansProcessedThisPeriod: number;
   loanValueThisPeriod: number;
   activeLoans: number;
+  // Report statistics
+  totalReports?: number;
+  pendingReports?: number;
+  approvedReports?: number;
+  missedReports?: number;
+  totalReportsGrowth?: number;
+  pendingReportsGrowth?: number;
+  approvedReportsGrowth?: number;
+  missedReportsGrowth?: number;
 }
 
 interface DashboardMetricsInput {
@@ -109,9 +118,25 @@ export function getDashboardMetrics({ data }: DashboardMetricsInput): {
         border: false,
       },
       {
-        title: "Missed Payment",
-        value: "N/A",
-        border: false,
+        title: "Total Reports",
+        value: data?.totalReports?.toString() || "N/A",
+        change: data?.totalReportsGrowth ? `${data.totalReportsGrowth >= 0 ? '+' : ''}${data.totalReportsGrowth}% this month` : undefined,
+        changeColor: data?.totalReportsGrowth && data.totalReportsGrowth >= 0 ? "green" : "red",
+        border: true,
+      },
+      {
+        title: "Pending Reports",
+        value: data?.pendingReports?.toString() || "N/A",
+        change: data?.pendingReportsGrowth ? `${data.pendingReportsGrowth >= 0 ? '+' : ''}${data.pendingReportsGrowth}% this month` : undefined,
+        changeColor: data?.pendingReportsGrowth && data.pendingReportsGrowth >= 0 ? "green" : "red",
+        border: true,
+      },
+      {
+        title: "Missed Reports",
+        value: data?.missedReports?.toString() || "N/A",
+        change: data?.missedReportsGrowth ? `${data.missedReportsGrowth >= 0 ? '+' : ''}${data.missedReportsGrowth}% this month` : undefined,
+        changeColor: data?.missedReportsGrowth && data.missedReportsGrowth >= 0 ? "red" : "green", // Inverted: less missed reports is good
+        border: true,
       },
     ],
   };
@@ -287,6 +312,32 @@ export function mapLoanIntrestData(
 
 
 
+// Helper function to generate report metrics from real data
+export function getReportMetrics(reportStats?: {
+  totalReports: number;
+  missedReports: number;
+  totalReportsGrowth: number;
+  missedReportsGrowth: number;
+}): MetricProps[] {
+  return [
+    {
+      title: "Total Reports",
+      value: reportStats?.totalReports?.toString() || "0",
+      change: reportStats?.totalReportsGrowth ? `${reportStats.totalReportsGrowth >= 0 ? '+' : ''}${reportStats.totalReportsGrowth}% this month` : undefined,
+      changeColor: reportStats?.totalReportsGrowth && reportStats.totalReportsGrowth >= 0 ? "green" : "red",
+      border: false,
+    },
+    {
+      title: "Missed Reports",
+      value: reportStats?.missedReports?.toString() || "0",
+      change: reportStats?.missedReportsGrowth ? `${reportStats.missedReportsGrowth >= 0 ? '+' : ''}${reportStats.missedReportsGrowth}% this month` : undefined,
+      changeColor: reportStats?.missedReportsGrowth && reportStats.missedReportsGrowth >= 0 ? "red" : "green", // Inverted: less missed reports is good
+      border: true,
+    },
+  ];
+}
+
+// Deprecated: Use getReportMetrics() with real data instead
 export const reports: MetricProps[] = [
   {
     title: "Total Reports",

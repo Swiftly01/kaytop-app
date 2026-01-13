@@ -1,9 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
-import { userService } from '@/lib/services/users';
-import { activityLogsService } from '@/lib/services/activityLogs';
-import { systemSettingsService } from '@/lib/services/systemSettings';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { ToastContainer } from '@/app/_components/ui/ToastContainer';
 import { useToast } from '@/app/hooks/useToast';
 import { Checkbox } from '@/app/_components/ui/Checkbox';
@@ -13,16 +10,20 @@ import GlobalSettingsModal from '@/app/_components/ui/GlobalSettingsModal';
 import AlertRulesModal from '@/app/_components/ui/AlertRulesModal';
 import ReportTemplateModal from '@/app/_components/ui/ReportTemplateModal';
 import FileUpload from '@/app/_components/ui/FileUpload';
+import {
+  useUserProfile,
+  useUpdateUserProfile,
+  useChangePassword,
+  useUpdateProfilePicture,
+  useSystemSettings,
+  useUpdateSystemSettings,
+  useActivityLogs
+} from '@/app/dashboard/system-admin/queries/useSettingsQueries';
+import { userService } from '@/lib/services/users';
 import type { ActivityLog, SystemSettings } from '@/lib/api/types';
+import type { UserProfileData, UpdateProfileData, ChangePasswordData } from '@/lib/services/userProfile';
 
 type SettingsTab = 'account-information' | 'security-login' | 'activity-log' | 'permissions-users' | 'configuration';
-
-interface UserProfile {
-  name: string;
-  phoneNumber: string;
-  email: string;
-  profilePicture?: string;
-}
 
 interface SecuritySettings {
   smsAuthentication: boolean;
@@ -64,20 +65,63 @@ interface AlertRulesData {
 export default function SettingsPage() {
   const { toasts, removeToast, success, error } = useToast();
   const [activeTab, setActiveTab] = useState<SettingsTab>('account-information');
-  const [isLoading, setIsLoading] = useState(false);
-  
-  // User profile state
-  const [userProfile, setUserProfile] = useState<UserProfile>({
-    name: 'Jackson Wallace',
-    phoneNumber: '070 0000 0000',
-    email: 'hello@jackson5.com',
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Prevent hydration mismatches by ensuring client-side rendering
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // React Query hooks for real backend data
+  const { data: userProfile, isLoading: profileLoading, error: profileError } = useUserProfile();
+  const { data: systemSettings, isLoading: settingsLoading, error: settingsError } = useSystemSettings();
+  const updateProfileMutation = useUpdateUserProfile();
+  const changePasswordMutation = useChangePassword();
+  const updateProfilePictureMutation = useUpdateProfilePicture();
+  const updateSystemSettingsMutation = useUpdateSystemSettings();
+
+  // Activity logs state and query
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectAll, setSelectAll] = useState(false);
+  const [selectedLogs, setSelectedLogs] = useState<string[]>([]);
+
+  const {
+    data: activityLogsData,
+    isLoading: activityLogsLoading,
+    error: activityLogsError
+  } = useActivityLogs({
+    search: searchQuery || undefined,
+    page: currentPage,
+    limit: 10,
   });
 
-  // Security settings state
-  const [securitySettings, setSecuritySettings] = useState<SecuritySettings>({
-    smsAuthentication: true,
-    emailAuthentication: false,
-  });
+  // Transform API ActivityLog to ActivityLogEntry format
+  const transformActivityLog = useCallback((log: ActivityLog): ActivityLogEntry => ({
+    id: log.id,
+    fullName: log.userFullName,
+    actionPerformed: log.action,
+    timeAndDate: new Date(log.timestamp).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+      timeZone: 'UTC' // Ensure consistent timezone between server and client
+    }),
+    selected: selectedLogs.includes(log.id)
+  }), [selectedLogs]);
+
+  const activityLogs = activityLogsData?.data?.map(transformActivityLog) || [];
+  const totalActivityLogs = activityLogsData?.pagination?.total || 0;
+
+  // Security settings derived from system settings
+  const securitySettings: SecuritySettings = {
+    smsAuthentication: systemSettings?.security?.twoFactorAuth?.methods?.includes('sms') || false,
+    emailAuthentication: systemSettings?.security?.twoFactorAuth?.methods?.includes('email') || false,
+  };
 
   // Password change modal state
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -92,70 +136,6 @@ export default function SettingsPage() {
     confirm: false,
   });
 
-  // Activity log state
-  const [searchQuery, setSearchQuery] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [activityLogs, setActivityLogs] = useState<ActivityLogEntry[]>([]);
-  const [totalActivityLogs, setTotalActivityLogs] = useState(0);
-  const [activityLogsLoading, setActivityLogsLoading] = useState(false);
-  const [selectAll, setSelectAll] = useState(false);
-
-  // Transform API ActivityLog to ActivityLogEntry format
-  const transformActivityLog = (log: ActivityLog): ActivityLogEntry => ({
-    id: log.id,
-    fullName: log.userFullName,
-    actionPerformed: log.action,
-    timeAndDate: new Date(log.timestamp).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true
-    }),
-    selected: false
-  });
-
-  // Fetch activity logs from API
-  const fetchActivityLogs = async () => {
-    try {
-      setActivityLogsLoading(true);
-      
-      const response = await activityLogsService.getActivityLogs({
-        search: searchQuery || undefined,
-        page: currentPage,
-        limit: 10,
-      });
-
-      const transformedLogs = response.data.map(transformActivityLog);
-      setActivityLogs(transformedLogs);
-      setTotalActivityLogs(response.pagination.total);
-
-    } catch (err) {
-      console.error('Failed to fetch activity logs:', err);
-      error('Failed to load activity logs. Please try again.');
-    } finally {
-      setActivityLogsLoading(false);
-    }
-  };
-
-  // Load activity logs when component mounts or search/page changes
-  useEffect(() => {
-    if (activeTab === 'activity-log') {
-      fetchActivityLogs();
-    }
-  }, [activeTab, searchQuery, currentPage]);
-
-  // Configuration settings state
-  const [configSettings, setConfigSettings] = useState({
-    emailNotifications: true,
-    pushNotifications: false,
-    language: 'en',
-    timeZone: 'utc',
-    dateFormat: 'mdy',
-  });
-
   // Edit Role Modal state
   const [showEditRoleModal, setShowEditRoleModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<RoleUserData | null>(null);
@@ -165,35 +145,35 @@ export default function SettingsPage() {
 
   // Global Settings Modal state
   const [showGlobalSettingsModal, setShowGlobalSettingsModal] = useState(false);
-  const [globalSettings, setGlobalSettings] = useState({
-    interestRate: '5.5',
-    loanDuration: '12'
-  });
 
   // Report Template Modal state
   const [showReportTemplateModal, setShowReportTemplateModal] = useState(false);
-  const [reportTemplateSettings, setReportTemplateSettings] = useState({
-    thingsToReport: {
-      collections: false,
-      savings: false,
-      customers: false,
-      missedPayments: false
-    },
-    newParameter: ''
-  });
 
   // Alert Rules Modal state
   const [showAlertRulesModal, setShowAlertRulesModal] = useState(false);
-  
+
   // Profile Picture Upload Modal state
   const [showProfilePictureModal, setShowProfilePictureModal] = useState(false);
-  
-  const [alertRulesSettings, setAlertRulesSettings] = useState<AlertRulesData>({
-    missedPayments: false,
-    missedReports: false,
-    dailyEmailSummary: false,
-    customParameters: []
+
+  // Profile form state for editing
+  const [profileFormData, setProfileFormData] = useState<UpdateProfileData>({
+    firstName: '',
+    lastName: '',
+    email: '',
+    mobileNumber: '',
   });
+
+  // Update form data when user profile loads
+  useEffect(() => {
+    if (userProfile) {
+      setProfileFormData({
+        firstName: userProfile.firstName || '',
+        lastName: userProfile.lastName || '',
+        email: userProfile.email || '',
+        mobileNumber: userProfile.mobileNumber || '',
+      });
+    }
+  }, [userProfile]);
 
   // Users data for roles and permissions
   const [usersData, setUsersData] = useState<RoleUserData[]>([]);
@@ -205,22 +185,27 @@ export default function SettingsPage() {
       try {
         setIsLoadingUsers(true);
         const response = await userService.getAllUsers({ page: 1, limit: 100 });
-        
+
         // Transform API users to RoleUserData format
         const transformedUsers: RoleUserData[] = response.data.map(user => ({
           id: String(user.id),
           name: `${user.firstName} ${user.lastName}`,
           email: user.email,
           role: user.role === 'system_admin' ? 'HQ' : user.role === 'branch_manager' ? 'BM' : 'CO',
-          permissions: user.role === 'system_admin' 
+          permissions: user.role === 'system_admin'
             ? ['Services', 'Clients', 'Subscriptions', 'Reports', 'Analytics']
             : user.role === 'branch_manager'
-            ? ['Services', 'Clients', 'Subscriptions', 'Branch Management']
-            : ['Services', 'Clients'],
+              ? ['Services', 'Clients', 'Subscriptions', 'Branch Management']
+              : ['Services', 'Clients'],
           status: user.verificationStatus === 'verified' ? 'active' : 'inactive',
-          lastActive: user.updatedAt ? new Date(user.updatedAt).toLocaleDateString() : 'Never'
+          lastActive: user.updatedAt ? new Date(user.updatedAt).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            timeZone: 'UTC'
+          }) : 'Never'
         }));
-        
+
         setUsersData(transformedUsers);
       } catch (err) {
         console.error('Error fetching users:', err);
@@ -232,7 +217,6 @@ export default function SettingsPage() {
 
     fetchUsers();
   }, [error]);
-
 
 
   const tabs = [
@@ -248,20 +232,18 @@ export default function SettingsPage() {
   };
 
   const handleProfileUpdate = async () => {
-    setIsLoading(true);
+    if (!userProfile) return;
+
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await updateProfileMutation.mutateAsync(profileFormData);
       success('Profile updated successfully!');
     } catch (err) {
       error('Failed to update profile. Please try again.');
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  const handleInputChange = (field: keyof UserProfile, value: string) => {
-    setUserProfile(prev => ({
+  const handleInputChange = (field: keyof UpdateProfileData, value: string) => {
+    setProfileFormData(prev => ({
       ...prev,
       [field]: value
     }));
@@ -271,22 +253,16 @@ export default function SettingsPage() {
     setShowProfilePictureModal(true);
   };
 
-  const handleProfilePictureUpload = (files: File[]) => {
+  const handleProfilePictureUpload = async (files: File[]) => {
     if (files.length > 0) {
-      const file = files[0];
-      // Create a preview URL for immediate display
-      const previewUrl = URL.createObjectURL(file);
-      
-      // Update the user profile with the new picture
-      setUserProfile(prev => ({
-        ...prev,
-        profilePicture: previewUrl
-      }));
-      
-      // TODO: In a real app, upload to server here
-      // For now, we'll just show success message
-      success('Profile picture updated successfully!');
-      setShowProfilePictureModal(false);
+      try {
+        const file = files[0];
+        await updateProfilePictureMutation.mutateAsync(file);
+        success('Profile picture updated successfully!');
+        setShowProfilePictureModal(false);
+      } catch (err) {
+        error('Failed to upload profile picture. Please try again.');
+      }
     }
   };
 
@@ -294,12 +270,38 @@ export default function SettingsPage() {
     error(`Failed to upload profile picture: ${errorMessage}`);
   };
 
-  const handleSecurityToggle = (setting: keyof SecuritySettings) => {
-    setSecuritySettings(prev => ({
-      ...prev,
-      [setting]: !prev[setting]
-    }));
-    success(`${setting === 'smsAuthentication' ? 'SMS' : 'Email'} authentication ${securitySettings[setting] ? 'disabled' : 'enabled'}`);
+  const handleSecurityToggle = async (setting: keyof SecuritySettings) => {
+    if (!systemSettings) return;
+
+    try {
+      const currentMethods = systemSettings.security.twoFactorAuth.methods || [];
+      let newMethods: ('sms' | 'email')[];
+
+      if (setting === 'smsAuthentication') {
+        newMethods = securitySettings.smsAuthentication
+          ? currentMethods.filter(m => m !== 'sms')
+          : [...currentMethods, 'sms'];
+      } else {
+        newMethods = securitySettings.emailAuthentication
+          ? currentMethods.filter(m => m !== 'email')
+          : [...currentMethods, 'email'];
+      }
+
+      const updatedSettings: Partial<SystemSettings> = {
+        security: {
+          ...systemSettings.security,
+          twoFactorAuth: {
+            ...systemSettings.security.twoFactorAuth,
+            methods: newMethods,
+          },
+        },
+      };
+
+      await updateSystemSettingsMutation.mutateAsync(updatedSettings);
+      success(`${setting === 'smsAuthentication' ? 'SMS' : 'Email'} authentication ${securitySettings[setting] ? 'disabled' : 'enabled'}`);
+    } catch (err) {
+      error('Failed to update security settings. Please try again.');
+    }
   };
 
   const handlePasswordChange = (field: keyof PasswordChangeData, value: string) => {
@@ -321,16 +323,20 @@ export default function SettingsPage() {
       error('New passwords do not match');
       return;
     }
-    
+
     if (passwordData.newPassword.length < 8) {
       error('Password must be at least 8 characters long');
       return;
     }
 
-    setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const changeData: ChangePasswordData = {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+        confirmNewPassword: passwordData.confirmPassword,
+      };
+
+      await changePasswordMutation.mutateAsync(changeData);
       success('Password changed successfully!');
       setShowPasswordModal(false);
       setPasswordData({
@@ -340,8 +346,6 @@ export default function SettingsPage() {
       });
     } catch (err) {
       error('Failed to change password. Please try again.');
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -366,55 +370,21 @@ export default function SettingsPage() {
   // Activity log handlers
   const handleSelectAll = (checked: boolean) => {
     setSelectAll(checked);
-    setActivityLogs(prev => prev.map(log => ({ ...log, selected: checked })));
-  };
-
-  const handleSelectLog = (id: string) => {
-    setActivityLogs(prev => {
-      const updated = prev.map(log => 
-        log.id === id ? { ...log, selected: !log.selected } : log
-      );
-      const allSelected = updated.every(log => log.selected);
-      setSelectAll(allSelected);
-      return updated;
-    });
-  };
-
-  // Configuration handlers
-  const handleConfigToggle = (setting: 'emailNotifications' | 'pushNotifications') => {
-    setConfigSettings(prev => ({
-      ...prev,
-      [setting]: !prev[setting]
-    }));
-    success(`${setting === 'emailNotifications' ? 'Email' : 'Push'} notifications ${configSettings[setting] ? 'disabled' : 'enabled'}`);
-  };
-
-  const handleConfigChange = (setting: 'language' | 'timeZone' | 'dateFormat', value: string) => {
-    setConfigSettings(prev => ({
-      ...prev,
-      [setting]: value
-    }));
-  };
-
-  const handleSaveConfiguration = async () => {
-    setIsLoading(true);
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      success('Configuration saved successfully!');
-    } catch (err) {
-      error('Failed to save configuration. Please try again.');
-    } finally {
-      setIsLoading(false);
+    if (checked) {
+      setSelectedLogs(activityLogs.map(log => log.id));
+    } else {
+      setSelectedLogs([]);
     }
   };
 
-  const handleExportData = () => {
-    success('Data export started. You will receive an email when ready.');
-  };
-
-  const handleClearCache = () => {
-    success('System cache cleared successfully!');
+  const handleSelectLog = (id: string) => {
+    setSelectedLogs(prev => {
+      const updated = prev.includes(id)
+        ? prev.filter(logId => logId !== id)
+        : [...prev, id];
+      setSelectAll(updated.length === activityLogs.length && activityLogs.length > 0);
+      return updated;
+    });
   };
 
   const handleCreateAdmin = () => {
@@ -428,7 +398,7 @@ export default function SettingsPage() {
   const handleSaveNewAdmin = async (adminData: any) => {
     // Generate a new ID for the admin
     const newId = (usersData.length + 1).toString();
-    
+
     // Create new admin user object
     const newAdmin = {
       id: newId,
@@ -441,7 +411,7 @@ export default function SettingsPage() {
 
     // Add to users data
     setUsersData(prev => [...prev, newAdmin]);
-    
+
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
   };
@@ -456,10 +426,23 @@ export default function SettingsPage() {
   }, []);
 
   const handleSaveGlobalSettings = useCallback(async (data: { interestRate: string; loanDuration: string }) => {
-    setGlobalSettings(data);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-  }, []);
+    if (!systemSettings) return;
+
+    try {
+      const updatedSettings: Partial<SystemSettings> = {
+        globalDefaults: {
+          ...systemSettings.globalDefaults,
+          interestRate: parseFloat(data.interestRate),
+          loanDuration: parseInt(data.loanDuration),
+        },
+      };
+
+      await updateSystemSettingsMutation.mutateAsync(updatedSettings);
+      success('Global settings updated successfully!');
+    } catch (err) {
+      error('Failed to update global settings. Please try again.');
+    }
+  }, [systemSettings, updateSystemSettingsMutation, success, error]);
 
   // Report Template handlers
   const handleOpenReportTemplate = useCallback(() => {
@@ -471,10 +454,31 @@ export default function SettingsPage() {
   }, []);
 
   const handleSaveReportTemplate = useCallback(async (data: { thingsToReport: { collections: boolean; savings: boolean; customers: boolean; missedPayments: boolean }; newParameter: string }) => {
-    setReportTemplateSettings(data);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-  }, []);
+    if (!systemSettings) return;
+
+    try {
+      const requiredFields = Object.entries(data.thingsToReport)
+        .filter(([_, enabled]) => enabled)
+        .map(([field, _]) => field);
+
+      const customParameters = data.newParameter
+        ? [...(systemSettings.reportTemplate.customParameters || []), data.newParameter]
+        : systemSettings.reportTemplate.customParameters;
+
+      const updatedSettings: Partial<SystemSettings> = {
+        reportTemplate: {
+          ...systemSettings.reportTemplate,
+          requiredFields,
+          customParameters,
+        },
+      };
+
+      await updateSystemSettingsMutation.mutateAsync(updatedSettings);
+      success('Report template updated successfully!');
+    } catch (err) {
+      error('Failed to update report template. Please try again.');
+    }
+  }, [systemSettings, updateSystemSettingsMutation, success, error]);
 
   // Alert Rules handlers
   const handleOpenAlertRules = useCallback(() => {
@@ -486,10 +490,25 @@ export default function SettingsPage() {
   }, []);
 
   const handleSaveAlertRules = useCallback(async (data: AlertRulesData) => {
-    setAlertRulesSettings(data);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-  }, []);
+    if (!systemSettings) return;
+
+    try {
+      const updatedSettings: Partial<SystemSettings> = {
+        alertRules: {
+          ...systemSettings.alertRules,
+          missedPayments: data.missedPayments,
+          missedReports: data.missedReports,
+          dailyEmailSummary: data.dailyEmailSummary,
+          customAlerts: data.customParameters,
+        },
+      };
+
+      await updateSystemSettingsMutation.mutateAsync(updatedSettings);
+      success('Alert rules updated successfully!');
+    } catch (err) {
+      error('Failed to update alert rules. Please try again.');
+    }
+  }, [systemSettings, updateSystemSettingsMutation, success, error]);
 
   const handleEditUser = (userId: string) => {
     const user = usersData.find(u => u.id === userId);
@@ -506,17 +525,70 @@ export default function SettingsPage() {
 
   const handleSaveUser = async (updatedUserData: RoleUserData) => {
     // Update the user in the users array
-    setUsersData(prev => prev.map(user => 
+    setUsersData(prev => prev.map(user =>
       user.id === updatedUserData.id ? updatedUserData : user
     ));
-    
+
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
   };
 
   const itemsPerPage = 10;
   const totalPages = Math.ceil(totalActivityLogs / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
+
+  // Derived data from system settings (memoized to prevent re-renders)
+  const globalSettings = useMemo(() => {
+    return systemSettings ? {
+      interestRate: String(systemSettings.globalDefaults.interestRate),
+      loanDuration: String(systemSettings.globalDefaults.loanDuration),
+    } : undefined;
+  }, [systemSettings?.globalDefaults.interestRate, systemSettings?.globalDefaults.loanDuration]);
+
+  const reportTemplateSettings = useMemo(() => {
+    return systemSettings ? {
+      thingsToReport: {
+        collections: systemSettings.reportTemplate.requiredFields.includes('collections'),
+        savings: systemSettings.reportTemplate.requiredFields.includes('savings'),
+        customers: systemSettings.reportTemplate.requiredFields.includes('customers'),
+        missedPayments: systemSettings.reportTemplate.requiredFields.includes('missedPayments'),
+      },
+      newParameter: '',
+    } : undefined;
+  }, [systemSettings?.reportTemplate.requiredFields?.join(',')]);  // Use join to create stable dependency
+
+  const alertRulesSettings = useMemo(() => {
+    return systemSettings ? {
+      missedPayments: systemSettings.alertRules.missedPayments,
+      missedReports: systemSettings.alertRules.missedReports,
+      dailyEmailSummary: systemSettings.alertRules.dailyEmailSummary,
+      customParameters: systemSettings.alertRules.customAlerts || [],
+    } : undefined;
+  }, [
+    systemSettings?.alertRules.missedPayments,
+    systemSettings?.alertRules.missedReports,
+    systemSettings?.alertRules.dailyEmailSummary,
+    systemSettings?.alertRules.customAlerts
+  ]);
+
+  // Loading states
+  const isLoading = profileLoading || settingsLoading || updateProfileMutation.isPending ||
+    changePasswordMutation.isPending || updateProfilePictureMutation.isPending ||
+    updateSystemSettingsMutation.isPending;
+
+  // Prevent hydration mismatch by not rendering until mounted
+  if (!isMounted) {
+    return (
+      <div className="drawer-content flex flex-col">
+        <main className="flex-1 px-4 sm:px-6 md:pl-[58px] md:pr-6" style={{ paddingTop: '40px' }}>
+          <div className="max-w-[1150px]">
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#7F56D9]"></div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="drawer-content flex flex-col">
@@ -533,8 +605,8 @@ export default function SettingsPage() {
                     className={`
                       relative font-medium transition-colors duration-200 whitespace-nowrap pb-3
                       focus:outline-none
-                      ${activeTab === tab.id 
-                        ? 'text-[#7A62EB]' 
+                      ${activeTab === tab.id
+                        ? 'text-[#7A62EB]'
                         : 'text-[#ABAFB3] hover:text-[#888F9B]'
                       }
                     `}
@@ -550,7 +622,7 @@ export default function SettingsPage() {
                     id={`${tab.id}-tab`}
                   >
                     {tab.label}
-                    
+
                     {/* Active Indicator - Bottom Underline */}
                     {activeTab === tab.id && (
                       <span
@@ -574,7 +646,7 @@ export default function SettingsPage() {
           {/* Content Area */}
           <div className="relative">
             {/* Main Content Card */}
-            <div 
+            <div
               className="bg-white rounded-[5px]"
               style={{
                 width: '941px',
@@ -585,7 +657,7 @@ export default function SettingsPage() {
               {activeTab === 'account-information' && (
                 <div className="p-8">
                   {/* Header */}
-                  <h1 
+                  <h1
                     className="font-bold mb-8"
                     style={{
                       fontSize: '24px',
@@ -601,35 +673,37 @@ export default function SettingsPage() {
 
                   {/* Profile Picture Section */}
                   <div className="mb-8">
-                    <div 
+                    <div
                       className="bg-gray-300 rounded-full mb-4"
                       style={{
                         width: '60px',
                         height: '60px',
-                        backgroundImage: userProfile.profilePicture ? `url(${userProfile.profilePicture})` : 'none',
+                        backgroundImage: userProfile?.profilePicture ? `url(${userProfile.profilePicture})` : 'none',
                         backgroundSize: 'cover',
                         backgroundPosition: 'center',
                       }}
                     />
-                    <button
-                      onClick={handleProfilePictureChange}
-                      className="text-[#7A62EB] hover:text-[#6941C6] transition-colors focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:ring-offset-2 rounded-md"
-                      style={{
-                        fontSize: '14px',
-                        fontWeight: 500,
-                        lineHeight: '16px',
-                        fontFamily: 'Open Sauce Sans, sans-serif',
-                      }}
-                    >
-                      Change Picture
-                    </button>
+                    {isMounted && (
+                      <button
+                        onClick={handleProfilePictureChange}
+                        className="text-[#7A62EB] hover:text-[#6941C6] transition-colors focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:ring-offset-2 rounded-md"
+                        style={{
+                          fontSize: '14px',
+                          fontWeight: 500,
+                          lineHeight: '16px',
+                          fontFamily: 'Open Sauce Sans, sans-serif',
+                        }}
+                      >
+                        Change Picture
+                      </button>
+                    )}
                   </div>
 
                   {/* Form Fields */}
                   <div className="space-y-8">
                     {/* Name Field */}
                     <div>
-                      <label 
+                      <label
                         className="block mb-2"
                         style={{
                           fontSize: '14px',
@@ -644,8 +718,12 @@ export default function SettingsPage() {
                       <div className="flex items-center justify-between">
                         <input
                           type="text"
-                          value={userProfile.name}
-                          onChange={(e) => handleInputChange('name', e.target.value)}
+                          value={`${profileFormData.firstName} ${profileFormData.lastName}`}
+                          onChange={(e) => {
+                            const [firstName, ...lastNameParts] = e.target.value.split(' ');
+                            handleInputChange('firstName', firstName || '');
+                            handleInputChange('lastName', lastNameParts.join(' ') || '');
+                          }}
                           className="flex-1 bg-transparent border-none outline-none"
                           style={{
                             fontSize: '16px',
@@ -655,22 +733,22 @@ export default function SettingsPage() {
                             fontFamily: 'Open Sauce Sans, sans-serif',
                           }}
                         />
-                        <button 
+                        <button
                           className="ml-4 opacity-80 hover:opacity-100 transition-opacity"
                           aria-label="Edit name"
                         >
                           <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                            <path 
+                            <path
                               d="M7.5 12.5L12.5 7.5M12.5 7.5L10 5L15 10L12.5 12.5M12.5 7.5L10 10"
-                              stroke="#000000" 
-                              strokeWidth="2" 
-                              strokeLinecap="round" 
+                              stroke="#000000"
+                              strokeWidth="2"
+                              strokeLinecap="round"
                               strokeLinejoin="round"
                             />
                           </svg>
                         </button>
                       </div>
-                      <div 
+                      <div
                         className="mt-4 opacity-10"
                         style={{
                           width: '100%',
@@ -682,7 +760,7 @@ export default function SettingsPage() {
 
                     {/* Phone Number Field */}
                     <div>
-                      <label 
+                      <label
                         className="block mb-2"
                         style={{
                           fontSize: '14px',
@@ -696,8 +774,8 @@ export default function SettingsPage() {
                       </label>
                       <input
                         type="tel"
-                        value={userProfile.phoneNumber}
-                        onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
+                        value={profileFormData.mobileNumber}
+                        onChange={(e) => handleInputChange('mobileNumber', e.target.value)}
                         className="w-full bg-transparent border-none outline-none"
                         style={{
                           fontSize: '16px',
@@ -707,7 +785,7 @@ export default function SettingsPage() {
                           fontFamily: 'Open Sauce Sans, sans-serif',
                         }}
                       />
-                      <div 
+                      <div
                         className="mt-4 opacity-10"
                         style={{
                           width: '100%',
@@ -719,7 +797,7 @@ export default function SettingsPage() {
 
                     {/* Email Field */}
                     <div>
-                      <label 
+                      <label
                         className="block mb-2"
                         style={{
                           fontSize: '14px',
@@ -733,7 +811,7 @@ export default function SettingsPage() {
                       </label>
                       <input
                         type="email"
-                        value={userProfile.email}
+                        value={profileFormData.email}
                         onChange={(e) => handleInputChange('email', e.target.value)}
                         className="w-full bg-transparent border-none outline-none"
                         style={{
@@ -780,7 +858,7 @@ export default function SettingsPage() {
               {activeTab === 'security-login' && (
                 <div className="p-8">
                   {/* Header */}
-                  <h1 
+                  <h1
                     className="font-bold mb-8"
                     style={{
                       fontSize: '24px',
@@ -794,14 +872,14 @@ export default function SettingsPage() {
                     Security
                   </h1>
 
-                  {/* Change Password Section */}
+                  {/* Change Password Section - Always Available */}
                   <div className="mb-8">
                     <button
                       onClick={openPasswordModal}
                       className="flex items-center justify-between w-full group hover:bg-gray-50 transition-colors rounded-md p-2 -m-2"
                     >
                       <div>
-                        <h3 
+                        <h3
                           className="text-left mb-2"
                           style={{
                             fontSize: '14px',
@@ -813,7 +891,7 @@ export default function SettingsPage() {
                         >
                           Change password
                         </h3>
-                        <p 
+                        <p
                           className="text-left"
                           style={{
                             fontSize: '16px',
@@ -826,25 +904,25 @@ export default function SettingsPage() {
                           Is your password compromised, change it here
                         </p>
                       </div>
-                      <svg 
-                        width="20" 
-                        height="20" 
-                        viewBox="0 0 20 20" 
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 20 20"
                         fill="none"
                         className="opacity-80 group-hover:opacity-100 transition-opacity"
                       >
-                        <path 
-                          d="M7.5 15L12.5 10L7.5 5" 
-                          stroke="#000000" 
-                          strokeWidth="2" 
-                          strokeLinecap="round" 
+                        <path
+                          d="M7.5 15L12.5 10L7.5 5"
+                          stroke="#000000"
+                          strokeWidth="2"
+                          strokeLinecap="round"
                           strokeLinejoin="round"
                         />
                       </svg>
                     </button>
-                    
+
                     {/* Divider */}
-                    <div 
+                    <div
                       className="mt-6 opacity-10"
                       style={{
                         width: '100%',
@@ -854,97 +932,128 @@ export default function SettingsPage() {
                     />
                   </div>
 
-                  {/* Two Factor Authentication Section */}
-                  <div>
-                    <h3 
-                      className="mb-6"
-                      style={{
-                        fontSize: '16px',
-                        fontWeight: 400,
-                        lineHeight: '16px',
-                        color: '#01112C',
-                        fontFamily: 'Open Sauce Sans, sans-serif',
-                      }}
-                    >
-                      Two Factor Authentication
-                    </h3>
-
-                    {/* SMS Authentication */}
-                    <div className="flex items-center justify-between mb-6">
-                      <div className="flex items-center gap-4">
-                        {/* SMS Icon */}
-                        <div className="w-8 h-8 flex items-center justify-center">
-                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                            <rect x="5" y="4" width="14" height="16" rx="2" stroke="#767D94" strokeWidth="2"/>
-                            <path d="M9 9h6M9 13h6" stroke="#767D94" strokeWidth="2" strokeLinecap="round"/>
+                  {/* Two Factor Authentication Section - Conditional on System Settings */}
+                  {settingsError ? (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                      <div className="flex items-center mb-2">
+                        <div className="text-yellow-600 mr-2">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z" />
                           </svg>
                         </div>
-                        <span 
-                          style={{
-                            fontSize: '18px',
-                            fontWeight: 700,
-                            lineHeight: '22px',
-                            color: '#767D94',
-                            fontFamily: 'Open Sauce Sans, sans-serif',
-                          }}
-                        >
-                          SMS Authentication
-                        </span>
+                        <div className="text-yellow-800 font-medium text-sm">Two-Factor Authentication Unavailable</div>
                       </div>
-                      
-                      {/* Toggle Switch */}
-                      <button
-                        onClick={() => handleSecurityToggle('smsAuthentication')}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#7A62EB] focus:ring-offset-2 ${
-                          securitySettings.smsAuthentication ? 'bg-[#7A62EB]' : 'bg-[#DDDFE1]'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                            securitySettings.smsAuthentication ? 'translate-x-6' : 'translate-x-1'
-                          }`}
-                        />
-                      </button>
+                      <div className="text-yellow-700 text-sm">
+                        Security settings could not be loaded. Two-factor authentication options are temporarily unavailable.
+                      </div>
                     </div>
+                  ) : settingsLoading ? (
+                    <div>
+                      <h3
+                        className="mb-6"
+                        style={{
+                          fontSize: '16px',
+                          fontWeight: 400,
+                          lineHeight: '16px',
+                          color: '#01112C',
+                          fontFamily: 'Open Sauce Sans, sans-serif',
+                        }}
+                      >
+                        Two Factor Authentication
+                      </h3>
+                      <div className="flex items-center justify-center py-4">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#7F56D9]"></div>
+                        <span className="ml-2 text-sm text-gray-600">Loading security settings...</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <h3
+                        className="mb-6"
+                        style={{
+                          fontSize: '16px',
+                          fontWeight: 400,
+                          lineHeight: '16px',
+                          color: '#01112C',
+                          fontFamily: 'Open Sauce Sans, sans-serif',
+                        }}
+                      >
+                        Two Factor Authentication
+                      </h3>
 
-                    {/* Email Authentication */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        {/* Email Icon */}
-                        <div className="w-8 h-8 flex items-center justify-center">
-                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="#767D94" strokeWidth="2"/>
-                            <polyline points="22,6 12,13 2,6" stroke="#767D94" strokeWidth="2"/>
-                          </svg>
+                      {/* SMS Authentication */}
+                      <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-4">
+                          {/* SMS Icon */}
+                          <div className="w-8 h-8 flex items-center justify-center">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                              <rect x="5" y="4" width="14" height="16" rx="2" stroke="#767D94" strokeWidth="2" />
+                              <path d="M9 9h6M9 13h6" stroke="#767D94" strokeWidth="2" strokeLinecap="round" />
+                            </svg>
+                          </div>
+                          <span
+                            style={{
+                              fontSize: '18px',
+                              fontWeight: 700,
+                              lineHeight: '22px',
+                              color: '#767D94',
+                              fontFamily: 'Open Sauce Sans, sans-serif',
+                            }}
+                          >
+                            SMS Authentication
+                          </span>
                         </div>
-                        <span 
-                          style={{
-                            fontSize: '18px',
-                            fontWeight: 700,
-                            lineHeight: '22px',
-                            color: '#767D94',
-                            fontFamily: 'Open Sauce Sans, sans-serif',
-                          }}
+
+                        {/* Toggle Switch */}
+                        <button
+                          onClick={() => handleSecurityToggle('smsAuthentication')}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#7A62EB] focus:ring-offset-2 ${securitySettings.smsAuthentication ? 'bg-[#7A62EB]' : 'bg-[#DDDFE1]'
+                            }`}
                         >
-                          Email Authentication
-                        </span>
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${securitySettings.smsAuthentication ? 'translate-x-6' : 'translate-x-1'
+                              }`}
+                          />
+                        </button>
                       </div>
-                      
-                      {/* Toggle Switch */}
-                      <button
-                        onClick={() => handleSecurityToggle('emailAuthentication')}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#7A62EB] focus:ring-offset-2 ${
-                          securitySettings.emailAuthentication ? 'bg-[#7A62EB]' : 'bg-[#DDDFE1]'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                            securitySettings.emailAuthentication ? 'translate-x-6' : 'translate-x-1'
-                          }`}
-                        />
-                      </button>
+
+                      {/* Email Authentication */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          {/* Email Icon */}
+                          <div className="w-8 h-8 flex items-center justify-center">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="#767D94" strokeWidth="2" />
+                              <polyline points="22,6 12,13 2,6" stroke="#767D94" strokeWidth="2" />
+                            </svg>
+                          </div>
+                          <span
+                            style={{
+                              fontSize: '18px',
+                              fontWeight: 700,
+                              lineHeight: '22px',
+                              color: '#767D94',
+                              fontFamily: 'Open Sauce Sans, sans-serif',
+                            }}
+                          >
+                            Email Authentication
+                          </span>
+                        </div>
+
+                        {/* Toggle Switch */}
+                        <button
+                          onClick={() => handleSecurityToggle('emailAuthentication')}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#7A62EB] focus:ring-offset-2 ${securitySettings.emailAuthentication ? 'bg-[#7A62EB]' : 'bg-[#DDDFE1]'
+                            }`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${securitySettings.emailAuthentication ? 'translate-x-6' : 'translate-x-1'
+                              }`}
+                          />
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               )}
 
@@ -952,7 +1061,7 @@ export default function SettingsPage() {
               {activeTab === 'activity-log' && (
                 <div className="p-8">
                   {/* Header */}
-                  <h1 
+                  <h1
                     className="font-bold mb-8"
                     style={{
                       fontSize: '24px',
@@ -969,25 +1078,25 @@ export default function SettingsPage() {
                   {/* Search Bar */}
                   <div className="mb-6 relative">
                     <div className="flex items-center">
-                      <svg 
-                        width="17" 
-                        height="17" 
-                        viewBox="0 0 17 17" 
+                      <svg
+                        width="17"
+                        height="17"
+                        viewBox="0 0 17 17"
                         fill="none"
                         className="absolute left-3 top-1/2 transform -translate-y-1/2"
                       >
-                        <path 
-                          d="M7.5 13.5C10.8137 13.5 13.5 10.8137 13.5 7.5C13.5 4.18629 10.8137 1.5 7.5 1.5C4.18629 1.5 1.5 4.18629 1.5 7.5C1.5 10.8137 4.18629 13.5 7.5 13.5Z" 
-                          stroke="#464A53" 
-                          strokeWidth="1.5" 
-                          strokeLinecap="round" 
+                        <path
+                          d="M7.5 13.5C10.8137 13.5 13.5 10.8137 13.5 7.5C13.5 4.18629 10.8137 1.5 7.5 1.5C4.18629 1.5 1.5 4.18629 1.5 7.5C1.5 10.8137 4.18629 13.5 7.5 13.5Z"
+                          stroke="#464A53"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
                           strokeLinejoin="round"
                         />
-                        <path 
-                          d="M13.5 13.5L15.5 15.5" 
-                          stroke="#464A53" 
-                          strokeWidth="1.5" 
-                          strokeLinecap="round" 
+                        <path
+                          d="M13.5 13.5L15.5 15.5"
+                          stroke="#464A53"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
                           strokeLinejoin="round"
                         />
                       </svg>
@@ -1006,7 +1115,7 @@ export default function SettingsPage() {
                         }}
                       />
                     </div>
-                    <div 
+                    <div
                       className="w-64 h-px mt-2"
                       style={{
                         backgroundColor: 'rgba(221, 223, 225, 0.5)',
@@ -1017,7 +1126,7 @@ export default function SettingsPage() {
                   {/* Table */}
                   <div className="border border-[#DDDFE1] rounded-sm">
                     {/* Table Header */}
-                    <div 
+                    <div
                       className="flex items-center px-5 py-3 border-b border-[#DDDFE1]"
                       style={{
                         backgroundColor: 'rgba(106, 112, 126, 0.0001)',
@@ -1030,7 +1139,7 @@ export default function SettingsPage() {
                         />
                       </div>
                       <div className="w-56 ml-4">
-                        <span 
+                        <span
                           style={{
                             fontSize: '14.4px',
                             fontWeight: 500,
@@ -1043,7 +1152,7 @@ export default function SettingsPage() {
                         </span>
                       </div>
                       <div className="flex-1 px-4">
-                        <span 
+                        <span
                           style={{
                             fontSize: '14.4px',
                             fontWeight: 500,
@@ -1056,7 +1165,7 @@ export default function SettingsPage() {
                         </span>
                       </div>
                       <div className="w-64">
-                        <span 
+                        <span
                           style={{
                             fontSize: '14.4px',
                             fontWeight: 500,
@@ -1076,9 +1185,38 @@ export default function SettingsPage() {
                         <div className="flex items-center justify-center py-8">
                           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#7F56D9]"></div>
                         </div>
+                      ) : activityLogsError ? (
+                        <div className="flex flex-col items-center justify-center py-8">
+                          <div className="text-red-500 mb-2">
+                            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </div>
+                          <span
+                            style={{
+                              fontSize: '14px',
+                              fontWeight: 500,
+                              color: '#DC2626',
+                              fontFamily: 'Open Sauce Sans, sans-serif',
+                            }}
+                          >
+                            Failed to load activity logs
+                          </span>
+                          <span
+                            style={{
+                              fontSize: '12px',
+                              fontWeight: 400,
+                              color: '#6A707E',
+                              fontFamily: 'Open Sauce Sans, sans-serif',
+                              marginTop: '4px'
+                            }}
+                          >
+                            {activityLogsError?.message || 'Please try again later'}
+                          </span>
+                        </div>
                       ) : activityLogs.length === 0 ? (
                         <div className="flex items-center justify-center py-8">
-                          <span 
+                          <span
                             style={{
                               fontSize: '14px',
                               fontWeight: 500,
@@ -1100,7 +1238,7 @@ export default function SettingsPage() {
                                 />
                               </div>
                               <div className="w-56 ml-4">
-                                <span 
+                                <span
                                   style={{
                                     fontSize: '12.8px',
                                     fontWeight: 700,
@@ -1113,7 +1251,7 @@ export default function SettingsPage() {
                                 </span>
                               </div>
                               <div className="flex-1 px-4">
-                                <span 
+                                <span
                                   style={{
                                     fontSize: '12.8px',
                                     fontWeight: 500,
@@ -1126,7 +1264,7 @@ export default function SettingsPage() {
                                 </span>
                               </div>
                               <div className="w-64">
-                                <span 
+                                <span
                                   style={{
                                     fontSize: '12.8px',
                                     fontWeight: 500,
@@ -1134,13 +1272,14 @@ export default function SettingsPage() {
                                     color: '#ABAFB3',
                                     fontFamily: 'Open Sauce Sans, sans-serif',
                                   }}
+                                  suppressHydrationWarning={true}
                                 >
                                   {log.timeAndDate}
                                 </span>
                               </div>
                             </div>
                             {index < activityLogs.length - 1 && (
-                              <div 
+                              <div
                                 className="h-px mx-5"
                                 style={{ backgroundColor: '#DDDFE1' }}
                               />
@@ -1168,7 +1307,7 @@ export default function SettingsPage() {
                         }}
                       >
                         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                          <path d="M12.5 15L7.5 10L12.5 5" stroke="#344054" strokeWidth="1.67" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M12.5 15L7.5 10L12.5 5" stroke="#344054" strokeWidth="1.67" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                         Previous
                       </button>
@@ -1181,11 +1320,10 @@ export default function SettingsPage() {
                           <button
                             key={pageNum}
                             onClick={() => setCurrentPage(pageNum)}
-                            className={`px-3 py-2 border-r border-[#D0D5DD] transition-colors ${
-                              isActive 
-                                ? 'bg-[#F9FAFB] text-[#1D2939]' 
+                            className={`px-3 py-2 border-r border-[#D0D5DD] transition-colors ${isActive
+                                ? 'bg-[#F9FAFB] text-[#1D2939]'
                                 : 'bg-white text-[#344054] hover:bg-gray-50'
-                            }`}
+                              }`}
                             style={{
                               fontSize: '14px',
                               fontWeight: 600,
@@ -1213,7 +1351,7 @@ export default function SettingsPage() {
                       >
                         Next
                         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                          <path d="M7.5 15L12.5 10L7.5 5" stroke="#344054" strokeWidth="1.67" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M7.5 15L12.5 10L7.5 5" stroke="#344054" strokeWidth="1.67" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       </button>
                     </div>
@@ -1224,7 +1362,7 @@ export default function SettingsPage() {
               {/* Other Tab Contents - Placeholder */}
 
               {activeTab === 'permissions-users' && (
-                <div 
+                <div
                   style={{
                     padding: '32px',
                     width: '941px',
@@ -1232,12 +1370,12 @@ export default function SettingsPage() {
                   }}
                 >
                   {/* Header Section */}
-                  <div 
-                    className="flex items-center justify-between" 
+                  <div
+                    className="flex items-center justify-between"
                     style={{ marginBottom: '48px' }}
                   >
                     <div>
-                      <h1 
+                      <h1
                         style={{
                           fontSize: '24px',
                           fontWeight: 700,
@@ -1250,7 +1388,7 @@ export default function SettingsPage() {
                       >
                         Roles & Permission
                       </h1>
-                      <p 
+                      <p
                         style={{
                           fontSize: '16px',
                           fontWeight: 400,
@@ -1290,7 +1428,7 @@ export default function SettingsPage() {
                   {/* Users List */}
                   <div>
                     {/* Initial Divider Line */}
-                    <div 
+                    <div
                       style={{
                         width: '588px',
                         height: '0px',
@@ -1300,12 +1438,12 @@ export default function SettingsPage() {
                     />
 
                     {/* User 1 - Tarry Benzar */}
-                    <div 
-                      className="flex items-center justify-between" 
+                    <div
+                      className="flex items-center justify-between"
                       style={{ paddingTop: '32px', paddingBottom: '32px' }}
                     >
                       <div className="flex items-center" style={{ gap: '16px' }}>
-                        <div 
+                        <div
                           style={{
                             width: '40px',
                             height: '40px',
@@ -1326,7 +1464,7 @@ export default function SettingsPage() {
                         </div>
                         <div>
                           <div className="flex items-center" style={{ gap: '8px', marginBottom: '3px' }}>
-                            <span 
+                            <span
                               style={{
                                 fontSize: '16px',
                                 fontWeight: 500,
@@ -1361,7 +1499,7 @@ export default function SettingsPage() {
                               </span>
                             </div>
                           </div>
-                          <p 
+                          <p
                             style={{
                               fontSize: '14px',
                               fontWeight: 400,
@@ -1373,7 +1511,7 @@ export default function SettingsPage() {
                           >
                             example@acumen.com
                           </p>
-                          <p 
+                          <p
                             style={{
                               fontSize: '14px',
                               fontWeight: 500,
@@ -1385,7 +1523,7 @@ export default function SettingsPage() {
                           >
                             Services, Clients, Subscriptions
                           </p>
-                          <p 
+                          <p
                             style={{
                               fontSize: '12px',
                               fontWeight: 400,
@@ -1424,7 +1562,7 @@ export default function SettingsPage() {
                     </div>
 
                     {/* Divider Line */}
-                    <div 
+                    <div
                       style={{
                         width: '588px',
                         height: '0px',
@@ -1434,12 +1572,12 @@ export default function SettingsPage() {
                     />
 
                     {/* User 2 - Arlene McCoy */}
-                    <div 
-                      className="flex items-center justify-between" 
+                    <div
+                      className="flex items-center justify-between"
                       style={{ paddingTop: '32px', paddingBottom: '32px' }}
                     >
                       <div className="flex items-center" style={{ gap: '16px' }}>
-                        <div 
+                        <div
                           style={{
                             width: '40px',
                             height: '40px',
@@ -1451,7 +1589,7 @@ export default function SettingsPage() {
                         />
                         <div>
                           <div className="flex items-center" style={{ gap: '8px', marginBottom: '3px' }}>
-                            <span 
+                            <span
                               style={{
                                 fontSize: '16px',
                                 fontWeight: 500,
@@ -1486,7 +1624,7 @@ export default function SettingsPage() {
                               </span>
                             </div>
                           </div>
-                          <p 
+                          <p
                             style={{
                               fontSize: '14px',
                               fontWeight: 400,
@@ -1498,7 +1636,7 @@ export default function SettingsPage() {
                           >
                             example@acumen.com
                           </p>
-                          <p 
+                          <p
                             style={{
                               fontSize: '14px',
                               fontWeight: 500,
@@ -1510,7 +1648,7 @@ export default function SettingsPage() {
                           >
                             Services, Clients, Subscriptions
                           </p>
-                          <p 
+                          <p
                             style={{
                               fontSize: '12px',
                               fontWeight: 400,
@@ -1548,7 +1686,7 @@ export default function SettingsPage() {
                     </div>
 
                     {/* Divider Line */}
-                    <div 
+                    <div
                       style={{
                         width: '588px',
                         height: '0px',
@@ -1558,12 +1696,12 @@ export default function SettingsPage() {
                     />
 
                     {/* User 3 - Annette Black */}
-                    <div 
-                      className="flex items-center justify-between" 
+                    <div
+                      className="flex items-center justify-between"
                       style={{ paddingTop: '32px', paddingBottom: '32px' }}
                     >
                       <div className="flex items-center" style={{ gap: '16px' }}>
-                        <div 
+                        <div
                           style={{
                             width: '40px',
                             height: '40px',
@@ -1575,7 +1713,7 @@ export default function SettingsPage() {
                         />
                         <div>
                           <div className="flex items-center" style={{ gap: '8px', marginBottom: '3px' }}>
-                            <span 
+                            <span
                               style={{
                                 fontSize: '16px',
                                 fontWeight: 500,
@@ -1610,7 +1748,7 @@ export default function SettingsPage() {
                               </span>
                             </div>
                           </div>
-                          <p 
+                          <p
                             style={{
                               fontSize: '14px',
                               fontWeight: 400,
@@ -1622,7 +1760,7 @@ export default function SettingsPage() {
                           >
                             example@acumen.com
                           </p>
-                          <p 
+                          <p
                             style={{
                               fontSize: '14px',
                               fontWeight: 500,
@@ -1634,7 +1772,7 @@ export default function SettingsPage() {
                           >
                             Services, Clients, Subscriptions
                           </p>
-                          <p 
+                          <p
                             style={{
                               fontSize: '12px',
                               fontWeight: 400,
@@ -1673,7 +1811,7 @@ export default function SettingsPage() {
                     </div>
 
                     {/* Divider Line */}
-                    <div 
+                    <div
                       style={{
                         width: '588px',
                         height: '0px',
@@ -1683,12 +1821,12 @@ export default function SettingsPage() {
                     />
 
                     {/* User 4 - Jenny Wilson */}
-                    <div 
-                      className="flex items-center justify-between" 
+                    <div
+                      className="flex items-center justify-between"
                       style={{ paddingTop: '32px', paddingBottom: '32px' }}
                     >
                       <div className="flex items-center" style={{ gap: '16px' }}>
-                        <div 
+                        <div
                           style={{
                             width: '40px',
                             height: '40px',
@@ -1700,7 +1838,7 @@ export default function SettingsPage() {
                         />
                         <div>
                           <div className="flex items-center" style={{ gap: '8px', marginBottom: '3px' }}>
-                            <span 
+                            <span
                               style={{
                                 fontSize: '16px',
                                 fontWeight: 500,
@@ -1735,7 +1873,7 @@ export default function SettingsPage() {
                               </span>
                             </div>
                           </div>
-                          <p 
+                          <p
                             style={{
                               fontSize: '14px',
                               fontWeight: 400,
@@ -1747,7 +1885,7 @@ export default function SettingsPage() {
                           >
                             example@acumen.com
                           </p>
-                          <p 
+                          <p
                             style={{
                               fontSize: '14px',
                               fontWeight: 500,
@@ -1759,7 +1897,7 @@ export default function SettingsPage() {
                           >
                             Services, Clients, Subscriptions
                           </p>
-                          <p 
+                          <p
                             style={{
                               fontSize: '12px',
                               fontWeight: 400,
@@ -1797,7 +1935,7 @@ export default function SettingsPage() {
                     </div>
 
                     {/* Divider Line */}
-                    <div 
+                    <div
                       style={{
                         width: '588px',
                         height: '0px',
@@ -1807,12 +1945,12 @@ export default function SettingsPage() {
                     />
 
                     {/* User 5 - Theresa Webb */}
-                    <div 
-                      className="flex items-center justify-between" 
+                    <div
+                      className="flex items-center justify-between"
                       style={{ paddingTop: '32px', paddingBottom: '32px' }}
                     >
                       <div className="flex items-center" style={{ gap: '16px' }}>
-                        <div 
+                        <div
                           style={{
                             width: '40px',
                             height: '40px',
@@ -1833,7 +1971,7 @@ export default function SettingsPage() {
                         </div>
                         <div>
                           <div className="flex items-center" style={{ gap: '8px', marginBottom: '3px' }}>
-                            <span 
+                            <span
                               style={{
                                 fontSize: '16px',
                                 fontWeight: 500,
@@ -1868,7 +2006,7 @@ export default function SettingsPage() {
                               </span>
                             </div>
                           </div>
-                          <p 
+                          <p
                             style={{
                               fontSize: '14px',
                               fontWeight: 400,
@@ -1880,7 +2018,7 @@ export default function SettingsPage() {
                           >
                             example@acumen.com
                           </p>
-                          <p 
+                          <p
                             style={{
                               fontSize: '14px',
                               fontWeight: 500,
@@ -1892,7 +2030,7 @@ export default function SettingsPage() {
                           >
                             Services, Clients, Subscriptions
                           </p>
-                          <p 
+                          <p
                             style={{
                               fontSize: '12px',
                               fontWeight: 400,
@@ -1933,7 +2071,7 @@ export default function SettingsPage() {
               )}
 
               {activeTab === 'configuration' && (
-                <div 
+                <div
                   style={{
                     padding: '32px',
                     width: '941px',
@@ -1941,7 +2079,7 @@ export default function SettingsPage() {
                   }}
                 >
                   {/* Header */}
-                  <h1 
+                  <h1
                     style={{
                       fontSize: '24px',
                       fontWeight: 700,
@@ -1955,199 +2093,254 @@ export default function SettingsPage() {
                     Configurations
                   </h1>
 
-                  {/* Configuration Sections */}
-                  <div>
-                    {/* Set Global Defaults Section */}
-                    <div 
-                      className="flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors rounded-md p-2 -m-2"
-                      onClick={handleOpenGlobalSettings}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          handleOpenGlobalSettings();
-                        }
-                      }}
-                      tabIndex={0}
-                      role="button"
-                      aria-label="Open global settings configuration"
-                      style={{ paddingTop: '32px', paddingBottom: '32px' }}
-                    >
-                      <div className="flex-1 max-w-[244px]">
-                        <h3 
-                          style={{
-                            fontSize: '14px',
-                            fontWeight: 500,
-                            lineHeight: '16px',
-                            color: '#01112C',
-                            fontFamily: 'Open Sauce Sans, sans-serif',
-                            marginBottom: '8px',
-                          }}
-                        >
-                          Set Global Defaults
-                        </h3>
-                        <p 
-                          style={{
-                            fontSize: '16px',
-                            fontWeight: 400,
-                            lineHeight: '16px',
-                            color: '#767D94',
-                            fontFamily: 'Open Sauce Sans, sans-serif',
-                          }}
-                        >
-                          Set interest rate and loan terms
-                        </p>
+                  {/* System Settings Error Handling */}
+                  {settingsError ? (
+                    <div className="flex flex-col items-center justify-center py-8">
+                      <div className="text-red-500 mb-2">
+                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
                       </div>
-                      <svg 
-                        width="20" 
-                        height="20" 
-                        viewBox="0 0 20 20" 
-                        fill="none"
-                        style={{ opacity: 0.8 }}
+                      <span
+                        style={{
+                          fontSize: '16px',
+                          fontWeight: 500,
+                          lineHeight: '24px',
+                          color: '#DC2626',
+                          fontFamily: 'Open Sauce Sans, sans-serif',
+                          marginBottom: '8px',
+                        }}
                       >
-                        <path 
-                          d="M7.5 15L12.5 10L7.5 5" 
-                          stroke="#000000" 
-                          strokeWidth="2" 
-                          strokeLinecap="round" 
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    </div>
-
-                    {/* Divider Line */}
-                    <div 
-                      style={{
-                        width: '469px',
-                        height: '0px',
-                        opacity: 0.1,
-                        border: '0.8px solid #000000',
-                      }}
-                    />
-
-                    {/* Report Template Section */}
-                    <div 
-                      className="flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors rounded-md p-2 -m-2"
-                      onClick={handleOpenReportTemplate}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          handleOpenReportTemplate();
+                        Configuration Settings Unavailable
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '14px',
+                          fontWeight: 400,
+                          lineHeight: '20px',
+                          color: '#6B7280',
+                          fontFamily: 'Open Sauce Sans, sans-serif',
+                          textAlign: 'center',
+                          marginBottom: '4px',
+                        }}
+                      >
+                        {settingsError?.message || 'Failed to load configuration settings'}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '12px',
+                          fontWeight: 400,
+                          lineHeight: '16px',
+                          color: '#9CA3AF',
+                          fontFamily: 'Open Sauce Sans, sans-serif',
+                          textAlign: 'center',
+                        }}
+                      >
+                        {(settingsError as any)?.status === 404
+                          ? 'The system settings endpoint is not available. Please contact your system administrator.'
+                          : 'Please try again later or contact support if the problem persists.'
                         }
-                      }}
-                      tabIndex={0}
-                      role="button"
-                      aria-label="Open report template configuration"
-                      style={{ paddingTop: '32px', paddingBottom: '32px' }}
-                    >
-                      <div className="flex-1 max-w-[244px]">
-                        <h3 
-                          style={{
-                            fontSize: '14px',
-                            fontWeight: 500,
-                            lineHeight: '16px',
-                            color: '#01112C',
-                            fontFamily: 'Open Sauce Sans, sans-serif',
-                            marginBottom: '8px',
-                          }}
-                        >
-                          Report Template
-                        </h3>
-                        <p 
-                          style={{
-                            fontSize: '16px',
-                            fontWeight: 400,
-                            lineHeight: '16px',
-                            color: '#767D94',
-                            fontFamily: 'Open Sauce Sans, sans-serif',
-                          }}
-                        >
-                          Set interest rate and loan terms
-                        </p>
-                      </div>
-                      <svg 
-                        width="20" 
-                        height="20" 
-                        viewBox="0 0 20 20" 
-                        fill="none"
-                        style={{ opacity: 0.8 }}
-                      >
-                        <path 
-                          d="M7.5 15L12.5 10L7.5 5" 
-                          stroke="#000000" 
-                          strokeWidth="2" 
-                          strokeLinecap="round" 
-                          strokeLinejoin="round"
-                        />
-                      </svg>
+                      </span>
                     </div>
-
-                    {/* Divider Line */}
-                    <div 
-                      style={{
-                        width: '469px',
-                        height: '0px',
-                        opacity: 0.1,
-                        border: '0.8px solid #000000',
-                      }}
-                    />
-
-                    {/* Alert Rules Section */}
-                    <div 
-                      className="flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors rounded-md p-2 -m-2"
-                      onClick={handleOpenAlertRules}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          handleOpenAlertRules();
-                        }
-                      }}
-                      tabIndex={0}
-                      role="button"
-                      aria-label="Open alert rules configuration"
-                      style={{ paddingTop: '32px', paddingBottom: '32px' }}
-                    >
-                      <div className="flex-1 max-w-[244px]">
-                        <h3 
-                          style={{
-                            fontSize: '14px',
-                            fontWeight: 500,
-                            lineHeight: '16px',
-                            color: '#01112C',
-                            fontFamily: 'Open Sauce Sans, sans-serif',
-                            marginBottom: '8px',
-                          }}
-                        >
-                          Alert rules
-                        </h3>
-                        <p 
-                          style={{
-                            fontSize: '16px',
-                            fontWeight: 400,
-                            lineHeight: '16px',
-                            color: '#767D94',
-                            fontFamily: 'Open Sauce Sans, sans-serif',
-                          }}
-                        >
-                          Set interest rate and loan terms
-                        </p>
-                      </div>
-                      <svg 
-                        width="20" 
-                        height="20" 
-                        viewBox="0 0 20 20" 
-                        fill="none"
-                        style={{ opacity: 0.8 }}
-                      >
-                        <path 
-                          d="M7.5 15L12.5 10L7.5 5" 
-                          stroke="#000000" 
-                          strokeWidth="2" 
-                          strokeLinecap="round" 
-                          strokeLinejoin="round"
-                        />
-                      </svg>
+                  ) : settingsLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#7F56D9]"></div>
                     </div>
-                  </div>
+                  ) : (
+                    /* Configuration Sections */
+                    <div>
+                      {/* Set Global Defaults Section */}
+                      <div
+                        className="flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors rounded-md p-2 -m-2"
+                        onClick={handleOpenGlobalSettings}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleOpenGlobalSettings();
+                          }
+                        }}
+                        tabIndex={0}
+                        role="button"
+                        aria-label="Open global settings configuration"
+                        style={{ paddingTop: '32px', paddingBottom: '32px' }}
+                      >
+                        <div className="flex-1 max-w-[244px]">
+                          <h3
+                            style={{
+                              fontSize: '14px',
+                              fontWeight: 500,
+                              lineHeight: '16px',
+                              color: '#01112C',
+                              fontFamily: 'Open Sauce Sans, sans-serif',
+                              marginBottom: '8px',
+                            }}
+                          >
+                            Set Global Defaults
+                          </h3>
+                          <p
+                            style={{
+                              fontSize: '16px',
+                              fontWeight: 400,
+                              lineHeight: '16px',
+                              color: '#767D94',
+                              fontFamily: 'Open Sauce Sans, sans-serif',
+                            }}
+                          >
+                            Set interest rate and loan terms
+                          </p>
+                        </div>
+                        <svg
+                          width="20"
+                          height="20"
+                          viewBox="0 0 20 20"
+                          fill="none"
+                          style={{ opacity: 0.8 }}
+                        >
+                          <path
+                            d="M7.5 15L12.5 10L7.5 5"
+                            stroke="#000000"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </div>
+
+                      {/* Divider Line */}
+                      <div
+                        style={{
+                          width: '469px',
+                          height: '0px',
+                          opacity: 0.1,
+                          border: '0.8px solid #000000',
+                        }}
+                      />
+
+                      {/* Report Template Section */}
+                      <div
+                        className="flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors rounded-md p-2 -m-2"
+                        onClick={handleOpenReportTemplate}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleOpenReportTemplate();
+                          }
+                        }}
+                        tabIndex={0}
+                        role="button"
+                        aria-label="Open report template configuration"
+                        style={{ paddingTop: '32px', paddingBottom: '32px' }}
+                      >
+                        <div className="flex-1 max-w-[244px]">
+                          <h3
+                            style={{
+                              fontSize: '14px',
+                              fontWeight: 500,
+                              lineHeight: '16px',
+                              color: '#01112C',
+                              fontFamily: 'Open Sauce Sans, sans-serif',
+                              marginBottom: '8px',
+                            }}
+                          >
+                            Report Template
+                          </h3>
+                          <p
+                            style={{
+                              fontSize: '16px',
+                              fontWeight: 400,
+                              lineHeight: '16px',
+                              color: '#767D94',
+                              fontFamily: 'Open Sauce Sans, sans-serif',
+                            }}
+                          >
+                            Set interest rate and loan terms
+                          </p>
+                        </div>
+                        <svg
+                          width="20"
+                          height="20"
+                          viewBox="0 0 20 20"
+                          fill="none"
+                          style={{ opacity: 0.8 }}
+                        >
+                          <path
+                            d="M7.5 15L12.5 10L7.5 5"
+                            stroke="#000000"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </div>
+
+                      {/* Divider Line */}
+                      <div
+                        style={{
+                          width: '469px',
+                          height: '0px',
+                          opacity: 0.1,
+                          border: '0.8px solid #000000',
+                        }}
+                      />
+
+                      {/* Alert Rules Section */}
+                      <div
+                        className="flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors rounded-md p-2 -m-2"
+                        onClick={handleOpenAlertRules}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleOpenAlertRules();
+                          }
+                        }}
+                        tabIndex={0}
+                        role="button"
+                        aria-label="Open alert rules configuration"
+                        style={{ paddingTop: '32px', paddingBottom: '32px' }}
+                      >
+                        <div className="flex-1 max-w-[244px]">
+                          <h3
+                            style={{
+                              fontSize: '14px',
+                              fontWeight: 500,
+                              lineHeight: '16px',
+                              color: '#01112C',
+                              fontFamily: 'Open Sauce Sans, sans-serif',
+                              marginBottom: '8px',
+                            }}
+                          >
+                            Alert rules
+                          </h3>
+                          <p
+                            style={{
+                              fontSize: '16px',
+                              fontWeight: 400,
+                              lineHeight: '16px',
+                              color: '#767D94',
+                              fontFamily: 'Open Sauce Sans, sans-serif',
+                            }}
+                          >
+                            Set interest rate and loan terms
+                          </p>
+                        </div>
+                        <svg
+                          width="20"
+                          height="20"
+                          viewBox="0 0 20 20"
+                          fill="none"
+                          style={{ opacity: 0.8 }}
+                        >
+                          <path
+                            d="M7.5 15L12.5 10L7.5 5"
+                            stroke="#000000"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -2158,7 +2351,7 @@ export default function SettingsPage() {
       {/* Password Change Modal */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-[rgba(52,64,84,0.7)] backdrop-blur-[16px] flex items-center justify-center z-50">
-          <div 
+          <div
             className="bg-white rounded-lg shadow-lg"
             style={{
               width: '480px',
@@ -2174,9 +2367,9 @@ export default function SettingsPage() {
                   className="flex items-center gap-2 text-[#858D96] hover:text-[#6B7280] transition-colors"
                 >
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path d="M10 12L6 8L10 4" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M10 12L6 8L10 4" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                  <span 
+                  <span
                     style={{
                       fontSize: '14px',
                       fontWeight: 500,
@@ -2188,8 +2381,8 @@ export default function SettingsPage() {
                   </span>
                 </button>
               </div>
-              
-              <h2 
+
+              <h2
                 className="mb-2"
                 style={{
                   fontSize: '20px',
@@ -2201,7 +2394,7 @@ export default function SettingsPage() {
               >
                 Password Information
               </h2>
-              <p 
+              <p
                 style={{
                   fontSize: '16px',
                   fontWeight: 400,
@@ -2220,7 +2413,7 @@ export default function SettingsPage() {
               <div className="space-y-6">
                 {/* Current Password */}
                 <div>
-                  <label 
+                  <label
                     className="block mb-2"
                     style={{
                       fontSize: '14px',
@@ -2253,8 +2446,8 @@ export default function SettingsPage() {
                       className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#9097A5] hover:text-[#6B7280] transition-colors"
                     >
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z" stroke="currentColor" strokeWidth="1.5"/>
-                        <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.5"/>
+                        <path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z" stroke="currentColor" strokeWidth="1.5" />
+                        <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.5" />
                       </svg>
                     </button>
                   </div>
@@ -2262,7 +2455,7 @@ export default function SettingsPage() {
 
                 {/* New Password */}
                 <div>
-                  <label 
+                  <label
                     className="block mb-2"
                     style={{
                       fontSize: '14px',
@@ -2295,8 +2488,8 @@ export default function SettingsPage() {
                       className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#9097A5] hover:text-[#6B7280] transition-colors"
                     >
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z" stroke="currentColor" strokeWidth="1.5"/>
-                        <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.5"/>
+                        <path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z" stroke="currentColor" strokeWidth="1.5" />
+                        <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.5" />
                       </svg>
                     </button>
                   </div>
@@ -2304,7 +2497,7 @@ export default function SettingsPage() {
 
                 {/* Confirm New Password */}
                 <div>
-                  <label 
+                  <label
                     className="block mb-2"
                     style={{
                       fontSize: '14px',
@@ -2337,8 +2530,8 @@ export default function SettingsPage() {
                       className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#9097A5] hover:text-[#6B7280] transition-colors"
                     >
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z" stroke="currentColor" strokeWidth="1.5"/>
-                        <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.5"/>
+                        <path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z" stroke="currentColor" strokeWidth="1.5" />
+                        <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.5" />
                       </svg>
                     </button>
                   </div>
@@ -2359,7 +2552,7 @@ export default function SettingsPage() {
                 >
                   Cancel
                 </button>
-                
+
                 <button
                   onClick={handleChangePassword}
                   disabled={isLoading || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
@@ -2426,12 +2619,17 @@ export default function SettingsPage() {
         isOpen={showAlertRulesModal}
         onClose={handleCloseAlertRules}
         onSave={handleSaveAlertRules}
-        alertData={alertRulesSettings}
+        alertData={alertRulesSettings || {
+          missedPayments: false,
+          missedReports: false,
+          dailyEmailSummary: false,
+          customParameters: [],
+        }}
       />
 
       {/* Profile Picture Upload Modal */}
       {showProfilePictureModal && (
-        <div 
+        <div
           className="fixed inset-0 flex items-center justify-center z-50"
           style={{
             backgroundColor: 'rgba(52, 64, 84, 0.7)',
@@ -2457,7 +2655,7 @@ export default function SettingsPage() {
                 </svg>
               </button>
             </div>
-            
+
             <FileUpload
               accept="image/*"
               maxSize={5 * 1024 * 1024} // 5MB
@@ -2468,7 +2666,7 @@ export default function SettingsPage() {
               placeholder="Click to upload or drag and drop your profile picture"
               className="mb-4"
             />
-            
+
             <div className="flex justify-end space-x-3">
               <button
                 onClick={() => setShowProfilePictureModal(false)}

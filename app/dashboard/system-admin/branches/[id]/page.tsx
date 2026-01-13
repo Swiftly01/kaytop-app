@@ -23,6 +23,7 @@ import { userService } from '@/lib/services/users';
 import { dashboardService } from '@/lib/services/dashboard';
 import { branchService } from '@/lib/services/branches';
 import { reportsService } from '@/lib/services/reports';
+import type { ReportStatistics } from '@/lib/api/types';
 
 // TypeScript Interfaces
 interface BranchDetails {
@@ -83,6 +84,7 @@ export default function BranchDetailsPage({ params }: { params: Promise<{ id: st
   const [reports, setReports] = useState<any[]>([]);
   const [missedReports, setMissedReports] = useState<any[]>([]);
   const [statistics, setStatistics] = useState<any>(null);
+  const [branchReportStats, setBranchReportStats] = useState<ReportStatistics | null>(null);
   
   // Delete modal state
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -119,16 +121,24 @@ export default function BranchDetailsPage({ params }: { params: Promise<{ id: st
         
         setCreditOfficers(officers);
         
-        // Fetch real reports data from API
+        // Fetch real reports data from API - branch statistics endpoint doesn't exist, so we'll calculate from reports data
         try {
-          const reportsResponse = await reportsService.getAllReports({
-            branchId: id,
-            page: 1,
-            limit: 100
-          });
+          const [reportsResponse, missedReportsResponse] = await Promise.all([
+            reportsService.getAllReports({
+              page: 1,
+              limit: 100,
+              branchId: id
+            }),
+            reportsService.getMissedReports(id, {
+              // Use current month as default filter
+              dateFrom: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+              dateTo: new Date().toISOString().split('T')[0],
+            })
+          ]);
           
-          // Transform API reports to component format
-          const apiReports = reportsResponse.data.map(report => ({
+          // Transform reports to component format
+          const allReports = reportsResponse.data || [];
+          const apiReports = allReports.map(report => ({
             id: report.id,
             reportId: report.reportId,
             creditOfficer: report.creditOfficer,
@@ -149,69 +159,66 @@ export default function BranchDetailsPage({ params }: { params: Promise<{ id: st
             updatedAt: report.updatedAt
           }));
           
-          // Filter submitted reports and missed reports
-          const submittedReports = apiReports.filter(report => 
-            report.status === 'submitted' || report.status === 'approved' || report.status === 'declined'
-          );
-          
-          const missedReports = apiReports.filter(report => 
-            report.status === 'pending'
-          ).map(report => ({
-            ...report,
-            dueDate: report.createdAt,
-            dateDue: new Date(report.createdAt).toLocaleDateString(),
-            daysMissed: Math.max(1, Math.floor((Date.now() - new Date(report.createdAt).getTime()) / (1000 * 60 * 60 * 24))),
-            status: 'Overdue'
+          // Transform missed reports to match MissedReportsTable interface
+          const missedReportsData = missedReportsResponse.map(report => ({
+            id: report.id,
+            reportId: report.reportId,
+            branchName: report.branch || branchDetails.name,
+            status: 'Missed' as const,
+            dateDue: report.dateSent || report.createdAt,
           }));
           
-          setReports(submittedReports);
-          setMissedReports(missedReports);
+          setReports(apiReports);
+          setMissedReports(missedReportsData);
+          
+          // Calculate branch report statistics from the fetched reports data
+          // Since the backend doesn't have a branch-specific statistics endpoint,
+          // we'll calculate statistics from the reports we fetched
+          const currentMonth = new Date().getMonth();
+          const currentYear = new Date().getFullYear();
+          
+          // Filter reports for current month for growth calculation
+          const currentMonthReports = allReports.filter(report => {
+            const reportDate = new Date(report.createdAt);
+            return reportDate.getMonth() === currentMonth && reportDate.getFullYear() === currentYear;
+          });
+          
+          // Calculate statistics from actual data
+          const totalReports = allReports.length;
+          const submittedReports = allReports.filter(r => r.status === 'submitted').length;
+          const pendingReports = allReports.filter(r => r.status === 'pending' || r.status === 'submitted').length;
+          const approvedReports = allReports.filter(r => r.status === 'approved').length;
+          const missedReportsCount = missedReportsResponse.length;
+          
+          // For growth calculation, we'd need historical data, so we'll use placeholder values
+          // In a real implementation, you'd compare with previous month's data
+          const branchReportStats = {
+            totalReports: { count: totalReports, growth: 0 },
+            submittedReports: { count: submittedReports, growth: 0 },
+            pendingReports: { count: pendingReports, growth: 0 },
+            approvedReports: { count: approvedReports, growth: 0 },
+            missedReports: { count: missedReportsCount, growth: 0 },
+          };
+          
+          // Store branch report statistics for use in statistics display
+          setBranchReportStats(branchReportStats);
           
         } catch (reportsError) {
-          console.warn('Reports API not available, using fallback data:', reportsError);
+          console.warn('Reports API error:', reportsError);
           
-          // Fallback: Create minimal reports based on credit officers if API fails
-          const fallbackReports = officers.slice(0, Math.min(5, officers.length)).map((officer, index) => ({
-            id: `report-${officer.id}-${index}`,
-            reportId: `RPT-${Date.now()}-${index}`,
-            creditOfficer: `${officer.firstName} ${officer.lastName}`,
-            creditOfficerId: officer.id.toString(),
-            branch: branchDetails.name,
-            branchId: id,
-            email: officer.email,
-            reportType: 'monthly' as const,
-            status: 'submitted' as const,
-            dateSubmitted: new Date().toISOString(),
-            dateSent: new Date().toLocaleDateString(),
-            timeSent: new Date().toLocaleTimeString(),
-            loansDispursed: 0,
-            loansValueDispursed: '₦0',
-            savingsCollected: '₦0',
-            repaymentsCollected: 0,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          }));
-          
-          const fallbackMissedReports = officers.slice(0, Math.min(2, officers.length)).map((officer, index) => ({
-            id: `missed-${officer.id}-${index}`,
-            reportId: `MRP-${Date.now()}-${index}`,
-            creditOfficer: `${officer.firstName} ${officer.lastName}`,
-            creditOfficerId: officer.id.toString(),
-            branch: branchDetails.name,
-            branchId: id,
-            email: officer.email,
-            reportType: 'weekly' as const,
-            dueDate: new Date().toISOString(),
-            dateDue: new Date().toLocaleDateString(),
-            daysMissed: 1,
-            status: 'Overdue'
-          }));
-          
-          setReports(fallbackReports);
-          setMissedReports(fallbackMissedReports);
+          // If reports API fails, create empty arrays and default statistics
+          setReports([]);
+          setMissedReports([]);
+          setBranchReportStats({
+            totalReports: { count: 0, growth: 0 },
+            submittedReports: { count: 0, growth: 0 },
+            pendingReports: { count: 0, growth: 0 },
+            approvedReports: { count: 0, growth: 0 },
+            missedReports: { count: 0, growth: 0 },
+          });
         }
         
-        // Transform branch statistics to component format
+        // Transform branch statistics to component format, including report statistics
         const branchStats = {
           allCOs: {
             value: branchDetails.statistics.totalCreditOfficers,
@@ -232,6 +239,34 @@ export default function BranchDetailsPage({ params }: { params: Promise<{ id: st
             value: branchDetails.statistics.totalDisbursed,
             change: branchDetails.statistics.totalDisbursedGrowth,
             changeLabel: `${branchDetails.statistics.totalDisbursedGrowth >= 0 ? '+' : ''}${branchDetails.statistics.totalDisbursedGrowth}% this month`
+          },
+          // Add report statistics if available
+          totalReports: branchReportStats ? {
+            value: branchReportStats.totalReports.count,
+            change: branchReportStats.totalReports.growth,
+            changeLabel: `${branchReportStats.totalReports.growth >= 0 ? '+' : ''}${branchReportStats.totalReports.growth}% this month`
+          } : {
+            value: 0,
+            change: 0,
+            changeLabel: 'No data available'
+          },
+          pendingReports: branchReportStats ? {
+            value: branchReportStats.pendingReports.count,
+            change: branchReportStats.pendingReports.growth,
+            changeLabel: `${branchReportStats.pendingReports.growth >= 0 ? '+' : ''}${branchReportStats.pendingReports.growth}% this month`
+          } : {
+            value: 0,
+            change: 0,
+            changeLabel: 'No data available'
+          },
+          missedReports: branchReportStats ? {
+            value: branchReportStats.missedReports.count,
+            change: branchReportStats.missedReports.growth,
+            changeLabel: `${branchReportStats.missedReports.growth >= 0 ? '+' : ''}${branchReportStats.missedReports.growth}% this month`
+          } : {
+            value: 0,
+            change: 0,
+            changeLabel: 'No data available'
           }
         };
         
@@ -506,7 +541,7 @@ export default function BranchDetailsPage({ params }: { params: Promise<{ id: st
     }, 1000);
   };
 
-  // Transform API data to component format
+  // Transform API data to component format, including report statistics
   const statisticsData = statistics ? [
     {
       label: "All CO's",
@@ -532,6 +567,25 @@ export default function BranchDetailsPage({ params }: { params: Promise<{ id: st
       change: statistics.totalDisbursed.change,
       changeLabel: statistics.totalDisbursed.changeLabel,
       isCurrency: true
+    },
+    // Add report statistics
+    {
+      label: 'Total Reports',
+      value: statistics.totalReports.value,
+      change: statistics.totalReports.change,
+      changeLabel: statistics.totalReports.changeLabel
+    },
+    {
+      label: 'Pending Reports',
+      value: statistics.pendingReports.value,
+      change: statistics.pendingReports.change,
+      changeLabel: statistics.pendingReports.changeLabel
+    },
+    {
+      label: 'Missed Reports',
+      value: statistics.missedReports.value,
+      change: statistics.missedReports.change,
+      changeLabel: statistics.missedReports.changeLabel
     }
   ] : [];
 

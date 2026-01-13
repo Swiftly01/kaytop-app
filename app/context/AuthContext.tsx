@@ -1,6 +1,7 @@
 "use client";
 import { createContext, useContext, useState, useEffect } from "react";
 import { removeAuthCookies, setAuthCookies } from "@/lib/authCookies";
+import { authenticationManager } from "@/lib/api/authManager";
 
 interface AuthSession {
   token: string;
@@ -32,6 +33,18 @@ function AuthProvider({
       if (storedSession) {
         const parsedSession = JSON.parse(storedSession);
         setSession(parsedSession);
+        
+        // Also update the AuthenticationManager for API calls
+        authenticationManager.setAuth(
+          {
+            accessToken: parsedSession.token,
+            expiresAt: Date.now() + (24 * 60 * 60 * 1000), // 24 hours
+          },
+          {
+            role: parsedSession.role,
+            // Add other user properties as needed
+          }
+        );
       }
     } catch (error) {
       console.error("Error loading auth session:", error);
@@ -45,6 +58,18 @@ function AuthProvider({
     setSession(newSession);
     try {
       localStorage.setItem("auth_session", JSON.stringify(newSession));
+      
+      // Also update the AuthenticationManager for API calls
+      authenticationManager.setAuth(
+        {
+          accessToken: token,
+          expiresAt: Date.now() + (24 * 60 * 60 * 1000), // 24 hours
+        },
+        {
+          role: role,
+          // Add other user properties as needed
+        }
+      );
     } catch (error) {
       console.error("Error saving auth session:", error);
     }
@@ -54,6 +79,9 @@ function AuthProvider({
     setSession(null);
     try {
       localStorage.removeItem("auth_session");
+      
+      // Also clear the AuthenticationManager
+      authenticationManager.clearAuth();
     } catch (error) {
       console.error("Error removing auth session:", error);
     }

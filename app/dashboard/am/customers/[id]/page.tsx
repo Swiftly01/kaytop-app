@@ -166,7 +166,7 @@ export default function AMCustomerDetailsPage({ params }: PageProps) {
       let savings: any = null;
       try {
         const savingsResponse = await unifiedSavingsService.getCustomerSavings(id);
-        savings = savingsResponse.data || null;
+        savings = savingsResponse || null;
       } catch (err) {
         console.warn('Failed to fetch customer savings:', err);
         // Continue without savings data

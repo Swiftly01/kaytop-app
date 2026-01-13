@@ -16,6 +16,7 @@ import { ROUTES } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import Spinner from "../Spinner";
 import toast from "react-hot-toast";
+import { authenticationManager } from "@/lib/api/authManager";
 
 const schema = z.object({
   email: z.email("Invalid email format"),
@@ -59,18 +60,60 @@ export default function LoginForm() {
 
       const accessToken = response.access_token;
       const role = response.role;
+      
+      // Update AuthContext (legacy)
       auth(accessToken, role);
+      
+      // Set cookies with proper role conversion
       setCookie(accessToken, role);
+      
+      // Update authManager with user data
+      const userData = {
+        id: 'unknown', // LoginResponse doesn't include user details
+        firstName: 'User',
+        lastName: '',
+        email: '',
+        role: role,
+      };
+      
+      authenticationManager.setAuth(
+        {
+          accessToken: accessToken,
+          expiresAt: Date.now() + (24 * 60 * 60 * 1000), // 24 hours
+        },
+        userData
+      );
+      
       toast.success("You have logged in successfully");
       
       // Role-based routing after login
+      const convertRoleForRouting = (apiRole: string): string => {
+        const roleMap: Record<string, string> = {
+          'system_admin': 'ADMIN',
+          'branch_manager': 'BRANCH_MANAGER',
+          'account_manager': 'ACCOUNT_MANAGER',
+          'hq_manager': 'ADMIN',
+          'credit_officer': 'CREDIT_OFFICER',
+          'customer': 'USER',
+        };
+        return roleMap[apiRole] || 'BRANCH_MANAGER';
+      };
+      
       const roleDashboardRoutes: Record<string, string> = {
         BRANCH_MANAGER: ROUTES.Bm.DASHBOARD,
         ADMIN: "/dashboard/system-admin",
         ACCOUNT_MANAGER: "/dashboard/am",
+        CREDIT_OFFICER: "/dashboard/co",
+        USER: "/dashboard/customer",
       };
       
-      const targetDashboard = roleDashboardRoutes[role.toUpperCase()] || ROUTES.Bm.DASHBOARD;
+      const middlewareRole = convertRoleForRouting(role);
+      const targetDashboard = roleDashboardRoutes[middlewareRole] || ROUTES.Bm.DASHBOARD;
+      
+      console.log('🔍 LoginForm - API Role:', role);
+      console.log('🔍 LoginForm - Middleware Role:', middlewareRole);
+      console.log('🔍 LoginForm - Target Dashboard:', targetDashboard);
+      
       router.push(targetDashboard);
     } catch (error: AxiosError | unknown) {
       const err = error as AxiosError;

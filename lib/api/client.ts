@@ -8,13 +8,13 @@ import { interceptorManager } from './interceptors';
 import { DataTransformers } from './transformers';
 import { UnifiedAPIErrorHandler } from './errorHandler';
 import { authenticationManager } from './authManager';
-import type { 
-  ApiResponse, 
-  RequestConfig, 
-  ApiError, 
-  NetworkError, 
-  AuthError, 
-  ServerError 
+import type {
+  ApiResponse,
+  RequestConfig,
+  ApiError,
+  NetworkError,
+  AuthError,
+  ServerError
 } from './types';
 
 export interface UnifiedApiClient {
@@ -65,7 +65,7 @@ class UnifiedHttpClient implements UnifiedApiClient {
   constructor() {
     // Initialize and validate configuration
     initializeConfiguration();
-    
+
     this.baseURL = API_CONFIG.BASE_URL;
     this.defaultTimeout = API_CONFIG.TIMEOUT;
     this.retryConfig = {
@@ -82,8 +82,15 @@ class UnifiedHttpClient implements UnifiedApiClient {
     };
 
     // Use authentication manager for token handling
-    const authHeaders = await authenticationManager.getAuthHeaders();
-    return { ...headers, ...authHeaders };
+    try {
+      const authHeaders = await authenticationManager.getAuthHeaders();
+      console.log('🔍 Auth Headers:', authHeaders);
+      console.log('🔍 Auth State:', authenticationManager.getAuthState());
+      return { ...headers, ...authHeaders };
+    } catch (error) {
+      console.error('🚨 Error getting auth headers:', error);
+      return headers;
+    }
   }
 
   private async makeRequest<T>(
@@ -95,11 +102,22 @@ class UnifiedHttpClient implements UnifiedApiClient {
     const startTime = Date.now();
     const fullUrl = url.startsWith('http') ? url : `${this.baseURL}${url}`;
     const timeout = config?.timeout || this.defaultTimeout;
-    
+
+    console.log('🔍 API Request Debug:', {
+      method,
+      url,
+      fullUrl,
+      baseURL: this.baseURL,
+      timeout,
+      hasData: !!data
+    });
+
     const headers = {
       ...(await this.getDefaultHeaders()),
       ...config?.headers,
     };
+
+    console.log('🔍 API Headers:', headers);
 
     // Handle FormData - don't set Content-Type for file uploads
     if (data instanceof FormData) {
@@ -140,22 +158,26 @@ class UnifiedHttpClient implements UnifiedApiClient {
 
       if (!response.ok) {
         const error = await this.createApiError(response);
-        this.logger.logError(method, fullUrl, error, responseTime);
-        
-        // Log error with context
-        UnifiedAPIErrorHandler.logErrorWithContext(error, {
-          endpoint: fullUrl,
-          method,
-          requestData: data,
-          timestamp: new Date().toISOString()
-        });
-        
+
+        // Log error only if suppression is not requested
+        if (!config?.suppressErrorLog) {
+          this.logger.logError(method, fullUrl, error, responseTime);
+
+          // Log error with context
+          UnifiedAPIErrorHandler.logErrorWithContext(error, {
+            endpoint: fullUrl,
+            method,
+            requestData: data,
+            timestamp: new Date().toISOString()
+          });
+        }
+
         throw error;
       }
 
       let responseData;
       const contentType = response.headers.get('content-type');
-      
+
       if (contentType && contentType.includes('application/json')) {
         responseData = await response.json();
       } else {
@@ -169,7 +191,7 @@ class UnifiedHttpClient implements UnifiedApiClient {
             text: text.substring(0, 200) + (text.length > 200 ? '...' : '')
           });
         }
-        
+
         // If response is empty, this indicates a backend issue
         if (!text || text.trim() === '') {
           responseData = {
@@ -185,37 +207,51 @@ class UnifiedHttpClient implements UnifiedApiClient {
           };
         }
       }
-      
+
       // Apply unified data transformation based on endpoint
       const transformedData = this.transformResponse<T>(responseData, fullUrl);
-      
+
       // Execute response interceptors
       interceptorManager.executeResponseInterceptors(transformedData);
-      
+
       // Log success
       this.logger.logSuccess(method, fullUrl, response.status, responseTime);
-      
+
       return transformedData;
     } catch (error) {
       // Execute error interceptors
       interceptorManager.executeResponseErrorInterceptors(error);
       clearTimeout(timeoutId);
       const responseTime = Date.now() - startTime;
-      
+
+      const shouldSuppress = (requestOptions as any)?.suppressErrorLog;
+
+      if (!shouldSuppress) {
+        console.error('🚨 API Request Failed:', {
+          method,
+          url: fullUrl,
+          message: error instanceof Error ? error.message : 'Unknown error',
+          status: (error as any)?.status,
+          name: error instanceof Error ? error.name : 'Unknown',
+          responseText: (error as any)?.responseText, // Often helpful in fetch errors
+          responseTime
+        });
+      }
+
       if (error instanceof Error && error.name === 'AbortError') {
         const timeoutError = this.createNetworkError('Request timeout', 408);
         this.logger.logError(method, fullUrl, timeoutError, responseTime);
         throw timeoutError;
       }
-      
+
       if (error instanceof TypeError && error.message.includes('fetch')) {
-        const networkError = this.createNetworkError('Network error', 0);
+        const networkError = this.createNetworkError(`Network error: ${error.message}`, 0);
         this.logger.logError(method, fullUrl, networkError, responseTime);
         throw networkError;
       }
-      
+
       this.logger.logError(method, fullUrl, error, responseTime);
-      
+
       // Log error with context
       UnifiedAPIErrorHandler.logErrorWithContext(error, {
         endpoint: fullUrl,
@@ -223,14 +259,14 @@ class UnifiedHttpClient implements UnifiedApiClient {
         requestData: data,
         timestamp: new Date().toISOString()
       });
-      
+
       throw error;
     }
   }
 
   private transformResponse<T>(responseData: any, url: string): ApiResponse<T> {
     console.log('🔄 Transforming API response for:', url);
-    
+
     // Apply endpoint-specific transformations using the unified transformer
     if (url.includes('/dashboard/kpi')) {
       const transformedData = DataTransformers.transformDashboardKPIs(responseData.data || responseData);
@@ -240,7 +276,7 @@ class UnifiedHttpClient implements UnifiedApiClient {
         message: responseData.message
       };
     }
-    
+
     // User management endpoints
     if (url.includes('/admin/users') || url.includes('/users/filter') || url.includes('/admin/staff/my-staff')) {
       if (Array.isArray(responseData.data) || Array.isArray(responseData)) {
@@ -262,7 +298,7 @@ class UnifiedHttpClient implements UnifiedApiClient {
         };
       }
     }
-    
+
     // Profile endpoints
     if (url.includes('/users/profile')) {
       const transformedData = DataTransformers.transformUser(responseData.data || responseData);
@@ -272,7 +308,7 @@ class UnifiedHttpClient implements UnifiedApiClient {
         message: responseData.message
       };
     }
-    
+
     // Loan management endpoints
     if (url.includes('/loans/')) {
       // Handle paginated loan responses (like /loans/disbursed)
@@ -298,7 +334,7 @@ class UnifiedHttpClient implements UnifiedApiClient {
           data: transformedData as T,
           message: responseData.message
         };
-      } 
+      }
       // Handle single loan responses
       else if (responseData.data?.id || responseData.id || (Array.isArray(responseData) && responseData.length > 0)) {
         // Handle customer loans endpoint which returns array directly
@@ -319,7 +355,7 @@ class UnifiedHttpClient implements UnifiedApiClient {
         }
       }
     }
-    
+
     // Savings management endpoints
     if (url.includes('/savings/')) {
       // Handle savings transactions
@@ -347,10 +383,56 @@ class UnifiedHttpClient implements UnifiedApiClient {
           data: transformedData as T,
           message: responseData.message
         };
-      } 
+      }
       // Handle single savings account (customer savings)
       else if (responseData.data?.id || responseData.id) {
         const transformedData = DataTransformers.transformSavingsAccount(responseData.data || responseData);
+        return {
+          success: true,
+          data: transformedData as T,
+          message: responseData.message
+        };
+      }
+    }
+
+    // Reports management endpoints
+    if (url.includes('/reports')) {
+      // Handle reports statistics
+      if (url.includes('/statistics') || url.includes('/dashboard/stats')) {
+        const transformedData = DataTransformers.transformReportStatistics(responseData.data || responseData);
+        return {
+          success: true,
+          data: transformedData as T,
+          message: responseData.message
+        };
+      }
+      // Handle paginated reports responses
+      else if (responseData.data && responseData.meta) {
+        const transformedData = DataTransformers.transformPaginatedResponse(
+          responseData,
+          DataTransformers.transformReport
+        );
+        return {
+          success: true,
+          data: transformedData as T,
+          message: responseData.message
+        };
+      }
+      // Handle direct array responses
+      else if (Array.isArray(responseData.data) || Array.isArray(responseData)) {
+        const transformedData = DataTransformers.transformPaginatedResponse(
+          responseData,
+          DataTransformers.transformReport
+        );
+        return {
+          success: true,
+          data: transformedData as T,
+          message: responseData.message
+        };
+      }
+      // Handle single report responses (get by ID, approve, decline)
+      else if (responseData.data?.id || responseData.id || (responseData.data?.reportId || responseData.reportId)) {
+        const transformedData = DataTransformers.transformReport(responseData.data || responseData);
         return {
           success: true,
           data: transformedData as T,
@@ -369,7 +451,7 @@ class UnifiedHttpClient implements UnifiedApiClient {
 
   private async createApiError(response: Response): Promise<ApiError> {
     let errorData: any = {};
-    
+
     try {
       errorData = await response.json();
     } catch {

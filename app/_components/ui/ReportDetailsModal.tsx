@@ -32,6 +32,13 @@ export interface ReportDetailsData {
   savingsCollected?: string;
   /** Number of repayments collected */
   repaymentsCollected?: number;
+  /** Approval history for the report */
+  approvalHistory?: Array<{
+    action: 'approved' | 'declined';
+    actionBy: string;
+    actionAt: string;
+    comments?: string;
+  }>;
 }
 
 /**
@@ -226,7 +233,7 @@ export function ReportDetailsModal({
             </h3>
 
             {/* Details Grid - 2 columns */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
               {/* Loans Disbursed */}
               {reportData.loansDispursed !== undefined && (
                 <div className="flex flex-col gap-1">
@@ -331,6 +338,57 @@ export function ReportDetailsModal({
                 </p>
               </div>
             </div>
+
+            {/* Approval History Section */}
+            {reportData.approvalHistory && reportData.approvalHistory.length > 0 && (
+              <div className="mb-5">
+                <h4
+                  className="text-[18px] font-medium leading-[28px] text-[#021C3E] mb-3"
+                  style={{ fontFamily: 'Open Sauce Sans, sans-serif' }}
+                >
+                  Approval History
+                </h4>
+                <div className="space-y-3">
+                  {reportData.approvalHistory.map((historyItem, index) => (
+                    <div
+                      key={index}
+                      className="p-3 bg-[#F9FAFB] border border-[#E4E7EC] rounded-lg"
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <span
+                          className={`text-[14px] font-semibold leading-[20px] ${
+                            historyItem.action === 'approved' ? 'text-[#027A48]' : 'text-[#B42318]'
+                          }`}
+                          style={{ fontFamily: 'Open Sauce Sans, sans-serif' }}
+                        >
+                          {historyItem.action === 'approved' ? 'Approved' : 'Declined'}
+                        </span>
+                        <span
+                          className="text-[14px] font-medium leading-[20px] text-[#464A53]"
+                          style={{ fontFamily: 'Open Sauce Sans, sans-serif' }}
+                        >
+                          {new Date(historyItem.actionAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p
+                        className="text-[14px] font-medium leading-[20px] text-[#021C3E] mb-1"
+                        style={{ fontFamily: 'Open Sauce Sans, sans-serif' }}
+                      >
+                        By: {historyItem.actionBy}
+                      </p>
+                      {historyItem.comments && (
+                        <p
+                          className="text-[14px] leading-[20px] text-[#464A53]"
+                          style={{ fontFamily: 'Open Sauce Sans, sans-serif' }}
+                        >
+                          {historyItem.comments}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Approval Status Label */}

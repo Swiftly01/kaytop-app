@@ -134,16 +134,16 @@ export default function LoansPage() {
         let startDate: Date;
 
         switch (selectedPeriod) {
-          case '24hours':
+          case 'last_24_hours':
             startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
             break;
-          case '7days':
+          case 'last_7_days':
             startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
             break;
-          case '30days':
+          case 'last_30_days':
             startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
             break;
-          case '12months':
+          case 'custom':
           default:
             startDate = new Date(now);
             startDate.setMonth(now.getMonth() - 12);

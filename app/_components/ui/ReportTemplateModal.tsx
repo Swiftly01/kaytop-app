@@ -88,7 +88,7 @@ export default function ReportTemplateModal({
     if (initialData) {
       setFormData(initialData);
     }
-  }, [initialData]);
+  }, [JSON.stringify(initialData)]);
 
   // Focus management
   useEffect(() => {

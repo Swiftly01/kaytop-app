@@ -13,6 +13,7 @@ import { StatisticsCardSkeleton, TableSkeleton } from '@/app/_components/ui/Skel
 import { unifiedUserService } from '@/lib/services/unifiedUser';
 import type { User } from '@/lib/api/types';
 import { DateRange } from 'react-day-picker';
+import { useAuth } from '@/app/context/AuthContext';
 
 type TimePeriod = 'last_24_hours' | 'last_7_days' | 'last_30_days' | 'custom' | null;
 
@@ -50,6 +51,7 @@ const transformToCustomer = (customer: any): Customer => ({
 });
 
 export default function AMCustomersPage() {
+  const { session, isLoading: authLoading } = useAuth();
   const { toasts, removeToast, success, error } = useToast();
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('last_30_days');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
@@ -89,14 +91,14 @@ export default function AMCustomersPage() {
 
       // Debug authentication state
       console.log('🔍 Authentication Debug:', {
-        isAuthenticated,
-        hasUser: !!user,
-        hasToken: !!token,
-        userRole: user?.role,
+        isAuthenticated: !!session,
+        hasUser: !!session,
+        hasToken: !!session?.token,
+        userRole: session?.role,
         tokenInStorage: typeof window !== 'undefined' ? !!localStorage.getItem('auth-token') : 'N/A'
       });
 
-      if (!isAuthenticated || !token) {
+      if (!session || !session.token) {
         throw new Error('User not authenticated');
       }
 
@@ -180,17 +182,17 @@ export default function AMCustomersPage() {
 
   // Load initial data
   useEffect(() => {
-    if (isAuthenticated && !authLoading) {
+    if (session && !authLoading) {
       fetchCustomersData(1, advancedFilters);
     }
-  }, [isAuthenticated, authLoading]);
+  }, [session, authLoading]);
 
   // Refetch when page changes
   useEffect(() => {
-    if (!isLoading && isAuthenticated && !authLoading) {
+    if (!isLoading && session && !authLoading) {
       fetchCustomersData(currentPage, advancedFilters);
     }
-  }, [currentPage, isAuthenticated, authLoading]);
+  }, [currentPage, session, authLoading]);
 
   const handlePeriodChange = (period: TimePeriod) => {
     setSelectedPeriod(period);
@@ -279,7 +281,7 @@ export default function AMCustomersPage() {
   }
 
   // Redirect if not authenticated
-  if (!isAuthenticated) {
+  if (!session) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">

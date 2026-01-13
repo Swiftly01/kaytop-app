@@ -14,6 +14,8 @@ import { useToast } from '@/app/hooks/useToast';
 import { PageSkeleton } from '@/app/_components/ui/Skeleton';
 import { unifiedDashboardService } from '@/lib/services/unifiedDashboard';
 import { unifiedUserService } from '@/lib/services/unifiedUser';
+import { reportsService } from '@/lib/services/reports';
+import type { ReportStatistics } from '@/lib/api/types';
 
 // TypeScript Interfaces
 interface AMBranchDetailsPageProps {
@@ -38,6 +40,7 @@ export default function AMBranchDetailsPage({ params }: AMBranchDetailsPageProps
   const [reports, setReports] = useState<any[]>([]);
   const [missedReports, setMissedReports] = useState<any[]>([]);
   const [statistics, setStatistics] = useState<any>(null);
+  const [branchReportStats, setBranchReportStats] = useState<ReportStatistics | null>(null);
 
   // Fetch branch data on component mount
   useEffect(() => {
@@ -73,7 +76,21 @@ export default function AMBranchDetailsPage({ params }: AMBranchDetailsPageProps
         
         setBranchData(mockBranchDetails);
         
-        // Transform statistics for the component
+        // Fetch real branch report statistics
+        let branchReportStats: ReportStatistics | null = null;
+        try {
+          branchReportStats = await reportsService.getBranchReportStatistics(id, {
+            // Use current month as default filter
+            dateFrom: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+            dateTo: new Date().toISOString().split('T')[0],
+          });
+          setBranchReportStats(branchReportStats);
+        } catch (reportError) {
+          console.warn('Failed to fetch branch report statistics:', reportError);
+          setBranchReportStats(null);
+        }
+        
+        // Transform statistics for the component, including report statistics
         const transformedStats = {
           allCOs: {
             value: mockBranchDetails.statistics.totalCreditOfficers,
@@ -102,57 +119,103 @@ export default function AMBranchDetailsPage({ params }: AMBranchDetailsPageProps
             changeLabel: mockBranchDetails.statistics.loansProcessedGrowth > 0 
               ? `+${mockBranchDetails.statistics.loansProcessedGrowth}% this month`
               : `${mockBranchDetails.statistics.loansProcessedGrowth}% this month`
+          },
+          // Add real report statistics
+          totalReports: branchReportStats ? {
+            value: branchReportStats.totalReports.count,
+            change: branchReportStats.totalReports.growth,
+            changeLabel: `${branchReportStats.totalReports.growth >= 0 ? '+' : ''}${branchReportStats.totalReports.growth}% this month`
+          } : {
+            value: 0,
+            change: 0,
+            changeLabel: 'No data available'
+          },
+          pendingReports: branchReportStats ? {
+            value: branchReportStats.pendingReports.count,
+            change: branchReportStats.pendingReports.growth,
+            changeLabel: `${branchReportStats.pendingReports.growth >= 0 ? '+' : ''}${branchReportStats.pendingReports.growth}% this month`
+          } : {
+            value: 0,
+            change: 0,
+            changeLabel: 'No data available'
+          },
+          missedReports: branchReportStats ? {
+            value: branchReportStats.missedReports.count,
+            change: branchReportStats.missedReports.growth,
+            changeLabel: `${branchReportStats.missedReports.growth >= 0 ? '+' : ''}${branchReportStats.missedReports.growth}% this month`
+          } : {
+            value: 0,
+            change: 0,
+            changeLabel: 'No data available'
           }
         };
         setStatistics(transformedStats);
         
-        // Create mock credit officers data
-        const mockCreditOfficers = [
-          {
-            id: '1',
-            name: 'John Doe',
-            email: 'john.doe@kaytop.com',
-            phone: '+234 801 111 1111',
-            customersCount: 25,
-            activeLoans: 15,
-            status: 'active'
-          },
-          {
-            id: '2',
-            name: 'Jane Smith',
-            email: 'jane.smith@kaytop.com',
-            phone: '+234 801 222 2222',
-            customersCount: 30,
-            activeLoans: 20,
-            status: 'active'
-          }
-        ];
-        setCreditOfficers(mockCreditOfficers);
+        // Fetch real credit officers data for this branch
+        let creditOfficersData: any[] = [];
+        try {
+          // Use unified services to get credit officers for this branch
+          const branchUsersResponse = await unifiedUserService.getUsers({ 
+            branch: `Branch ${id}`, 
+            role: 'credit_officer',
+            page: 1, 
+            limit: 100 
+          });
+          creditOfficersData = branchUsersResponse?.data || [];
+        } catch (creditOfficersError) {
+          console.warn('Failed to fetch credit officers:', creditOfficersError);
+          creditOfficersData = [];
+        }
+        setCreditOfficers(creditOfficersData);
         
-        // Create mock reports data
-        const mockReports = [
-          {
-            id: '1',
-            reportId: 'RPT-001',
-            creditOfficer: 'John Doe',
-            status: 'pending',
-            dateSubmitted: '2024-12-20T10:30:00Z',
-            timeSent: '10:30 AM'
-          }
-        ];
-        setReports(mockReports);
+        // Fetch real reports data for this branch
+        let reportsData: any[] = [];
+        try {
+          const reportsResponse = await reportsService.getAllReports({
+            page: 1,
+            limit: 100,
+            branchId: id
+          });
+          
+          // Transform reports to component format
+          reportsData = (reportsResponse.data || []).map(report => ({
+            id: report.id,
+            reportId: report.reportId,
+            creditOfficer: report.creditOfficer,
+            status: report.status,
+            dateSubmitted: report.createdAt,
+            timeSent: report.timeSent || new Date(report.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+          }));
+        } catch (reportsError) {
+          console.warn('Failed to fetch reports:', reportsError);
+          reportsData = [];
+        }
+        setReports(reportsData);
         
-        // Create mock missed reports data
-        const mockMissedReports = [
-          {
-            id: '1',
-            reportId: 'RPT-MISSED-001',
-            creditOfficer: 'Jane Smith',
-            expectedDate: '2024-12-19',
-            daysMissed: 2
-          }
-        ];
-        setMissedReports(mockMissedReports);
+        // Fetch real missed reports data for this branch
+        let missedReportsData: any[] = [];
+        try {
+          const missedReportsResponse = await reportsService.getMissedReports(id, {
+            // Use current month as default filter
+            dateFrom: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+            dateTo: new Date().toISOString().split('T')[0],
+          });
+          
+          // Transform missed reports to match MissedReportsTable interface
+          missedReportsData = missedReportsResponse.map(report => ({
+            id: report.id,
+            reportId: report.reportId,
+            branchName: report.branch || `Branch ${id}`,
+            status: 'Missed' as const,
+            dateDue: report.dateSent || report.createdAt,
+          }));
+          
+        } catch (missedReportsError) {
+          console.warn('Failed to fetch missed reports:', missedReportsError);
+          // Fall back to empty array if API fails
+          missedReportsData = [];
+        }
+        setMissedReports(missedReportsData);
 
       } catch (err) {
         console.error('Failed to fetch branch data:', err);
@@ -322,6 +385,25 @@ export default function AMBranchDetailsPage({ params }: AMBranchDetailsPageProps
                   change: statistics.loansProcessed.change,
                   changeLabel: statistics.loansProcessed.changeLabel,
                   isCurrency: true
+                },
+                // Add report statistics
+                {
+                  label: "Total Reports",
+                  value: statistics.totalReports.value,
+                  change: statistics.totalReports.change,
+                  changeLabel: statistics.totalReports.changeLabel
+                },
+                {
+                  label: "Pending Reports",
+                  value: statistics.pendingReports.value,
+                  change: statistics.pendingReports.change,
+                  changeLabel: statistics.pendingReports.changeLabel
+                },
+                {
+                  label: "Missed Reports",
+                  value: statistics.missedReports.value,
+                  change: statistics.missedReports.change,
+                  changeLabel: statistics.missedReports.changeLabel
                 }
               ]} />
             </div>

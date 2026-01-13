@@ -60,6 +60,16 @@ export interface DashboardKpi {
 
   // Rankings
   topPerformers: unknown[];
+
+  // Reports (newly added for KPI integration)
+  totalReports: number;
+  pendingReports: number;
+  approvedReports: number;
+  missedReports: number;
+  totalReportsGrowth: number;
+  pendingReportsGrowth: number;
+  approvedReportsGrowth: number;
+  missedReportsGrowth: number;
 }
 
 type Status = "active" | "scheduled";

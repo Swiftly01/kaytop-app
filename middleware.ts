@@ -73,11 +73,20 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get('token')?.value;
   const role = request.cookies.get('role')?.value;
 
+  // Debug logging
+  console.log('🔍 Middleware Debug - Path:', pathname);
+  console.log('🔍 Middleware Debug - Token exists:', !!token);
+  console.log('🔍 Middleware Debug - Role from cookie:', role);
+
   // Handle authentication logic
   const tokenExpired = token ? isTokenExpired(token) : true;
   const isAuthenticated = !!(token && !tokenExpired);
   const needsAuth = requiresAuth(pathname);
   const isAuthPath = isAuthRoute(pathname);
+
+  console.log('🔍 Middleware Debug - Is Authenticated:', isAuthenticated);
+  console.log('🔍 Middleware Debug - Needs Auth:', needsAuth);
+  console.log('🔍 Middleware Debug - Is Auth Path:', isAuthPath);
 
   // If user is authenticated and trying to access auth pages, redirect to appropriate dashboard
   if (isAuthenticated && isAuthPath && role) {
@@ -100,6 +109,14 @@ export function middleware(request: NextRequest) {
   // Handle role-based dashboard routing (integrated from proxy.ts)
   if (isAuthenticated && token && role && pathname.startsWith('/dashboard')) {
     const targetDashboard = ROLE_DASHBOARD_ROUTES[role.toUpperCase()];
+    
+    console.log('🎯 Role-based routing check:', {
+      role,
+      upperRole: role.toUpperCase(),
+      targetDashboard,
+      currentPath: pathname,
+      shouldRedirect: targetDashboard && !pathname.startsWith(targetDashboard)
+    });
     
     if (targetDashboard && !pathname.startsWith(targetDashboard)) {
       console.log(`🎯 Role-based redirect: ${role} -> ${targetDashboard}`);

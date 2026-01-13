@@ -1,6 +1,7 @@
 "use client";
 
-import { ProfileResponse } from "@/app/types/settings";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -10,109 +11,157 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { ChevronDown } from "lucide-react";
+import { authenticationManager } from "@/lib/api/authManager";
+import { authService } from "@/lib/services/auth";
 import toast from "react-hot-toast";
-import SpinnerLg from "./SpinnerLg";
-import Link from "next/link";
+
+interface AdminProfile {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: string;
+  profilePicture?: string;
+}
+
+interface ProfileResponse {
+  firstName: string;
+  lastName: string;
+  profilePicture?: string | null;
+}
 
 interface ProfileProps {
   data?: ProfileResponse;
 }
 
 export default function ProfileDropdown({ data }: ProfileProps) {
- 
   const [open, setOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [showProfileModal, setShowProfileModal] = useState(false);
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [profile, setProfile] = useState<AdminProfile | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   
   const router = useRouter();
+
+  useEffect(() => {
+    const user = authenticationManager.getCurrentUser();
+    if (user) {
+      setProfile(user);
+    }
+  }, []);
+
   const handleLogout = () => {
-    logOut();
-    toast.success("You have successfully logged out");
-    router.push(ROUTES.Bm.Auth.LOGIN);
+    setShowLogoutConfirm(true);
   };
 
-  const src =
-    data && data.profilePicture !== null ? data.profilePicture : "/avatar.svg";
+  const handleLogoutConfirm = async () => {
+    try {
+      // Get user role before clearing auth
+      const currentUser = authenticationManager.getCurrentUser();
+      const userRole = currentUser?.role;
+      
+      // Debug logging to see what role is detected
+      console.log('🔍 Logout Debug - Current User:', currentUser);
+      console.log('🔍 Logout Debug - User Role:', userRole);
+      
+      // Call auth service logout (handles any server-side cleanup if available)
+      await authService.logout();
+      
+      // Force clear all authentication data including cookies
+      authenticationManager.forceLogout();
+      
+      // Show success message
+      toast.success("You have successfully logged out");
+      
+      // Redirect based on user role with more comprehensive matching
+      let redirectPath = "/auth/bm/login"; // default to BM login for most users
+      
+      console.log('🔍 Logout Debug - User Role:', userRole);
+      
+      // Use the API role format (lowercase with underscores)
+      switch (userRole) {
+        case 'system_admin':
+        case 'admin':
+          redirectPath = "/auth/login";
+          break;
+        case 'branch_manager':
+        case 'bm':
+          redirectPath = "/auth/bm/login";
+          break;
+        case 'account_manager':
+        case 'am':
+          redirectPath = "/auth/am/login";
+          break;
+        case 'credit_officer':
+        case 'co':
+          redirectPath = "/auth/co/login";
+          break;
+        case 'customer':
+        case 'user':
+          redirectPath = "/auth/customer/login";
+          break;
+        default:
+          // Fallback: if role doesn't match expected values, default to BM login
+          redirectPath = "/auth/bm/login";
+      }
+      
+      console.log('🔍 Logout Debug - Redirect Path:', redirectPath);
+      
+      // Close modal and redirect
+      setShowLogoutConfirm(false);
+      
+      // Use window.location for a hard redirect to ensure cookies are cleared
+      window.location.href = redirectPath;
+      
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error("An error occurred during logout");
+      
+      // Even if server logout fails, still clear local state
+      authenticationManager.forceLogout();
+      setShowLogoutConfirm(false);
+      window.location.href = "/auth/bm/login"; // Default to BM login on error
+    }
+  };
+
+  const handleLogoutCancel = () => {
+    setShowLogoutConfirm(false);
+  };
+
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      setShowLogoutConfirm(false);
+    }
+  };
+
+  const handleProfileClick = () => {
+    router.push("/dashboard/settings");
+  };
+
+  const handleSettingsClick = () => {
+    router.push("/dashboard/settings");
+  };
+
+  const src = data?.profilePicture || profile?.profilePicture || "/avatar.svg";
+  const displayName = data?.firstName || profile?.firstName || "User";
 
   return (
-    <DropdownMenu onOpenChange={setOpen}>
-      <DropdownMenuTrigger className="flex items-center gap-2 transition outline-none cursor-pointer hover:opacity-80">
-        <span className="font-medium">{data?.firstName}</span>
+    <>
+      <DropdownMenu onOpenChange={setOpen}>
+        <DropdownMenuTrigger className="flex items-center gap-2 transition outline-none cursor-pointer hover:opacity-80">
+          <span className="font-medium">{displayName}</span>
 
-        <Avatar className="h-7 w-7">
-          <AvatarImage src={src} alt="avatar" />
-          <AvatarFallback>
-            <SpinnerLg />
-          </AvatarFallback>
-        </Avatar>
-
-        <ChevronDown
-          size={18}
-          className={`transition-transform ${open ? "rotate-180" : "rotate-0"}`}
-        />
-      </DropdownMenuTrigger>
-
-      <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuLabel>My Account</DropdownMenuLabel>
-        <Link href={ROUTES.Bm.SETTING}>
-          <DropdownMenuItem className="cursor-pointer">
-            Settings
-          </DropdownMenuItem>
-        </Link>
-
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="text-red-600 cursor-pointer"
-          onClick={handleLogout}
-        >
-          {/* User name - positioned at 78.75% from left, 34.29% from top */}
-          <span 
-            className="font-open-sauce-sans text-right"
-            style={{
-              fontSize: '16px',
-              fontWeight: 400,
-              lineHeight: '20px',
-            }}
-          >
-            {profile ? `${profile.firstName} ${profile.lastName}` : 'Loading...'}
-          </span>
-
-          {/* User avatar - 29x29px circle, positioned at 86.88% from left */}
-          <Avatar 
-            style={{
-              width: '29px',
-              height: '29px',
-            }}
-          >
-            <AvatarImage src="/avatar.svg" alt={`${profile?.firstName || 'User'} profile picture`} />
+          <Avatar className="h-7 w-7">
+            <AvatarImage src={src} alt="avatar" />
             <AvatarFallback>
-              {profile ? `${profile.firstName?.[0] || ''}${profile.lastName?.[0] || ''}` : 'U'}
+              {displayName.charAt(0).toUpperCase()}
             </AvatarFallback>
           </Avatar>
 
-          {/* Dropdown arrow - 14x14px, positioned at 96.25% from left */}
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 14 14"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
+          <ChevronDown
+            size={18}
             className={`transition-transform ${open ? "rotate-180" : "rotate-0"}`}
-            aria-hidden="true"
-          >
-            <path
-              d="M3.5 5.25L7 8.75L10.5 5.25"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+          />
         </DropdownMenuTrigger>
 
         <DropdownMenuContent align="end" className="w-48">
@@ -132,16 +181,6 @@ export default function ProfileDropdown({ data }: ProfileProps) {
 
           <DropdownMenuItem 
             className="cursor-pointer focus:bg-[#F9F5FF] focus:text-[#7F56D9]" 
-            onClick={handleChangePasswordClick}
-          >
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1721 9z" />
-            </svg>
-            Change Password
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem 
-            className="cursor-pointer focus:bg-[#F9F5FF] focus:text-[#7F56D9]" 
             onClick={handleSettingsClick}
           >
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -155,7 +194,7 @@ export default function ProfileDropdown({ data }: ProfileProps) {
           
           <DropdownMenuItem 
             className="text-red-600 cursor-pointer focus:bg-red-50 focus:text-red-700" 
-            onClick={handleLogoutClick}
+            onClick={handleLogout}
           >
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -209,21 +248,6 @@ export default function ProfileDropdown({ data }: ProfileProps) {
           </div>
         </div>
       )}
-
-      {/* Profile Management Modal */}
-      <ProfileManagementModal
-        isOpen={showProfileModal}
-        onClose={() => setShowProfileModal(false)}
-        currentProfile={profile}
-        onSuccess={handleProfileUpdateSuccess}
-      />
-
-      {/* Change Password Modal */}
-      <ChangePasswordModal
-        isOpen={showPasswordModal}
-        onClose={() => setShowPasswordModal(false)}
-        onSuccess={() => success('Password changed successfully')}
-      />
-    </div>
+    </>
   );
 }

@@ -10,14 +10,14 @@ import Pagination from '@/app/_components/ui/Pagination';
 import ReportsFiltersModal, { ReportsFilters } from '@/app/_components/ui/ReportsFiltersModal';
 import ReportDetailsModal, { ReportDetailsData } from '@/app/_components/ui/ReportDetailsModal';
 import { StatisticsCardSkeleton, TableSkeleton } from '@/app/_components/ui/Skeleton';
-import { unifiedDashboardService } from '@/lib/services/unifiedDashboard';
-import { unifiedUserService } from '@/lib/services/unifiedUser';
+import { reportsService } from '@/lib/services/reports';
+import type { Report, ReportStatistics, ReportFilters as APIReportFilters } from '@/lib/api/types';
 import { DateRange } from 'react-day-picker';
-import type { Report } from '@/lib/api/types';
-
-type TimePeriod = 'last_24_hours' | 'last_7_days' | 'last_30_days' | 'custom' | null;
+import type { TimePeriod } from '@/app/_components/ui/FilterControls';
+import { useAuth } from '@/app/context/AuthContext';
 
 export default function AMReportsPage() {
+  const { session } = useAuth();
   const { toasts, removeToast, success, error } = useToast();
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('last_30_days');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
@@ -37,116 +37,88 @@ export default function AMReportsPage() {
   const [selectedReportForDetails, setSelectedReportForDetails] = useState<Report | null>(null);
   
   // API data state
-  const [reportStatistics, setReportStatistics] = useState<StatSection[]>([]);
+  const [reportStatistics, setReportStatistics] = useState<ReportStatistics | null>(null);
   const [totalReports, setTotalReports] = useState(0);
   const [apiError, setApiError] = useState<string | null>(null);
 
   const itemsPerPage = 10;
 
-  // Fetch reports data from AM API
-  const fetchReportsData = async () => {
+  // Fetch reports data from API
+  const fetchReportsData = async (filters?: APIReportFilters) => {
     try {
       setLoading(true);
       setApiError(null);
 
-      // For now, create mock data since we don't have a comprehensive AM reports endpoint
-      // In a real implementation, this would call unifiedUserService or a reports service
-      const mockReports: Report[] = [
-        {
-          id: '1',
-          reportId: 'RPT-001',
-          creditOfficer: 'John Doe',
-          creditOfficerId: '1',
-          branch: 'Ikeja Branch',
-          branchId: '1',
-          email: 'john.doe@kaytop.com',
-          dateSent: '2024-12-20',
-          timeSent: '10:30 AM',
-          reportType: 'monthly',
-          status: 'pending',
-          loansDispursed: 5,
-          loansValueDispursed: '₦500,000',
-          savingsCollected: '₦250,000',
-          repaymentsCollected: 150000,
-          createdAt: '2024-12-20T10:30:00Z',
-          updatedAt: '2024-12-20T10:30:00Z'
-        },
-        {
-          id: '2',
-          reportId: 'RPT-002',
-          creditOfficer: 'Jane Smith',
-          creditOfficerId: '2',
-          branch: 'Victoria Island Branch',
-          branchId: '2',
-          email: 'jane.smith@kaytop.com',
-          dateSent: '2024-12-19',
-          timeSent: '2:15 PM',
-          reportType: 'weekly',
-          status: 'approved',
-          loansDispursed: 8,
-          loansValueDispursed: '₦800,000',
-          savingsCollected: '₦400,000',
-          repaymentsCollected: 300000,
-          createdAt: '2024-12-19T14:15:00Z',
-          updatedAt: '2024-12-19T14:15:00Z'
-        },
-        {
-          id: '3',
-          reportId: 'RPT-003',
-          creditOfficer: 'Mike Johnson',
-          creditOfficerId: '3',
-          branch: 'Surulere Branch',
-          branchId: '3',
-          email: 'mike.johnson@kaytop.com',
-          dateSent: '2024-12-18',
-          timeSent: '9:45 AM',
-          reportType: 'monthly',
-          status: 'declined',
-          loansDispursed: 3,
-          loansValueDispursed: '₦300,000',
-          savingsCollected: '₦100,000',
-          repaymentsCollected: 75000,
-          createdAt: '2024-12-18T09:45:00Z',
-          updatedAt: '2024-12-18T09:45:00Z'
+      // Build API filters from current state
+      const apiFilters: APIReportFilters = {
+        page: currentPage,
+        limit: itemsPerPage,
+        ...filters,
+      };
+
+      // Apply period filter
+      if (selectedPeriod) {
+        const now = new Date();
+        let startDate: Date;
+
+        switch (selectedPeriod) {
+          case 'last_24_hours':
+            startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+            break;
+          case 'last_7_days':
+            startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            break;
+          case 'last_30_days':
+            startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            break;
+          case 'custom':
+          default:
+            startDate = new Date(now);
+            startDate.setMonth(now.getMonth() - 12);
+            break;
         }
-      ];
 
-      setReports(mockReports);
-      setTotalReports(mockReports.length);
+        apiFilters.dateFrom = startDate.toISOString().split('T')[0];
+      }
 
-      // Fetch unified dashboard statistics for reports
-      const dashboardData = await unifiedDashboardService.getKPIs();
-      const stats: StatSection[] = [
-        {
-          label: 'Total Reports',
-          value: mockReports.length,
-          change: 12.5,
-          changeLabel: '+12.5% this month',
-          isCurrency: false,
-        },
-        {
-          label: 'Pending Reports',
-          value: mockReports.filter(r => r.status === 'pending').length,
-          change: -5.2,
-          changeLabel: '-5.2% this month',
-          isCurrency: false,
-        },
-        {
-          label: 'Approved Reports',
-          value: mockReports.filter(r => r.status === 'approved').length,
-          change: 8.7,
-          changeLabel: '+8.7% this month',
-          isCurrency: false,
-        },
-        {
-          label: 'Total Loans Disbursed',
-          value: mockReports.reduce((sum, r) => sum + r.loansDispursed, 0),
-          change: 15.3,
-          changeLabel: '+15.3% this month',
-          isCurrency: false,
-        },
-      ];
-      setReportStatistics(stats);
+      // Apply custom date range filter
+      if (dateRange?.from) {
+        apiFilters.dateFrom = dateRange.from.toISOString().split('T')[0];
+        if (dateRange.to) {
+          apiFilters.dateTo = dateRange.to.toISOString().split('T')[0];
+        }
+      }
+
+      // Apply advanced filters
+      if (appliedFilters.creditOfficer) {
+        apiFilters.creditOfficerId = appliedFilters.creditOfficer;
+      }
+      if (appliedFilters.reportStatus) {
+        apiFilters.status = appliedFilters.reportStatus.toLowerCase();
+      }
+      if (appliedFilters.reportType) {
+        apiFilters.reportType = appliedFilters.reportType.toLowerCase() as 'daily' | 'weekly' | 'monthly';
+      }
+
+      // Fetch reports and statistics
+      const [reportsResponse, statisticsResponse] = await Promise.all([
+        reportsService.getAllReports(apiFilters),
+        reportsService.getReportStatistics({
+          dateFrom: apiFilters.dateFrom,
+          dateTo: apiFilters.dateTo,
+          branchId: apiFilters.branchId,
+        }),
+      ]);
+
+      // Safely handle reports response structure
+      const reportsData = Array.isArray(reportsResponse?.data) ? reportsResponse.data : [];
+      const paginationData = reportsResponse?.pagination || {};
+      
+      setReports(reportsData);
+      // Handle pagination safely - backend might not return pagination object
+      const totalCount = paginationData.total || reportsData.length || 0;
+      setTotalReports(totalCount);
+      setReportStatistics(statisticsResponse);
 
     } catch (err) {
       console.error('Failed to fetch AM reports data:', err);
@@ -160,22 +132,65 @@ export default function AMReportsPage() {
   // Load initial data
   useEffect(() => {
     fetchReportsData();
-  }, []);
+  }, [currentPage]);
+
+  // Reload data when filters change
+  useEffect(() => {
+    if (currentPage === 1) {
+      fetchReportsData();
+    } else {
+      setCurrentPage(1);
+    }
+  }, [selectedPeriod, dateRange, appliedFilters]);
+
+  // Convert API statistics to StatSection format
+  const statistics = useMemo(() => {
+    if (!reportStatistics) return [];
+    
+    const statSections: StatSection[] = [
+      {
+        label: 'Total Reports',
+        value: reportStatistics.totalReports.count,
+        change: reportStatistics.totalReports.growth,
+        changeLabel: `${reportStatistics.totalReports.growth >= 0 ? '+' : ''}${reportStatistics.totalReports.growth}% this month`,
+        isCurrency: false,
+      },
+      {
+        label: 'Pending Reports',
+        value: reportStatistics.pendingReports.count,
+        change: reportStatistics.pendingReports.growth,
+        changeLabel: `${reportStatistics.pendingReports.growth >= 0 ? '+' : ''}${reportStatistics.pendingReports.growth}% this month`,
+        isCurrency: false,
+      },
+      {
+        label: 'Approved Reports',
+        value: reportStatistics.approvedReports.count,
+        change: reportStatistics.approvedReports.growth,
+        changeLabel: `${reportStatistics.approvedReports.growth >= 0 ? '+' : ''}${reportStatistics.approvedReports.growth}% this month`,
+        isCurrency: false,
+      },
+      {
+        label: 'Missed Reports',
+        value: reportStatistics.missedReports.count,
+        change: reportStatistics.missedReports.growth,
+        changeLabel: `${reportStatistics.missedReports.growth >= 0 ? '+' : ''}${reportStatistics.missedReports.growth}% this month`,
+        isCurrency: false,
+      },
+    ];
+
+    return statSections;
+  }, [reportStatistics]);
 
   const handlePeriodChange = (period: TimePeriod) => {
     setSelectedPeriod(period);
     setCurrentPage(1);
     console.log('Time period changed:', period);
-    // Refresh data with time filter
-    fetchReportsData();
   };
 
   const handleDateRangeChange = (range: DateRange | undefined) => {
     setDateRange(range);
     setCurrentPage(1);
     console.log('Date range changed:', range);
-    // Refresh data with date range filter
-    fetchReportsData();
   };
 
   const handleFilterClick = () => {
@@ -193,11 +208,21 @@ export default function AMReportsPage() {
     }
   };
 
-  const handleReportClick = (report: any) => {
-    // Convert Report to the format expected by ReportDetailsModal
-    const reportData = report as Report;
-    setSelectedReportForDetails(reportData);
-    setDetailsModalOpen(true);
+  const handleReportClick = async (report: Report) => {
+    try {
+      setLoading(true);
+      
+      // Fetch detailed report information from API
+      const detailedReport = await reportsService.getReportById(report.id);
+      
+      setSelectedReportForDetails(detailedReport);
+      setDetailsModalOpen(true);
+    } catch (err) {
+      console.error('Failed to fetch report details:', err);
+      error('Failed to load report details. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleApproveReport = async () => {
@@ -205,25 +230,30 @@ export default function AMReportsPage() {
       try {
         setLoading(true);
         
-        // Use unified user service for report approval
-        // Note: This would need to be implemented in the unified service
-        // For now, we'll simulate the API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        const approvalData = {
+          status: 'approved' as const,
+          approvedBy: session?.role || 'area-manager', // Use actual user info when available
+          approvedAt: new Date().toISOString(),
+        };
 
-        // Update the report status in local state
+        const updatedReport = await reportsService.approveReport(
+          selectedReportForDetails.id,
+          approvalData
+        );
+
+        // Update the report in the reports state
         setReports(prevReports => 
           prevReports.map(report => 
-            report.id === selectedReportForDetails.id 
-              ? { ...report, status: 'approved' as const }
-              : report
+            report.id === selectedReportForDetails.id ? updatedReport : report
           )
         );
         
-        success(`Report "${selectedReportForDetails.reportId}" approved successfully!`);
-        setDetailsModalOpen(false);
-        setSelectedReportForDetails(null);
+        // Update the selected report for details to reflect the approval
+        setSelectedReportForDetails(updatedReport);
         
-        // Refresh statistics
+        success(`Report "${selectedReportForDetails.reportId}" approved successfully!`);
+        
+        // Refresh statistics to reflect the change
         await fetchReportsData();
         
       } catch (err) {
@@ -240,17 +270,22 @@ export default function AMReportsPage() {
       try {
         setLoading(true);
         
-        // Use unified user service for report decline
-        // Note: This would need to be implemented in the unified service
-        // For now, we'll simulate the API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        const declineData = {
+          status: 'declined' as const,
+          approvedBy: session?.role || 'area-manager', // Use actual user info when available
+          approvedAt: new Date().toISOString(),
+          comments: 'Report declined by area manager',
+        };
 
-        // Update the report status in local state
+        const updatedReport = await reportsService.declineReport(
+          selectedReportForDetails.id,
+          declineData
+        );
+
+        // Update the report in the reports state
         setReports(prevReports => 
           prevReports.map(report => 
-            report.id === selectedReportForDetails.id 
-              ? { ...report, status: 'declined' as const }
-              : report
+            report.id === selectedReportForDetails.id ? updatedReport : report
           )
         );
         
@@ -258,7 +293,7 @@ export default function AMReportsPage() {
         setDetailsModalOpen(false);
         setSelectedReportForDetails(null);
         
-        // Refresh statistics
+        // Refresh statistics to reflect the change
         await fetchReportsData();
         
       } catch (err) {
@@ -275,23 +310,10 @@ export default function AMReportsPage() {
     console.log('Selected reports:', selectedIds);
   };
 
-  // Filter and paginate reports
-  const filteredReports = reports.filter((report) => {
-    // Apply search filters
-    if (appliedFilters.creditOfficer && !report.creditOfficer.toLowerCase().includes(appliedFilters.creditOfficer.toLowerCase())) {
-      return false;
-    }
-    if (appliedFilters.reportStatus && report.status !== appliedFilters.reportStatus.toLowerCase()) {
-      return false;
-    }
-    // Add more filter logic as needed
-    return true;
-  });
-
-  const totalPages = Math.ceil(filteredReports.length / itemsPerPage);
+  // Pagination (now handled by API)
+  const totalPages = Math.ceil(totalReports / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedReports = filteredReports.slice(startIndex, endIndex);
+  const endIndex = Math.min(startIndex + itemsPerPage, totalReports);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -349,20 +371,8 @@ export default function AMReportsPage() {
             >
               {loading ? (
                 <StatisticsCardSkeleton />
-              ) : apiError ? (
-                <div className="bg-white rounded-lg border border-[#EAECF0] p-6">
-                  <div className="text-center">
-                    <p className="text-[#E43535] mb-2">Failed to load statistics</p>
-                    <button
-                      onClick={() => fetchReportsData()}
-                      className="text-[#7F56D9] hover:text-[#6941C6] font-medium"
-                    >
-                      Try again
-                    </button>
-                  </div>
-                </div>
               ) : (
-                <StatisticsCard sections={reportStatistics} />
+                <StatisticsCard sections={statistics} />
               )}
             </div>
 
@@ -387,29 +397,12 @@ export default function AMReportsPage() {
             <div className="max-w-[1075px]">
               {loading ? (
                 <TableSkeleton rows={itemsPerPage} />
-              ) : paginatedReports.length === 0 ? (
+              ) : reports.length === 0 ? (
                 <div 
                   className="bg-white rounded-[12px] border border-[#EAECF0] p-12 text-center"
                   role="status"
                   aria-live="polite"
                 >
-                  <svg
-                    className="mx-auto h-12 w-12 text-gray-400 mb-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    />
-                  </svg>
-                  <h3 className="text-lg font-medium text-gray-900 mb-1">
-                    No reports found
-                  </h3>
                   <p 
                     className="text-base text-[#475467]"
                     style={{ fontFamily: "'Open Sauce Sans', sans-serif" }}
@@ -420,7 +413,7 @@ export default function AMReportsPage() {
               ) : (
                 <>
                   <ReportsTable
-                    reports={paginatedReports}
+                    reports={reports}
                     selectedReports={selectedReports}
                     onSelectionChange={handleSelectionChange}
                     onEdit={() => {}} // AM users can't edit reports directly
@@ -433,7 +426,7 @@ export default function AMReportsPage() {
                     <div className="mt-4 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-[#475467]">
-                          Showing {startIndex + 1}-{Math.min(endIndex, filteredReports.length)} of {filteredReports.length} results
+                          Showing {startIndex + 1}-{endIndex} of {totalReports} results
                         </span>
                       </div>
 
@@ -484,6 +477,7 @@ export default function AMReportsPage() {
             loansValueDispursed: selectedReportForDetails.loansValueDispursed,
             savingsCollected: selectedReportForDetails.savingsCollected,
             repaymentsCollected: selectedReportForDetails.repaymentsCollected,
+            approvalHistory: selectedReportForDetails.approvalHistory,
           }}
           onApprove={handleApproveReport}
           onDecline={handleDeclineReport}

@@ -306,8 +306,6 @@ export default function AMCreditOfficerDetailsPage({ params }: { params: Promise
             <CreditOfficerTabs
               activeTab={activeTab}
               onTabChange={handleTabChange}
-              collectionsCount={collectionsData.length}
-              loansCount={loansData.length}
             />
           </div>
 
@@ -315,19 +313,21 @@ export default function AMCreditOfficerDetailsPage({ params }: { params: Promise
           <div className="mb-6">
             {activeTab === 'collections' && (
               <CollectionsTable
-                data={currentPageData}
+                transactions={currentPageData}
+                selectedTransactions={[]}
+                onSelectionChange={() => {}} // AM users can't select collections
                 onEdit={() => {}} // AM users can't edit collections
                 onDelete={() => {}} // AM users can't delete collections
-                readOnly={true} // Make table read-only for AM users
               />
             )}
 
             {activeTab === 'loans-disbursed' && (
               <LoansDisbursedTable
-                data={currentPageData}
+                loans={currentPageData}
+                selectedLoans={[]}
+                onSelectionChange={() => {}} // AM users can't select loans
                 onEdit={() => {}} // AM users can't edit loans
                 onDelete={() => {}} // AM users can't delete loans
-                readOnly={true} // Make table read-only for AM users
               />
             )}
           </div>
