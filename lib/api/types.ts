@@ -80,6 +80,7 @@ export interface User {
   id: string | number; // Backend returns numeric IDs but we handle both
   firstName: string;
   lastName: string;
+  profilePicture?: string;
   email: string;
   mobileNumber: string;
   role: 'system_admin' | 'branch_manager' | 'account_manager' | 'hq_manager' | 'credit_officer' | 'customer';
@@ -109,7 +110,7 @@ export interface CreateStaffData {
   email: string;
   mobileNumber: string;
   password: string;
-  role: 'credit_officer' | 'branch_manager';
+  role: 'credit_officer' | 'branch_manager' | 'account_manager' | 'hq_manager';
   branch: string;
 }
 

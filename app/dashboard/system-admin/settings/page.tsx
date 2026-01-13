@@ -17,13 +17,31 @@ import {
   useUpdateProfilePicture,
   useSystemSettings,
   useUpdateSystemSettings,
-  useActivityLogs
+  useActivityLogs,
+  useUsers,
+  useUpdateUser,
+  useUpdateUserRole,
+  useCreateStaff
 } from '@/app/dashboard/system-admin/queries/useSettingsQueries';
-import { userService } from '@/lib/services/users';
-import type { ActivityLog, SystemSettings } from '@/lib/api/types';
-import type { UserProfileData, UpdateProfileData, ChangePasswordData } from '@/lib/services/userProfile';
+import {
+  ActivityLog,
+  User,
+  SystemSettings
+} from '@/lib/api/types';
+import {
+  UpdateProfileData,
+  ChangePasswordData
+} from '@/lib/services/userProfile';
+import {
+  mapBackendToFrontendRole,
+  mapFrontendToBackendRole,
+  getPermissionsForRole,
+  UserRoleType
+} from '@/lib/roleConfig';
 
 type SettingsTab = 'account-information' | 'security-login' | 'activity-log' | 'permissions-users' | 'configuration';
+
+import { API_CONFIG } from '@/lib/api/config';
 
 interface SecuritySettings {
   smsAuthentication: boolean;
@@ -48,7 +66,7 @@ interface RoleUserData {
   id: string;
   name: string;
   email: string;
-  role: 'HQ' | 'AM' | 'CO' | 'BM';
+  role: UserRoleType;
   permissions: string[];
   avatar?: string;
   status: 'active' | 'inactive';
@@ -67,6 +85,15 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('account-information');
   const [isMounted, setIsMounted] = useState(false);
 
+  // Helper for profile picture URLs
+  const resolveImageUrl = useCallback((path: string | null | undefined) => {
+    if (!path) return undefined;
+    if (path.startsWith('http') || path.startsWith('data:')) {
+      return path;
+    }
+    return `${API_CONFIG.BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+  }, []);
+
   // Prevent hydration mismatches by ensuring client-side rendering
   useEffect(() => {
     setIsMounted(true);
@@ -79,6 +106,15 @@ export default function SettingsPage() {
   const changePasswordMutation = useChangePassword();
   const updateProfilePictureMutation = useUpdateProfilePicture();
   const updateSystemSettingsMutation = useUpdateSystemSettings();
+  const updateUserMutation = useUpdateUser();
+  const updateUserRoleMutation = useUpdateUserRole();
+  const createStaffMutation = useCreateStaff();
+
+  // Users query for real backend data
+  const {
+    data: allUsersData,
+    isLoading: usersLoading,
+  } = useUsers({ page: 1, limit: 100 });
 
   // Activity logs state and query
   const [searchQuery, setSearchQuery] = useState('');
@@ -114,13 +150,13 @@ export default function SettingsPage() {
     selected: selectedLogs.includes(log.id)
   }), [selectedLogs]);
 
-  const activityLogs = activityLogsData?.data?.map(transformActivityLog) || [];
-  const totalActivityLogs = activityLogsData?.pagination?.total || 0;
+  const activityLogs = (activityLogsData as any)?.data?.map(transformActivityLog) || [];
+  const totalActivityLogs = (activityLogsData as any)?.pagination?.total || 0;
 
   // Security settings derived from system settings
   const securitySettings: SecuritySettings = {
-    smsAuthentication: systemSettings?.security?.twoFactorAuth?.methods?.includes('sms') || false,
-    emailAuthentication: systemSettings?.security?.twoFactorAuth?.methods?.includes('email') || false,
+    smsAuthentication: (systemSettings as any)?.security?.twoFactorAuth?.methods?.includes('sms') || false,
+    emailAuthentication: (systemSettings as any)?.security?.twoFactorAuth?.methods?.includes('email') || false,
   };
 
   // Password change modal state
@@ -167,56 +203,39 @@ export default function SettingsPage() {
   useEffect(() => {
     if (userProfile) {
       setProfileFormData({
-        firstName: userProfile.firstName || '',
-        lastName: userProfile.lastName || '',
-        email: userProfile.email || '',
-        mobileNumber: userProfile.mobileNumber || '',
+        firstName: (userProfile as any).firstName || '',
+        lastName: (userProfile as any).lastName || '',
+        email: (userProfile as any).email || '',
+        mobileNumber: (userProfile as any).mobileNumber || '',
       });
     }
   }, [userProfile]);
 
-  // Users data for roles and permissions
-  const [usersData, setUsersData] = useState<RoleUserData[]>([]);
-  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  // Transform API users to RoleUserData format (memoized)
+  const usersData = useMemo(() => {
+    if (!allUsersData?.data) return [];
 
-  // Fetch users data on component mount
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        setIsLoadingUsers(true);
-        const response = await userService.getAllUsers({ page: 1, limit: 100 });
+    return allUsersData.data.map((user: User) => {
+      const displayRole = mapBackendToFrontendRole(user.role);
+      const permissions = getPermissionsForRole(user.role);
 
-        // Transform API users to RoleUserData format
-        const transformedUsers: RoleUserData[] = response.data.map(user => ({
-          id: String(user.id),
-          name: `${user.firstName} ${user.lastName}`,
-          email: user.email,
-          role: user.role === 'system_admin' ? 'HQ' : user.role === 'branch_manager' ? 'BM' : 'CO',
-          permissions: user.role === 'system_admin'
-            ? ['Services', 'Clients', 'Subscriptions', 'Reports', 'Analytics']
-            : user.role === 'branch_manager'
-              ? ['Services', 'Clients', 'Subscriptions', 'Branch Management']
-              : ['Services', 'Clients'],
-          status: user.verificationStatus === 'verified' ? 'active' : 'inactive',
-          lastActive: user.updatedAt ? new Date(user.updatedAt).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            timeZone: 'UTC'
-          }) : 'Never'
-        }));
-
-        setUsersData(transformedUsers);
-      } catch (err) {
-        console.error('Error fetching users:', err);
-        error('Failed to load users data');
-      } finally {
-        setIsLoadingUsers(false);
-      }
-    };
-
-    fetchUsers();
-  }, [error]);
+      return {
+        id: String(user.id),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: displayRole,
+        permissions: permissions,
+        avatar: resolveImageUrl((user as any).profilePicture),
+        status: (user.verificationStatus === 'verified' || (user as any).status === 'active') ? 'active' : 'inactive',
+        lastActive: user.updatedAt ? new Date(user.updatedAt).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          timeZone: 'UTC'
+        }) : 'Never'
+      } as RoleUserData;
+    });
+  }, [allUsersData, resolveImageUrl]);
 
 
   const tabs = [
@@ -243,7 +262,7 @@ export default function SettingsPage() {
   };
 
   const handleInputChange = (field: keyof UpdateProfileData, value: string) => {
-    setProfileFormData(prev => ({
+    setProfileFormData((prev: UpdateProfileData) => ({
       ...prev,
       [field]: value
     }));
@@ -274,24 +293,24 @@ export default function SettingsPage() {
     if (!systemSettings) return;
 
     try {
-      const currentMethods = systemSettings.security.twoFactorAuth.methods || [];
+      const currentMethods = (systemSettings as any).security.twoFactorAuth.methods || [];
       let newMethods: ('sms' | 'email')[];
 
       if (setting === 'smsAuthentication') {
         newMethods = securitySettings.smsAuthentication
-          ? currentMethods.filter(m => m !== 'sms')
-          : [...currentMethods, 'sms'];
+          ? ((currentMethods as any[])).filter(m => m !== 'sms')
+          : [...currentMethods, 'sms'] as any;
       } else {
         newMethods = securitySettings.emailAuthentication
-          ? currentMethods.filter(m => m !== 'email')
-          : [...currentMethods, 'email'];
+          ? ((currentMethods as any[])).filter(m => m !== 'email')
+          : [...currentMethods, 'email'] as any;
       }
 
       const updatedSettings: Partial<SystemSettings> = {
         security: {
-          ...systemSettings.security,
+          ...(systemSettings as any).security,
           twoFactorAuth: {
-            ...systemSettings.security.twoFactorAuth,
+            ...(systemSettings as any).security.twoFactorAuth,
             methods: newMethods,
           },
         },
@@ -371,7 +390,7 @@ export default function SettingsPage() {
   const handleSelectAll = (checked: boolean) => {
     setSelectAll(checked);
     if (checked) {
-      setSelectedLogs(activityLogs.map(log => log.id));
+      setSelectedLogs(activityLogs.map((log: ActivityLogEntry) => log.id));
     } else {
       setSelectedLogs([]);
     }
@@ -396,24 +415,30 @@ export default function SettingsPage() {
   };
 
   const handleSaveNewAdmin = async (adminData: any) => {
-    // Generate a new ID for the admin
-    const newId = (usersData.length + 1).toString();
+    try {
+      const backendRole = mapFrontendToBackendRole(adminData.role);
 
-    // Create new admin user object
-    const newAdmin = {
-      id: newId,
-      name: adminData.name,
-      email: adminData.email,
-      role: adminData.role,
-      permissions: adminData.permissions,
-      status: 'active' as const
-    };
+      const [firstName, ...lastNameParts] = adminData.name.split(' ');
+      const lastName = lastNameParts.join(' ') || '.';
 
-    // Add to users data
-    setUsersData(prev => [...prev, newAdmin]);
+      const staffData = {
+        firstName,
+        lastName,
+        email: adminData.email,
+        mobileNumber: adminData.phoneNumber,
+        role: backendRole as any,
+        // Branch is often required for staff, default to a sensible value or empty
+        branch: adminData.branch || 'Head Office',
+        password: 'Password123!', // Backend usually requires a temporary password
+      };
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+      await createStaffMutation.mutateAsync(staffData);
+      success('New admin created successfully!');
+      setShowCreateAdminModal(false);
+    } catch (err: any) {
+      console.error('Error creating admin:', err);
+      error(err?.message || 'Failed to create new admin');
+    }
   };
 
   // Global Settings handlers
@@ -431,7 +456,7 @@ export default function SettingsPage() {
     try {
       const updatedSettings: Partial<SystemSettings> = {
         globalDefaults: {
-          ...systemSettings.globalDefaults,
+          ...(systemSettings as unknown as SystemSettings).globalDefaults,
           interestRate: parseFloat(data.interestRate),
           loanDuration: parseInt(data.loanDuration),
         },
@@ -462,12 +487,12 @@ export default function SettingsPage() {
         .map(([field, _]) => field);
 
       const customParameters = data.newParameter
-        ? [...(systemSettings.reportTemplate.customParameters || []), data.newParameter]
-        : systemSettings.reportTemplate.customParameters;
+        ? [...((systemSettings as unknown as SystemSettings).reportTemplate.customParameters || []), data.newParameter]
+        : (systemSettings as unknown as SystemSettings).reportTemplate.customParameters;
 
       const updatedSettings: Partial<SystemSettings> = {
         reportTemplate: {
-          ...systemSettings.reportTemplate,
+          ...(systemSettings as unknown as SystemSettings).reportTemplate,
           requiredFields,
           customParameters,
         },
@@ -495,7 +520,7 @@ export default function SettingsPage() {
     try {
       const updatedSettings: Partial<SystemSettings> = {
         alertRules: {
-          ...systemSettings.alertRules,
+          ...(systemSettings as unknown as SystemSettings).alertRules,
           missedPayments: data.missedPayments,
           missedReports: data.missedReports,
           dailyEmailSummary: data.dailyEmailSummary,
@@ -524,13 +549,19 @@ export default function SettingsPage() {
   };
 
   const handleSaveUser = async (updatedUserData: RoleUserData) => {
-    // Update the user in the users array
-    setUsersData(prev => prev.map(user =>
-      user.id === updatedUserData.id ? updatedUserData : user
-    ));
+    try {
+      const backendRole = mapFrontendToBackendRole(updatedUserData.role);
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+      // Update role
+      await updateUserRoleMutation.mutateAsync({ id: updatedUserData.id, role: backendRole });
+
+      success('User role updated successfully!');
+      setShowEditRoleModal(false);
+      setSelectedUser(null);
+    } catch (err: any) {
+      console.error('Error updating user role:', err);
+      error(err?.message || 'Failed to update user role');
+    }
   };
 
   const itemsPerPage = 10;
@@ -539,41 +570,43 @@ export default function SettingsPage() {
   // Derived data from system settings (memoized to prevent re-renders)
   const globalSettings = useMemo(() => {
     return systemSettings ? {
-      interestRate: String(systemSettings.globalDefaults.interestRate),
-      loanDuration: String(systemSettings.globalDefaults.loanDuration),
+      interestRate: String((systemSettings as unknown as SystemSettings).globalDefaults.interestRate),
+      loanDuration: String((systemSettings as unknown as SystemSettings).globalDefaults.loanDuration),
     } : undefined;
-  }, [systemSettings?.globalDefaults.interestRate, systemSettings?.globalDefaults.loanDuration]);
+  }, [(systemSettings as any)?.globalDefaults?.interestRate, (systemSettings as any)?.globalDefaults?.loanDuration]);
 
   const reportTemplateSettings = useMemo(() => {
     return systemSettings ? {
       thingsToReport: {
-        collections: systemSettings.reportTemplate.requiredFields.includes('collections'),
-        savings: systemSettings.reportTemplate.requiredFields.includes('savings'),
-        customers: systemSettings.reportTemplate.requiredFields.includes('customers'),
-        missedPayments: systemSettings.reportTemplate.requiredFields.includes('missedPayments'),
+        collections: (systemSettings as unknown as SystemSettings).reportTemplate.requiredFields.includes('collections'),
+        savings: (systemSettings as unknown as SystemSettings).reportTemplate.requiredFields.includes('savings'),
+        customers: (systemSettings as unknown as SystemSettings).reportTemplate.requiredFields.includes('customers'),
+        missedPayments: (systemSettings as unknown as SystemSettings).reportTemplate.requiredFields.includes('missedPayments'),
       },
       newParameter: '',
     } : undefined;
-  }, [systemSettings?.reportTemplate.requiredFields?.join(',')]);  // Use join to create stable dependency
+  }, [(systemSettings as any)?.reportTemplate?.requiredFields?.join(',')]);  // Use join to create stable dependency
 
   const alertRulesSettings = useMemo(() => {
     return systemSettings ? {
-      missedPayments: systemSettings.alertRules.missedPayments,
-      missedReports: systemSettings.alertRules.missedReports,
-      dailyEmailSummary: systemSettings.alertRules.dailyEmailSummary,
-      customParameters: systemSettings.alertRules.customAlerts || [],
+      missedPayments: (systemSettings as unknown as SystemSettings).alertRules.missedPayments,
+      missedReports: (systemSettings as unknown as SystemSettings).alertRules.missedReports,
+      dailyEmailSummary: (systemSettings as unknown as SystemSettings).alertRules.dailyEmailSummary,
+      customParameters: (systemSettings as unknown as SystemSettings).alertRules.customAlerts || [],
     } : undefined;
   }, [
-    systemSettings?.alertRules.missedPayments,
-    systemSettings?.alertRules.missedReports,
-    systemSettings?.alertRules.dailyEmailSummary,
-    systemSettings?.alertRules.customAlerts
+    (systemSettings as any)?.alertRules?.missedPayments,
+    (systemSettings as any)?.alertRules?.missedReports,
+    (systemSettings as any)?.alertRules?.dailyEmailSummary,
+    (systemSettings as any)?.alertRules?.customAlerts
   ]);
 
   // Loading states
-  const isLoading = profileLoading || settingsLoading || updateProfileMutation.isPending ||
-    changePasswordMutation.isPending || updateProfilePictureMutation.isPending ||
-    updateSystemSettingsMutation.isPending;
+  const isLoading = profileLoading || settingsLoading || usersLoading || activityLogsLoading ||
+    updateProfileMutation.isPending || changePasswordMutation.isPending ||
+    updateProfilePictureMutation.isPending || updateSystemSettingsMutation.isPending ||
+    updateUserMutation.isPending || updateUserRoleMutation.isPending ||
+    createStaffMutation.isPending;
 
   // Prevent hydration mismatch by not rendering until mounted
   if (!isMounted) {
@@ -968,18 +1001,43 @@ export default function SettingsPage() {
                     </div>
                   ) : (
                     <div>
-                      <h3
-                        className="mb-6"
+                      <div className="flex items-center justify-between mb-4">
+                        <h3
+                          style={{
+                            fontSize: '16px',
+                            fontWeight: 400,
+                            lineHeight: '16px',
+                            color: '#01112C',
+                            fontFamily: 'Open Sauce Sans, sans-serif',
+                          }}
+                        >
+                          Two Factor Authentication
+                        </h3>
+                        <span
+                          style={{
+                            fontSize: '12px',
+                            fontWeight: 500,
+                            color: '#F04438',
+                            backgroundColor: '#FEE4E2',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            fontFamily: 'Open Sauce Sans, sans-serif',
+                          }}
+                        >
+                          Coming Soon
+                        </span>
+                      </div>
+                      <p
                         style={{
-                          fontSize: '16px',
-                          fontWeight: 400,
-                          lineHeight: '16px',
-                          color: '#01112C',
+                          fontSize: '12px',
+                          color: '#767D94',
+                          marginBottom: '20px',
+                          marginTop: '-8px',
                           fontFamily: 'Open Sauce Sans, sans-serif',
                         }}
                       >
-                        Two Factor Authentication
-                      </h3>
+                        Note: This feature has not been implemented on the backend yet.
+                      </p>
 
                       {/* SMS Authentication */}
                       <div className="flex items-center justify-between mb-6">
@@ -1006,13 +1064,12 @@ export default function SettingsPage() {
 
                         {/* Toggle Switch */}
                         <button
-                          onClick={() => handleSecurityToggle('smsAuthentication')}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#7A62EB] focus:ring-offset-2 ${securitySettings.smsAuthentication ? 'bg-[#7A62EB]' : 'bg-[#DDDFE1]'
-                            }`}
+                          disabled
+                          className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none cursor-not-allowed bg-[#DDDFE1] opacity-60"
+                          aria-label="SMS Authentication (Not yet implemented)"
                         >
                           <span
-                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${securitySettings.smsAuthentication ? 'translate-x-6' : 'translate-x-1'
-                              }`}
+                            className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-1"
                           />
                         </button>
                       </div>
@@ -1042,13 +1099,12 @@ export default function SettingsPage() {
 
                         {/* Toggle Switch */}
                         <button
-                          onClick={() => handleSecurityToggle('emailAuthentication')}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#7A62EB] focus:ring-offset-2 ${securitySettings.emailAuthentication ? 'bg-[#7A62EB]' : 'bg-[#DDDFE1]'
-                            }`}
+                          disabled
+                          className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none cursor-not-allowed bg-[#DDDFE1] opacity-60"
+                          aria-label="Email Authentication (Not yet implemented)"
                         >
                           <span
-                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${securitySettings.emailAuthentication ? 'translate-x-6' : 'translate-x-1'
-                              }`}
+                            className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-1"
                           />
                         </button>
                       </div>
@@ -1228,7 +1284,7 @@ export default function SettingsPage() {
                           </span>
                         </div>
                       ) : (
-                        activityLogs.map((log, index) => (
+                        activityLogs.map((log: ActivityLogEntry, index: number) => (
                           <div key={log.id}>
                             <div className="flex items-center px-5 py-3">
                               <div className="flex items-center w-8">
@@ -1321,8 +1377,8 @@ export default function SettingsPage() {
                             key={pageNum}
                             onClick={() => setCurrentPage(pageNum)}
                             className={`px-3 py-2 border-r border-[#D0D5DD] transition-colors ${isActive
-                                ? 'bg-[#F9FAFB] text-[#1D2939]'
-                                : 'bg-white text-[#344054] hover:bg-gray-50'
+                              ? 'bg-[#F9FAFB] text-[#1D2939]'
+                              : 'bg-white text-[#344054] hover:bg-gray-50'
                               }`}
                             style={{
                               fontSize: '14px',
@@ -1437,635 +1493,171 @@ export default function SettingsPage() {
                       }}
                     />
 
-                    {/* User 1 - Tarry Benzar */}
-                    <div
-                      className="flex items-center justify-between"
-                      style={{ paddingTop: '32px', paddingBottom: '32px' }}
-                    >
-                      <div className="flex items-center" style={{ gap: '16px' }}>
-                        <div
+                    {usersLoading ? (
+                      <div className="flex items-center justify-center py-12">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#7A62EB]"></div>
+                      </div>
+                    ) : usersData.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-center">
+                        <p
                           style={{
-                            width: '40px',
-                            height: '40px',
-                            borderRadius: '50%',
-                            background: '#237385',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '15px',
+                            fontSize: '16px',
                             fontWeight: 500,
-                            lineHeight: '16px',
-                            letterSpacing: '0.03em',
+                            color: '#767D94',
                             fontFamily: 'Open Sauce Sans, sans-serif',
-                            color: '#FFFFFF',
                           }}
                         >
-                          TB
-                        </div>
-                        <div>
-                          <div className="flex items-center" style={{ gap: '8px', marginBottom: '3px' }}>
-                            <span
+                          No users found
+                        </p>
+                      </div>
+                    ) : (
+                      usersData.map((user, index) => (
+                        <div key={user.id}>
+                          <div
+                            className="flex items-center justify-between"
+                            style={{ paddingTop: '32px', paddingBottom: '32px' }}
+                          >
+                            <div className="flex items-center" style={{ gap: '16px' }}>
+                              <div
+                                style={{
+                                  width: '40px',
+                                  height: '40px',
+                                  borderRadius: '50%',
+                                  backgroundColor: user.avatar ? 'transparent' : '#237385',
+                                  backgroundImage: user.avatar ? `url(${user.avatar})` : 'none',
+                                  backgroundSize: 'cover',
+                                  backgroundPosition: 'center',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '15px',
+                                  fontWeight: 500,
+                                  lineHeight: '16px',
+                                  letterSpacing: '0.03em',
+                                  fontFamily: 'Open Sauce Sans, sans-serif',
+                                  color: '#FFFFFF',
+                                }}
+                              >
+                                {!user.avatar && user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                              </div>
+                              <div>
+                                <div className="flex items-center" style={{ gap: '8px', marginBottom: '3px' }}>
+                                  <span
+                                    style={{
+                                      fontSize: '16px',
+                                      fontWeight: 500,
+                                      lineHeight: '16px',
+                                      color: '#000000',
+                                      opacity: 0.9,
+                                      fontFamily: 'Open Sauce Sans, sans-serif',
+                                    }}
+                                  >
+                                    {user.name}
+                                  </span>
+                                  <div
+                                    style={{
+                                      padding: '3px 6px',
+                                      background:
+                                        user.role === 'HQ' ? '#FBEFF8' :
+                                          user.role === 'AM' ? '#ECF0D9' :
+                                            user.role === 'CO' ? '#DEDAF3' :
+                                              '#FBEFF8',
+                                      borderRadius: '3px',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        fontSize: '10px',
+                                        fontWeight: 400,
+                                        lineHeight: '10px',
+                                        fontFamily: 'Open Sauce Sans, sans-serif',
+                                        color:
+                                          user.role === 'HQ' ? '#AB659C' :
+                                            user.role === 'AM' ? '#4C5F00' :
+                                              user.role === 'CO' ? '#462ACD' :
+                                                '#AB659C',
+                                      }}
+                                    >
+                                      {user.role}
+                                    </span>
+                                  </div>
+                                </div>
+                                <p
+                                  style={{
+                                    fontSize: '14px',
+                                    fontWeight: 400,
+                                    lineHeight: '16px',
+                                    color: '#767D94',
+                                    fontFamily: 'Open Sauce Sans, sans-serif',
+                                    marginBottom: '7px',
+                                  }}
+                                >
+                                  {user.email}
+                                </p>
+                                <p
+                                  style={{
+                                    fontSize: '14px',
+                                    fontWeight: 500,
+                                    lineHeight: '17px',
+                                    color: '#767D94',
+                                    fontFamily: 'Open Sauce Sans, sans-serif',
+                                    marginBottom: '8px',
+                                  }}
+                                >
+                                  {user.permissions.join(', ')}
+                                </p>
+                                <p
+                                  style={{
+                                    fontSize: '12px',
+                                    fontWeight: 400,
+                                    lineHeight: '15px',
+                                    color: user.status === 'active' ? '#00BE63' : '#F04438',
+                                    fontFamily: 'Open Sauce Sans, sans-serif',
+                                  }}
+                                >
+                                  {user.status === 'active' ? 'Active Now' : `Last Active on ${user.lastActive || 'N/A'}`}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleEditUser(user.id)}
+                              className="hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-[#7A62EB] focus:ring-offset-2"
                               style={{
-                                fontSize: '16px',
-                                fontWeight: 500,
+                                width: '78px',
+                                height: '38px',
+                                border: '1px solid rgba(124, 134, 161, 0.4)',
+                                borderRadius: '4px',
+                                fontSize: '14px',
+                                fontWeight: 400,
                                 lineHeight: '16px',
-                                color: '#000000',
-                                opacity: 0.9,
                                 fontFamily: 'Open Sauce Sans, sans-serif',
-                              }}
-                            >
-                              Tarry Benzar
-                            </span>
-                            <div
-                              style={{
-                                padding: '3px 6px',
-                                background: '#FBEFF8',
-                                borderRadius: '3px',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                              }}
-                            >
-                              <span
-                                style={{
-                                  fontSize: '10px',
-                                  fontWeight: 400,
-                                  lineHeight: '10px',
-                                  fontFamily: 'Open Sauce Sans, sans-serif',
-                                  color: '#AB659C',
-                                }}
-                              >
-                                HQ
-                              </span>
-                            </div>
-                          </div>
-                          <p
-                            style={{
-                              fontSize: '14px',
-                              fontWeight: 400,
-                              lineHeight: '16px',
-                              color: '#767D94',
-                              fontFamily: 'Open Sauce Sans, sans-serif',
-                              marginBottom: '7px',
-                            }}
-                          >
-                            example@acumen.com
-                          </p>
-                          <p
-                            style={{
-                              fontSize: '14px',
-                              fontWeight: 500,
-                              lineHeight: '17px',
-                              color: '#767D94',
-                              fontFamily: 'Open Sauce Sans, sans-serif',
-                              marginBottom: '8px',
-                            }}
-                          >
-                            Services, Clients, Subscriptions
-                          </p>
-                          <p
-                            style={{
-                              fontSize: '12px',
-                              fontWeight: 400,
-                              lineHeight: '15px',
-                              color: '#000000',
-                              opacity: 0.6,
-                              fontFamily: 'Open Sauce Sans, sans-serif',
-                            }}
-                          >
-                            Last Active on January 2, 2022
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleEditUser('1')}
-                        className="hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-[#7A62EB] focus:ring-offset-2"
-                        style={{
-                          width: '78px',
-                          height: '38px',
-                          border: '1px solid rgba(124, 134, 161, 0.4)',
-                          borderRadius: '4px',
-                          fontSize: '14px',
-                          fontWeight: 400,
-                          lineHeight: '16px',
-                          fontFamily: 'Open Sauce Sans, sans-serif',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: '#000000',
-                          opacity: 0.7,
-                          background: 'transparent',
-                        }}
-                      >
-                        Edit
-                      </button>
-                    </div>
-
-                    {/* Divider Line */}
-                    <div
-                      style={{
-                        width: '588px',
-                        height: '0px',
-                        opacity: 0.1,
-                        border: '0.8px solid #000000',
-                      }}
-                    />
-
-                    {/* User 2 - Arlene McCoy */}
-                    <div
-                      className="flex items-center justify-between"
-                      style={{ paddingTop: '32px', paddingBottom: '32px' }}
-                    >
-                      <div className="flex items-center" style={{ gap: '16px' }}>
-                        <div
-                          style={{
-                            width: '40px',
-                            height: '40px',
-                            borderRadius: '50%',
-                            background: 'url(.png)',
-                            backgroundSize: 'cover',
-                            backgroundPosition: 'center',
-                          }}
-                        />
-                        <div>
-                          <div className="flex items-center" style={{ gap: '8px', marginBottom: '3px' }}>
-                            <span
-                              style={{
-                                fontSize: '16px',
-                                fontWeight: 500,
-                                lineHeight: '16px',
                                 color: '#000000',
-                                opacity: 0.9,
-                                fontFamily: 'Open Sauce Sans, sans-serif',
+                                opacity: 0.7,
+                                background: 'transparent',
                               }}
                             >
-                              Arlene McCoy
-                            </span>
+                              Edit
+                            </button>
+                          </div>
+                          {index < usersData.length - 1 && (
                             <div
                               style={{
-                                padding: '3px 6px',
-                                background: '#ECF0D9',
-                                borderRadius: '3px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
+                                width: '588px',
+                                height: '0px',
+                                opacity: 0.1,
+                                border: '0.8px solid #000000',
                               }}
-                            >
-                              <span
-                                style={{
-                                  fontSize: '10px',
-                                  fontWeight: 400,
-                                  lineHeight: '10px',
-                                  fontFamily: 'Open Sauce Sans, sans-serif',
-                                  color: '#4C5F00',
-                                }}
-                              >
-                                AM
-                              </span>
-                            </div>
-                          </div>
-                          <p
-                            style={{
-                              fontSize: '14px',
-                              fontWeight: 400,
-                              lineHeight: '16px',
-                              color: '#767D94',
-                              fontFamily: 'Open Sauce Sans, sans-serif',
-                              marginBottom: '7px',
-                            }}
-                          >
-                            example@acumen.com
-                          </p>
-                          <p
-                            style={{
-                              fontSize: '14px',
-                              fontWeight: 500,
-                              lineHeight: '17px',
-                              color: '#767D94',
-                              fontFamily: 'Open Sauce Sans, sans-serif',
-                              marginBottom: '8px',
-                            }}
-                          >
-                            Services, Clients, Subscriptions
-                          </p>
-                          <p
-                            style={{
-                              fontSize: '12px',
-                              fontWeight: 400,
-                              lineHeight: '15px',
-                              color: '#00BE63',
-                              fontFamily: 'Open Sauce Sans, sans-serif',
-                            }}
-                          >
-                            Active Now
-                          </p>
+                            />
+                          )}
                         </div>
-                      </div>
-                      <button
-                        onClick={() => handleEditUser('2')}
-                        className="hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-[#7A62EB] focus:ring-offset-2"
-                        style={{
-                          width: '78px',
-                          height: '38px',
-                          border: '1px solid rgba(124, 134, 161, 0.4)',
-                          borderRadius: '4px',
-                          fontSize: '14px',
-                          fontWeight: 400,
-                          lineHeight: '16px',
-                          fontFamily: 'Open Sauce Sans, sans-serif',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: '#000000',
-                          opacity: 0.7,
-                          background: 'transparent',
-                        }}
-                      >
-                        Edit
-                      </button>
-                    </div>
-
-                    {/* Divider Line */}
-                    <div
-                      style={{
-                        width: '588px',
-                        height: '0px',
-                        opacity: 0.1,
-                        border: '0.8px solid #000000',
-                      }}
-                    />
-
-                    {/* User 3 - Annette Black */}
-                    <div
-                      className="flex items-center justify-between"
-                      style={{ paddingTop: '32px', paddingBottom: '32px' }}
-                    >
-                      <div className="flex items-center" style={{ gap: '16px' }}>
-                        <div
-                          style={{
-                            width: '40px',
-                            height: '40px',
-                            borderRadius: '50%',
-                            background: 'url(.png)',
-                            backgroundSize: 'cover',
-                            backgroundPosition: 'center',
-                          }}
-                        />
-                        <div>
-                          <div className="flex items-center" style={{ gap: '8px', marginBottom: '3px' }}>
-                            <span
-                              style={{
-                                fontSize: '16px',
-                                fontWeight: 500,
-                                lineHeight: '16px',
-                                color: '#000000',
-                                opacity: 0.9,
-                                fontFamily: 'Open Sauce Sans, sans-serif',
-                              }}
-                            >
-                              Annette Black
-                            </span>
-                            <div
-                              style={{
-                                padding: '3px 6px',
-                                background: '#DEDAF3',
-                                borderRadius: '3px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                              }}
-                            >
-                              <span
-                                style={{
-                                  fontSize: '10px',
-                                  fontWeight: 400,
-                                  lineHeight: '10px',
-                                  fontFamily: 'Open Sauce Sans, sans-serif',
-                                  color: '#462ACD',
-                                }}
-                              >
-                                CO
-                              </span>
-                            </div>
-                          </div>
-                          <p
-                            style={{
-                              fontSize: '14px',
-                              fontWeight: 400,
-                              lineHeight: '16px',
-                              color: '#767D94',
-                              fontFamily: 'Open Sauce Sans, sans-serif',
-                              marginBottom: '7px',
-                            }}
-                          >
-                            example@acumen.com
-                          </p>
-                          <p
-                            style={{
-                              fontSize: '14px',
-                              fontWeight: 500,
-                              lineHeight: '17px',
-                              color: '#767D94',
-                              fontFamily: 'Open Sauce Sans, sans-serif',
-                              marginBottom: '8px',
-                            }}
-                          >
-                            Services, Clients, Subscriptions
-                          </p>
-                          <p
-                            style={{
-                              fontSize: '12px',
-                              fontWeight: 400,
-                              lineHeight: '15px',
-                              color: '#000000',
-                              opacity: 0.6,
-                              fontFamily: 'Open Sauce Sans, sans-serif',
-                            }}
-                          >
-                            Last Active on January 2, 2022
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleEditUser('3')}
-                        className="hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-[#7A62EB] focus:ring-offset-2"
-                        style={{
-                          width: '78px',
-                          height: '38px',
-                          border: '1px solid rgba(124, 134, 161, 0.4)',
-                          borderRadius: '4px',
-                          fontSize: '14px',
-                          fontWeight: 400,
-                          lineHeight: '16px',
-                          fontFamily: 'Open Sauce Sans, sans-serif',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: '#000000',
-                          opacity: 0.7,
-                          background: 'transparent',
-                        }}
-                      >
-                        Edit
-                      </button>
-                    </div>
-
-                    {/* Divider Line */}
-                    <div
-                      style={{
-                        width: '588px',
-                        height: '0px',
-                        opacity: 0.1,
-                        border: '0.8px solid #000000',
-                      }}
-                    />
-
-                    {/* User 4 - Jenny Wilson */}
-                    <div
-                      className="flex items-center justify-between"
-                      style={{ paddingTop: '32px', paddingBottom: '32px' }}
-                    >
-                      <div className="flex items-center" style={{ gap: '16px' }}>
-                        <div
-                          style={{
-                            width: '40px',
-                            height: '40px',
-                            borderRadius: '50%',
-                            background: 'url(.png)',
-                            backgroundSize: 'cover',
-                            backgroundPosition: 'center',
-                          }}
-                        />
-                        <div>
-                          <div className="flex items-center" style={{ gap: '8px', marginBottom: '3px' }}>
-                            <span
-                              style={{
-                                fontSize: '16px',
-                                fontWeight: 500,
-                                lineHeight: '16px',
-                                color: '#000000',
-                                opacity: 0.9,
-                                fontFamily: 'Open Sauce Sans, sans-serif',
-                              }}
-                            >
-                              Jenny Wilson
-                            </span>
-                            <div
-                              style={{
-                                padding: '3px 6px',
-                                background: '#FBEFF8',
-                                borderRadius: '3px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                              }}
-                            >
-                              <span
-                                style={{
-                                  fontSize: '10px',
-                                  fontWeight: 400,
-                                  lineHeight: '10px',
-                                  fontFamily: 'Open Sauce Sans, sans-serif',
-                                  color: '#AB659C',
-                                }}
-                              >
-                                BM
-                              </span>
-                            </div>
-                          </div>
-                          <p
-                            style={{
-                              fontSize: '14px',
-                              fontWeight: 400,
-                              lineHeight: '16px',
-                              color: '#767D94',
-                              fontFamily: 'Open Sauce Sans, sans-serif',
-                              marginBottom: '7px',
-                            }}
-                          >
-                            example@acumen.com
-                          </p>
-                          <p
-                            style={{
-                              fontSize: '14px',
-                              fontWeight: 500,
-                              lineHeight: '17px',
-                              color: '#767D94',
-                              fontFamily: 'Open Sauce Sans, sans-serif',
-                              marginBottom: '8px',
-                            }}
-                          >
-                            Services, Clients, Subscriptions
-                          </p>
-                          <p
-                            style={{
-                              fontSize: '12px',
-                              fontWeight: 400,
-                              lineHeight: '15px',
-                              color: '#00BE63',
-                              fontFamily: 'Open Sauce Sans, sans-serif',
-                            }}
-                          >
-                            Active Now
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleEditUser('4')}
-                        className="hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-[#7A62EB] focus:ring-offset-2"
-                        style={{
-                          width: '78px',
-                          height: '38px',
-                          border: '1px solid rgba(124, 134, 161, 0.4)',
-                          borderRadius: '4px',
-                          fontSize: '14px',
-                          fontWeight: 400,
-                          lineHeight: '16px',
-                          fontFamily: 'Open Sauce Sans, sans-serif',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: '#000000',
-                          opacity: 0.7,
-                          background: 'transparent',
-                        }}
-                      >
-                        Edit
-                      </button>
-                    </div>
-
-                    {/* Divider Line */}
-                    <div
-                      style={{
-                        width: '588px',
-                        height: '0px',
-                        opacity: 0.1,
-                        border: '0.8px solid #000000',
-                      }}
-                    />
-
-                    {/* User 5 - Theresa Webb */}
-                    <div
-                      className="flex items-center justify-between"
-                      style={{ paddingTop: '32px', paddingBottom: '32px' }}
-                    >
-                      <div className="flex items-center" style={{ gap: '16px' }}>
-                        <div
-                          style={{
-                            width: '40px',
-                            height: '40px',
-                            borderRadius: '50%',
-                            background: '#237385',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '15px',
-                            fontWeight: 500,
-                            lineHeight: '16px',
-                            letterSpacing: '0.03em',
-                            fontFamily: 'Open Sauce Sans, sans-serif',
-                            color: '#FFFFFF',
-                          }}
-                        >
-                          TW
-                        </div>
-                        <div>
-                          <div className="flex items-center" style={{ gap: '8px', marginBottom: '3px' }}>
-                            <span
-                              style={{
-                                fontSize: '16px',
-                                fontWeight: 500,
-                                lineHeight: '16px',
-                                color: '#000000',
-                                opacity: 0.9,
-                                fontFamily: 'Open Sauce Sans, sans-serif',
-                              }}
-                            >
-                              Theresa Webb
-                            </span>
-                            <div
-                              style={{
-                                padding: '3px 6px',
-                                background: '#DEDAF3',
-                                borderRadius: '3px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                              }}
-                            >
-                              <span
-                                style={{
-                                  fontSize: '10px',
-                                  fontWeight: 400,
-                                  lineHeight: '10px',
-                                  fontFamily: 'Open Sauce Sans, sans-serif',
-                                  color: '#462ACD',
-                                }}
-                              >
-                                CO
-                              </span>
-                            </div>
-                          </div>
-                          <p
-                            style={{
-                              fontSize: '14px',
-                              fontWeight: 400,
-                              lineHeight: '16px',
-                              color: '#767D94',
-                              fontFamily: 'Open Sauce Sans, sans-serif',
-                              marginBottom: '7px',
-                            }}
-                          >
-                            example@acumen.com
-                          </p>
-                          <p
-                            style={{
-                              fontSize: '14px',
-                              fontWeight: 500,
-                              lineHeight: '17px',
-                              color: '#767D94',
-                              fontFamily: 'Open Sauce Sans, sans-serif',
-                              marginBottom: '8px',
-                            }}
-                          >
-                            Services, Clients, Subscriptions
-                          </p>
-                          <p
-                            style={{
-                              fontSize: '12px',
-                              fontWeight: 400,
-                              lineHeight: '15px',
-                              color: '#00BE63',
-                              fontFamily: 'Open Sauce Sans, sans-serif',
-                            }}
-                          >
-                            Active Now
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleEditUser('5')}
-                        className="hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-[#7A62EB] focus:ring-offset-2"
-                        style={{
-                          width: '78px',
-                          height: '38px',
-                          border: '1px solid rgba(124, 134, 161, 0.4)',
-                          borderRadius: '4px',
-                          fontSize: '14px',
-                          fontWeight: 400,
-                          lineHeight: '16px',
-                          fontFamily: 'Open Sauce Sans, sans-serif',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: '#000000',
-                          opacity: 0.7,
-                          background: 'transparent',
-                        }}
-                      >
-                        Edit
-                      </button>
-                    </div>
+                      ))
+                    )}
                   </div>
                 </div>
               )}

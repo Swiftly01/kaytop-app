@@ -1,4 +1,4 @@
-import { profileService } from "@/app/services/profileService";
+import { userProfileService } from "@/lib/services/userProfile";
 import logo from "@/public/logo.png";
 import { AxiosError } from "axios";
 import Image from "next/image";
@@ -6,18 +6,19 @@ import { JSX } from "react";
 import ProfileDropdown from "../../ui/ProfileDropdown";
 
 export default async function Navbar(): Promise<JSX.Element> {
-  
+
   let profile = undefined;
 
   try {
-    profile = await profileService.getProfile();
+    const response = await userProfileService.getUserProfile();
+    profile = response;
   } catch (err: AxiosError | unknown) {
-    const error = err as AxiosError;
-    console.error("Failed to fetch profile:", error.message);
+    // Silently fail - this is expected on server-side rendering
+    // ProfileDropdown will fall back to authenticationManager data
   }
 
   return (
-    <nav 
+    <nav
       className="fixed top-0 left-0 z-40 flex items-center w-full bg-white"
       style={{
         height: '70px',
@@ -27,7 +28,7 @@ export default async function Navbar(): Promise<JSX.Element> {
     >
       <div className="flex items-center justify-between w-full">
         {/* Logo section - positioned at 2.29% from left */}
-        <div 
+        <div
           className="flex items-center gap-2"
           style={{
             marginLeft: '2.29%',

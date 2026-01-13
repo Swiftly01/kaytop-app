@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { authenticationManager } from '@/lib/api/authManager';
+import { useAuth } from '@/app/context/AuthContext';
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -28,23 +28,22 @@ export function AuthGuard({
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const { session } = useAuth();
 
   useEffect(() => {
     const checkAuth = () => {
-      const authState = authenticationManager.getAuthState();
-      
-      if (!authState.isAuthenticated) {
+      if (!session) {
         router.push(fallbackPath);
         return;
       }
 
       // Check role requirements
-      if (requiredRole && !authenticationManager.hasRole(requiredRole)) {
+      if (requiredRole && session.role !== requiredRole) {
         router.push('/unauthorized');
         return;
       }
 
-      if (requiredRoles && !authenticationManager.hasAnyRole(requiredRoles)) {
+      if (requiredRoles && !requiredRoles.includes(session.role)) {
         router.push('/unauthorized');
         return;
       }
@@ -54,12 +53,7 @@ export function AuthGuard({
     };
 
     checkAuth();
-
-    // Subscribe to auth state changes
-    const unsubscribe = authenticationManager.subscribe(checkAuth);
-
-    return unsubscribe;
-  }, [router, requiredRole, requiredRoles, fallbackPath]);
+  }, [router, requiredRole, requiredRoles, fallbackPath, session]);
 
   if (isLoading) {
     return (

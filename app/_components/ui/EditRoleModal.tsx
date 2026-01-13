@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useToast } from '@/app/hooks/useToast';
+import { API_CONFIG } from '@/lib/api/config';
+import { ROLE_CONFIG, PERMISSION_CATEGORIES, UserRoleType } from '@/lib/roleConfig';
 
 // Types and Interfaces
 interface EditRoleModalProps {
@@ -15,7 +17,7 @@ interface UserData {
   id: string;
   name: string;
   email: string;
-  role: 'HQ' | 'AM' | 'CO' | 'BM';
+  role: UserRoleType;
   permissions: string[];
   avatar?: string;
   status: 'active' | 'inactive';
@@ -37,41 +39,8 @@ interface ValidationState {
   };
 }
 
-// Role Configuration
-const ROLE_CONFIG = {
-  HQ: {
-    label: 'Headquarters',
-    color: '#AB659C',
-    backgroundColor: '#FBEFF8',
-    defaultPermissions: ['Services', 'Clients', 'Subscriptions', 'Reports', 'Analytics']
-  },
-  AM: {
-    label: 'Area Manager',
-    color: '#4C5F00',
-    backgroundColor: '#ECF0D9',
-    defaultPermissions: ['Services', 'Clients', 'Subscriptions', 'Branch Management']
-  },
-  CO: {
-    label: 'Credit Officer',
-    color: '#462ACD',
-    backgroundColor: '#DEDAF3',
-    defaultPermissions: ['Services', 'Clients', 'Loan Processing']
-  },
-  BM: {
-    label: 'Branch Manager',
-    color: '#AB659C',
-    backgroundColor: '#FBEFF8',
-    defaultPermissions: ['Services', 'Clients', 'Subscriptions', 'Staff Management']
-  }
-};
+// Role and permission configurations moved to @/lib/roleConfig.ts
 
-// Permission Categories
-const PERMISSION_CATEGORIES = {
-  'Core Services': ['Services', 'Clients', 'Subscriptions'],
-  'Financial': ['Loan Processing', 'Payment Management', 'Financial Reports'],
-  'Management': ['Staff Management', 'Branch Management', 'User Administration'],
-  'Analytics': ['Reports', 'Analytics', 'Data Export']
-};
 export default function EditRoleModal({ isOpen, onClose, onSave, userData }: EditRoleModalProps) {
   const { success, error } = useToast();
   const modalRef = useRef<HTMLDivElement>(null);
@@ -81,13 +50,23 @@ export default function EditRoleModal({ isOpen, onClose, onSave, userData }: Edi
   const [formData, setFormData] = useState<UserData>(userData);
   const [originalData] = useState<UserData>(userData);
   const [isLoading, setIsLoading] = useState(false);
-  
+
   // Validation state
   const [validation, setValidation] = useState<ValidationState>({
     name: { isValid: true },
     email: { isValid: true },
     role: { isValid: true }
   });
+
+  const resolveImageUrl = useCallback((path: string | null | undefined) => {
+    if (!path) return undefined;
+    if (path.startsWith('http') || path.startsWith('data:')) {
+      return path;
+    }
+    return `${API_CONFIG.BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+  }, []);
+
+  const avatarUrl = resolveImageUrl(userData.avatar);
 
   // Validation functions
   const validateName = (name: string): { isValid: boolean; error?: string } => {
@@ -143,6 +122,7 @@ export default function EditRoleModal({ isOpen, onClose, onSave, userData }: Edi
 
     return nameValidation.isValid && emailValidation.isValid && roleValidation.isValid;
   };
+
   // Memoized calculations for performance
   const hasChanges = useMemo(() => {
     return (
@@ -175,13 +155,13 @@ export default function EditRoleModal({ isOpen, onClose, onSave, userData }: Edi
   };
 
   const handleRoleChange = (value: string) => {
-    const newRole = value as 'HQ' | 'AM' | 'CO' | 'BM';
-    setFormData(prev => ({ 
-      ...prev, 
+    const newRole = value as UserRoleType;
+    setFormData(prev => ({
+      ...prev,
       role: newRole,
       permissions: ROLE_CONFIG[newRole].defaultPermissions
     }));
-    
+
     const roleValidation = validateRole(value);
     setValidation(prev => ({ ...prev, role: roleValidation }));
   };
@@ -229,6 +209,7 @@ export default function EditRoleModal({ isOpen, onClose, onSave, userData }: Edi
       handleClose();
     }
   };
+
   // Initialize form data when userData changes
   useEffect(() => {
     if (userData) {
@@ -312,6 +293,7 @@ export default function EditRoleModal({ isOpen, onClose, onSave, userData }: Edi
   }, [isOpen, canSave]);
 
   if (!isOpen) return null;
+
   return (
     <div
       className="fixed inset-0 z-[1000] flex items-center justify-center p-4 sm:p-0"
@@ -344,15 +326,15 @@ export default function EditRoleModal({ isOpen, onClose, onSave, userData }: Edi
               aria-label="Go back"
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path 
-                  d="M10 12L6 8L10 4" 
-                  stroke="currentColor" 
-                  strokeWidth="1.5" 
-                  strokeLinecap="round" 
+                <path
+                  d="M10 12L6 8L10 4"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
                   strokeLinejoin="round"
                 />
               </svg>
-              <span 
+              <span
                 className="hidden sm:inline"
                 style={{
                   fontSize: '14px',
@@ -367,7 +349,7 @@ export default function EditRoleModal({ isOpen, onClose, onSave, userData }: Edi
           </div>
 
           <div className="text-center flex-1 px-2">
-            <h2 
+            <h2
               id="edit-role-modal-title"
               className="text-lg sm:text-2xl"
               style={{
@@ -379,7 +361,7 @@ export default function EditRoleModal({ isOpen, onClose, onSave, userData }: Edi
             >
               Edit User Role
             </h2>
-            <p 
+            <p
               id="edit-role-modal-description"
               className="text-xs sm:text-sm mt-1"
               style={{
@@ -398,27 +380,28 @@ export default function EditRoleModal({ isOpen, onClose, onSave, userData }: Edi
             aria-label="Close modal"
           >
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path 
-                d="M15 5L5 15M5 5L15 15" 
-                stroke="currentColor" 
-                strokeWidth="1.5" 
-                strokeLinecap="round" 
+              <path
+                d="M15 5L5 15M5 5L15 15"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
                 strokeLinejoin="round"
               />
             </svg>
           </button>
         </div>
+
         {/* Modal Content */}
         <div className="p-4 sm:p-6">
           {/* User Avatar Section */}
           <div className="flex items-center gap-4 mb-8">
-            <div 
+            <div
               className="flex items-center justify-center rounded-full"
               style={{
                 width: '60px',
                 height: '60px',
-                backgroundColor: userData.avatar ? 'transparent' : '#237385',
-                backgroundImage: userData.avatar ? `url(${userData.avatar})` : 'none',
+                backgroundColor: avatarUrl ? 'transparent' : '#237385',
+                backgroundImage: avatarUrl ? `url(${avatarUrl})` : 'none',
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 fontSize: '20px',
@@ -427,10 +410,10 @@ export default function EditRoleModal({ isOpen, onClose, onSave, userData }: Edi
                 fontFamily: 'Open Sauce Sans, sans-serif',
               }}
             >
-              {!userData.avatar && userData.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+              {!avatarUrl && userData.name.split(' ').map(n => n[0]).join('').toUpperCase()}
             </div>
             <div>
-              <h3 
+              <h3
                 style={{
                   fontSize: '18px',
                   fontWeight: 600,
@@ -441,7 +424,7 @@ export default function EditRoleModal({ isOpen, onClose, onSave, userData }: Edi
               >
                 {userData.name}
               </h3>
-              <p 
+              <p
                 style={{
                   fontSize: '14px',
                   fontWeight: 400,
@@ -459,7 +442,7 @@ export default function EditRoleModal({ isOpen, onClose, onSave, userData }: Edi
           <div className="space-y-6">
             {/* Name Input */}
             <div>
-              <label 
+              <label
                 style={{
                   fontSize: '14px',
                   fontWeight: 500,
@@ -472,7 +455,7 @@ export default function EditRoleModal({ isOpen, onClose, onSave, userData }: Edi
               >
                 Name
                 {formData.name !== originalData.name && (
-                  <span 
+                  <span
                     style={{
                       fontSize: '12px',
                       fontWeight: 500,
@@ -489,11 +472,10 @@ export default function EditRoleModal({ isOpen, onClose, onSave, userData }: Edi
                 type="text"
                 value={formData.name}
                 onChange={(e) => handleNameChange(e.target.value)}
-                className={`w-full border rounded-[8px] focus:outline-none transition-colors focus:ring-2 focus:ring-[#7A62EB] focus:ring-offset-2 ${
-                  validation.name.isValid 
-                    ? 'border-[#DDDFE1] focus:border-[#7A62EB] focus:border-2' 
-                    : 'border-[#F04438] border-2'
-                }`}
+                className={`w-full border rounded-[8px] focus:outline-none transition-colors focus:ring-2 focus:ring-[#7A62EB] focus:ring-offset-2 ${validation.name.isValid
+                  ? 'border-[#DDDFE1] focus:border-[#7A62EB] focus:border-2'
+                  : 'border-[#F04438] border-2'
+                  }`}
                 style={{
                   height: '48px',
                   padding: '12px 16px',
@@ -510,7 +492,7 @@ export default function EditRoleModal({ isOpen, onClose, onSave, userData }: Edi
                 autoComplete="name"
               />
               {!validation.name.isValid && validation.name.error && (
-                <p 
+                <p
                   id="name-error"
                   style={{
                     fontSize: '12px',
@@ -528,9 +510,10 @@ export default function EditRoleModal({ isOpen, onClose, onSave, userData }: Edi
                 Enter the user's full name. Must be between 2 and 50 characters.
               </div>
             </div>
+
             {/* Email Input */}
             <div>
-              <label 
+              <label
                 style={{
                   fontSize: '14px',
                   fontWeight: 500,
@@ -543,7 +526,7 @@ export default function EditRoleModal({ isOpen, onClose, onSave, userData }: Edi
               >
                 Email
                 {formData.email !== originalData.email && (
-                  <span 
+                  <span
                     style={{
                       fontSize: '12px',
                       fontWeight: 500,
@@ -559,11 +542,10 @@ export default function EditRoleModal({ isOpen, onClose, onSave, userData }: Edi
                 type="email"
                 value={formData.email}
                 onChange={(e) => handleEmailChange(e.target.value)}
-                className={`w-full border rounded-[8px] focus:outline-none transition-colors focus:ring-2 focus:ring-[#7A62EB] focus:ring-offset-2 ${
-                  validation.email.isValid 
-                    ? 'border-[#DDDFE1] focus:border-[#7A62EB] focus:border-2' 
-                    : 'border-[#F04438] border-2'
-                }`}
+                className={`w-full border rounded-[8px] focus:outline-none transition-colors focus:ring-2 focus:ring-[#7A62EB] focus:ring-offset-2 ${validation.email.isValid
+                  ? 'border-[#DDDFE1] focus:border-[#7A62EB] focus:border-2'
+                  : 'border-[#F04438] border-2'
+                  }`}
                 style={{
                   height: '48px',
                   padding: '12px 16px',
@@ -580,7 +562,7 @@ export default function EditRoleModal({ isOpen, onClose, onSave, userData }: Edi
                 autoComplete="email"
               />
               {!validation.email.isValid && validation.email.error && (
-                <p 
+                <p
                   id="email-error"
                   style={{
                     fontSize: '12px',
@@ -598,9 +580,10 @@ export default function EditRoleModal({ isOpen, onClose, onSave, userData }: Edi
                 Enter a valid email address for the user.
               </div>
             </div>
+
             {/* Role Selector */}
             <div>
-              <label 
+              <label
                 style={{
                   fontSize: '14px',
                   fontWeight: 500,
@@ -613,7 +596,7 @@ export default function EditRoleModal({ isOpen, onClose, onSave, userData }: Edi
               >
                 Role
                 {formData.role !== originalData.role && (
-                  <span 
+                  <span
                     style={{
                       fontSize: '12px',
                       fontWeight: 500,
@@ -628,11 +611,10 @@ export default function EditRoleModal({ isOpen, onClose, onSave, userData }: Edi
               <select
                 value={formData.role}
                 onChange={(e) => handleRoleChange(e.target.value)}
-                className={`w-full border rounded-[8px] focus:outline-none transition-colors focus:ring-2 focus:ring-[#7A62EB] focus:ring-offset-2 ${
-                  validation.role.isValid 
-                    ? 'border-[#DDDFE1] focus:border-[#7A62EB] focus:border-2' 
-                    : 'border-[#F04438] border-2'
-                }`}
+                className={`w-full border rounded-[8px] focus:outline-none transition-colors focus:ring-2 focus:ring-[#7A62EB] focus:ring-offset-2 ${validation.role.isValid
+                  ? 'border-[#DDDFE1] focus:border-[#7A62EB] focus:border-2'
+                  : 'border-[#F04438] border-2'
+                  }`}
                 style={{
                   height: '48px',
                   padding: '12px 16px',
@@ -653,7 +635,7 @@ export default function EditRoleModal({ isOpen, onClose, onSave, userData }: Edi
                 ))}
               </select>
               {!validation.role.isValid && validation.role.error && (
-                <p 
+                <p
                   id="role-error"
                   style={{
                     fontSize: '12px',
@@ -674,7 +656,7 @@ export default function EditRoleModal({ isOpen, onClose, onSave, userData }: Edi
 
             {/* Role Badge Preview */}
             <div>
-              <label 
+              <label
                 style={{
                   fontSize: '14px',
                   fontWeight: 500,
@@ -710,7 +692,7 @@ export default function EditRoleModal({ isOpen, onClose, onSave, userData }: Edi
                     {formData.role}
                   </span>
                 </div>
-                <span 
+                <span
                   style={{
                     fontSize: '14px',
                     fontWeight: 400,
@@ -723,10 +705,11 @@ export default function EditRoleModal({ isOpen, onClose, onSave, userData }: Edi
                 </span>
               </div>
             </div>
+
             {/* Permissions Checkboxes */}
             <div>
               <fieldset>
-                <legend 
+                <legend
                   style={{
                     fontSize: '14px',
                     fontWeight: 500,
@@ -738,7 +721,7 @@ export default function EditRoleModal({ isOpen, onClose, onSave, userData }: Edi
                 >
                   Permissions
                   {JSON.stringify(formData.permissions.sort()) !== JSON.stringify(originalData.permissions.sort()) && (
-                    <span 
+                    <span
                       style={{
                         fontSize: '12px',
                         fontWeight: 500,
@@ -753,7 +736,7 @@ export default function EditRoleModal({ isOpen, onClose, onSave, userData }: Edi
                 <div className="space-y-4">
                   {Object.entries(PERMISSION_CATEGORIES).map(([category, permissions]) => (
                     <div key={category}>
-                      <h4 
+                      <h4
                         style={{
                           fontSize: '13px',
                           fontWeight: 600,
@@ -786,7 +769,7 @@ export default function EditRoleModal({ isOpen, onClose, onSave, userData }: Edi
                               }}
                               className="w-4 h-4 text-[#7A62EB] border-[#DDDFE1] rounded focus:ring-[#7A62EB] focus:ring-2"
                             />
-                            <span 
+                            <span
                               style={{
                                 fontSize: '14px',
                                 fontWeight: 400,
@@ -804,55 +787,46 @@ export default function EditRoleModal({ isOpen, onClose, onSave, userData }: Edi
                   ))}
                 </div>
               </fieldset>
-              
-              <div 
-                aria-live="polite" 
-                aria-atomic="true" 
-                className="sr-only"
-                id="permissions-status"
-              >
-                {formData.permissions.length} permissions selected
-              </div>
             </div>
           </div>
-        </div>
-        {/* Modal Footer */}
-        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-0 p-4 sm:p-6 border-t border-[#DDDFE1]">
-          <button
-            onClick={handleClose}
-            className="w-full sm:w-auto text-[#7A62EB] hover:text-[#6941C6] transition-colors focus:outline-none focus:ring-2 focus:ring-[#7A62EB] focus:ring-offset-2 rounded-md px-4 py-3 sm:py-2 border border-[#7A62EB] sm:border-none"
-            style={{
-              fontSize: '14px',
-              fontWeight: 600,
-              lineHeight: '20px',
-              fontFamily: 'Open Sauce Sans, sans-serif',
-            }}
-          >
-            Cancel
-          </button>
-          
-          <button
-            onClick={handleSave}
-            disabled={isLoading || !canSave}
-            className="w-full sm:w-auto bg-[#7A62EB] hover:bg-[#6941C6] disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-[8px] transition-colors focus:outline-none focus:ring-2 focus:ring-[#7A62EB] focus:ring-offset-2 shadow-sm"
-            style={{
-              height: '48px',
-              padding: '12px 24px',
-              fontSize: '16px',
-              fontWeight: 600,
-              lineHeight: '20px',
-              fontFamily: 'Open Sauce Sans, sans-serif',
-            }}
-          >
-            {isLoading ? (
-              <div className="flex items-center justify-center gap-2">
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Saving...
-              </div>
-            ) : (
-              'Save Changes'
-            )}
-          </button>
+
+          {/* Modal Footer */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-12 pt-6 border-t border-[#DDDFE1]">
+            <button
+              onClick={handleClose}
+              className="w-full sm:w-auto px-6 py-2.5 text-[#767D94] hover:text-[#021C3E] transition-colors"
+              style={{
+                fontSize: '14px',
+                fontWeight: 500,
+                lineHeight: '16px',
+                fontFamily: 'Open Sauce Sans, sans-serif',
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={isLoading || !canSave}
+              className={`w-full sm:w-auto px-8 py-2.5 rounded-[8px] text-white font-semibold transition-all shadow-sm ${canSave && !isLoading
+                ? 'bg-[#7A62EB] hover:bg-[#6941C6] active:scale-[0.98]'
+                : 'bg-[#ABAFB3] cursor-not-allowed opacity-70'
+                }`}
+              style={{
+                fontSize: '14px',
+                lineHeight: '16px',
+                fontFamily: 'Open Sauce Sans, sans-serif',
+              }}
+            >
+              {isLoading ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Saving...
+                </div>
+              ) : (
+                'Save Changes'
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

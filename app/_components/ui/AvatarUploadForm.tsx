@@ -1,18 +1,30 @@
-import { AvatarFormData, ProfileResponse } from "@/app/types/settings";
+import { ProfileResponse, AvatarFormData } from "@/app/types/settings";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import Button from "./Button";
 import { useUploadAvatar } from "@/app/dashboard/bm/queries/settings/useUploadAvatar";
 import Spinner from "./Spinner";
 import Error from "./Error";
 
+import { API_CONFIG } from "@/lib/api/config";
+
 interface AvatarProps {
   data?: ProfileResponse;
 }
 
 export default function AvatarUploadForm({ data }: AvatarProps) {
-  
-  let src =
-    data && data.profilePicture ? data.profilePicture : "/profile-picture.svg";
+  const resolveImageUrl = (path: string | null | undefined) => {
+    if (!path) return "/profile-picture.svg";
+    if (path.startsWith('http') || path.startsWith('data:') || path.startsWith('/profile-picture.svg')) {
+      return path;
+    }
+    return `${API_CONFIG.BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+  };
+
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  const initialSrc = resolveImageUrl(data?.profilePicture);
+  let src = previewUrl || initialSrc;
 
   const {
     register,
@@ -24,9 +36,16 @@ export default function AvatarUploadForm({ data }: AvatarProps) {
   } = useForm<AvatarFormData>();
 
   const file = watch("file")?.[0];
-  if (file) {
-    src = URL.createObjectURL(file);
-  }
+
+  useEffect(() => {
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setPreviewUrl(null);
+    }
+  }, [file]);
 
   const { uploadAvatar, isPending: isSubmitting } = useUploadAvatar(
     setError,

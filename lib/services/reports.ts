@@ -31,7 +31,7 @@ export interface ReportsService {
 }
 
 class ReportsAPIService implements ReportsService {
-  
+
   /**
    * Check if user has authorization to access reports for a specific branch
    * Branch managers can only access reports from their own branch
@@ -39,12 +39,12 @@ class ReportsAPIService implements ReportsService {
   private async checkBranchAuthorization(targetBranchId?: string): Promise<void> {
     try {
       const userProfile = await userProfileService.getUserProfile();
-      
-      // System admins and area managers can access all branches
+
+      // System admins and account managers can access all branches
       if (userProfile.role === 'system_admin' || userProfile.role === 'account_manager') {
         return;
       }
-      
+
       // Branch managers can only access their own branch
       if (userProfile.role === 'branch_manager') {
         if (targetBranchId && userProfile.branch !== targetBranchId) {
@@ -52,12 +52,12 @@ class ReportsAPIService implements ReportsService {
         }
         return;
       }
-      
+
       // Credit officers can only access their own reports (handled by backend filtering)
       if (userProfile.role === 'credit_officer') {
         return;
       }
-      
+
       throw new Error(`Access denied: Role ${userProfile.role} does not have permission to access reports`);
     } catch (error) {
       if (error instanceof Error && error.message.includes('Access denied')) {
@@ -67,7 +67,7 @@ class ReportsAPIService implements ReportsService {
       console.warn('Could not verify user authorization:', error);
     }
   }
-  
+
   /**
    * Get all reports with filtering and pagination
    * Uses unified API client with automatic retry and error handling
@@ -86,15 +86,15 @@ class ReportsAPIService implements ReportsService {
           await this.checkBranchAuthorization(validatedBranchId);
         }
       }
-      
+
       const params = new URLSearchParams();
-      
+
       // Add filter parameters with validation
       if (filters.creditOfficerId) params.append('creditOfficerId', filters.creditOfficerId);
       if (validatedBranchId) params.append('branchId', validatedBranchId);
       if (filters.status) params.append('status', filters.status);
       if (filters.reportType) params.append('reportType', filters.reportType);
-      
+
       // Validate and add date filters
       if (filters.dateFrom) {
         const dateFrom = this.validateDateFormat(filters.dateFrom);
@@ -102,14 +102,14 @@ class ReportsAPIService implements ReportsService {
           params.append('dateFrom', dateFrom);
         }
       }
-      
+
       if (filters.dateTo) {
         const dateTo = this.validateDateFormat(filters.dateTo);
         if (dateTo) {
           params.append('dateTo', dateTo);
         }
       }
-      
+
       if (filters.page) params.append('page', filters.page.toString());
       if (filters.limit) params.append('limit', filters.limit.toString());
 
@@ -184,7 +184,7 @@ class ReportsAPIService implements ReportsService {
     try {
       // First get the current report to check its status
       const currentReport = await this.getReportById(id);
-      
+
       // Implement status-based edit restrictions
       if (currentReport.status !== 'pending' && currentReport.status !== 'submitted') {
         throw new Error(`Cannot update report with status '${currentReport.status}'. Only pending or submitted reports can be edited.`);
@@ -216,7 +216,7 @@ class ReportsAPIService implements ReportsService {
     try {
       // First get the current report to check its status
       const currentReport = await this.getReportById(id);
-      
+
       // Implement status-based delete restrictions
       if (currentReport.status !== 'pending' && currentReport.status !== 'submitted') {
         throw new Error(`Cannot delete report with status '${currentReport.status}'. Only pending or submitted reports can be deleted.`);
@@ -287,14 +287,14 @@ class ReportsAPIService implements ReportsService {
   async getReportStatistics(filters: Pick<ReportFilters, 'dateFrom' | 'dateTo' | 'branchId'> = {}): Promise<ReportStatistics> {
     try {
       console.log('🔍 Raw filters received:', filters);
-      
+
       const params = new URLSearchParams();
-      
+
       // The backend appears to require specific numeric parameters
       // Add default pagination parameters that the backend expects
       params.append('page', '1');
       params.append('limit', '100');
-      
+
       // Validate and add date filters
       if (filters.dateFrom) {
         const dateFrom = this.validateDateFormat(filters.dateFrom);
@@ -305,7 +305,7 @@ class ReportsAPIService implements ReportsService {
           console.warn('❌ Invalid dateFrom format, skipping:', filters.dateFrom);
         }
       }
-      
+
       if (filters.dateTo) {
         const dateTo = this.validateDateFormat(filters.dateTo);
         if (dateTo) {
@@ -315,7 +315,7 @@ class ReportsAPIService implements ReportsService {
           console.warn('❌ Invalid dateTo format, skipping:', filters.dateTo);
         }
       }
-      
+
       // Validate and add branch filter
       if (filters.branchId) {
         const branchId = this.validateBranchId(filters.branchId);
@@ -343,12 +343,12 @@ class ReportsAPIService implements ReportsService {
         message: error instanceof Error ? error.message : 'Unknown error',
         errorType: error instanceof Error ? error.constructor.name : 'Unknown'
       });
-      
+
       // Check if this is the specific validation error we're trying to fix
       if (error instanceof Error && error.message.includes('Validation failed (numeric string is expected)')) {
         console.warn('🚨 Backend validation error detected - the /reports/statistics endpoint may not be properly implemented');
         console.warn('💡 Consider using dashboard KPI endpoint instead for report statistics');
-        
+
         // Return meaningful default data instead of throwing
         const defaultStats: ReportStatistics = {
           totalReports: { count: 0, growth: 0 },
@@ -357,11 +357,11 @@ class ReportsAPIService implements ReportsService {
           approvedReports: { count: 0, growth: 0 },
           missedReports: { count: 0, growth: 0 },
         };
-        
+
         console.log('📊 Returning default report statistics due to backend validation error');
         return defaultStats;
       }
-      
+
       const errorMessage = UnifiedAPIErrorHandler.handleApiError(error, {
         logError: true,
         showToast: false
@@ -380,14 +380,14 @@ class ReportsAPIService implements ReportsService {
       if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
         return date;
       }
-      
+
       // Try to parse and convert to YYYY-MM-DD
       const parsedDate = new Date(date);
       if (isNaN(parsedDate.getTime())) {
         console.warn('Invalid date format:', date);
         return null;
       }
-      
+
       return parsedDate.toISOString().split('T')[0];
     } catch (error) {
       console.warn('Date validation error:', error);
@@ -402,12 +402,12 @@ class ReportsAPIService implements ReportsService {
     try {
       // Convert to string and trim whitespace
       const branchIdStr = branchId.toString().trim();
-      
+
       // Check if it's a non-empty string
       if (branchIdStr.length > 0) {
         return branchIdStr;
       }
-      
+
       console.warn('Invalid branchId format (empty string):', branchId);
       return null;
     } catch (error) {
@@ -431,9 +431,9 @@ class ReportsAPIService implements ReportsService {
 
       // Check authorization for branch-specific access
       await this.checkBranchAuthorization(validatedBranchId);
-      
+
       console.log('⚠️ Branch statistics endpoint not available, using general reports with branch filter');
-      
+
       // Use the general reports endpoint with branch filtering to get reports data
       const reportsResponse = await this.getAllReports({
         branchId: validatedBranchId,
@@ -442,9 +442,9 @@ class ReportsAPIService implements ReportsService {
         page: 1,
         limit: 1000 // Get a large number to calculate statistics
       });
-      
+
       const reports = reportsResponse.data || [];
-      
+
       // Calculate statistics from the reports data
       const totalReports = reports.length;
       const submittedReports = reports.filter(r => r.status === 'submitted').length;
@@ -453,7 +453,7 @@ class ReportsAPIService implements ReportsService {
       // Note: Backend doesn't support 'missed' status, so we'll use 0 for now
       // In a real implementation, missed reports would be calculated based on due dates
       const missedReports = 0;
-      
+
       // For growth calculation, we'd need historical data comparison
       // Since we don't have that, we'll return 0 growth for now
       const calculatedStats: ReportStatistics = {
@@ -463,13 +463,13 @@ class ReportsAPIService implements ReportsService {
         approvedReports: { count: approvedReports, growth: 0 },
         missedReports: { count: missedReports, growth: 0 },
       };
-      
+
       console.log('📊 Calculated branch statistics from reports data:', calculatedStats);
       return calculatedStats;
-      
+
     } catch (error) {
       console.error('Branch report statistics calculation error:', error);
-      
+
       // Return default statistics if calculation fails
       const defaultStats: ReportStatistics = {
         totalReports: { count: 0, growth: 0 },
@@ -478,7 +478,7 @@ class ReportsAPIService implements ReportsService {
         approvedReports: { count: 0, growth: 0 },
         missedReports: { count: 0, growth: 0 },
       };
-      
+
       console.log('📊 Returning default branch statistics due to error');
       return defaultStats;
     }
@@ -502,17 +502,17 @@ class ReportsAPIService implements ReportsService {
         // Check authorization for branch-specific access
         await this.checkBranchAuthorization(validatedBranchId);
       }
-      
+
       console.log('⚠️ Missed reports: Backend may not support "missed" status, checking available reports instead');
-      
+
       // Since the backend may not support 'missed' status, let's try to get all reports
       // and filter them based on some criteria that might indicate "missed" reports
       const params = new URLSearchParams();
-      
+
       if (validatedBranchId) {
         params.append('branchId', validatedBranchId);
       }
-      
+
       // Validate and add date filters
       if (filters.dateFrom) {
         const dateFrom = this.validateDateFormat(filters.dateFrom);
@@ -520,7 +520,7 @@ class ReportsAPIService implements ReportsService {
           params.append('dateFrom', dateFrom);
         }
       }
-      
+
       if (filters.dateTo) {
         const dateTo = this.validateDateFormat(filters.dateTo);
         if (dateTo) {
@@ -531,22 +531,22 @@ class ReportsAPIService implements ReportsService {
       console.log('🔍 Missed reports URL params:', params.toString());
 
       const url = `${API_ENDPOINTS.REPORTS.LIST}${params.toString() ? `?${params.toString()}` : ''}`;
-      
+
       try {
         const response: ApiResponse<PaginatedResponse<Report>> = await apiClient.get(url);
-        
+
         // Since we can't filter by 'missed' status on the backend, 
         // we'll return an empty array for now to prevent errors
         // In a real implementation, you'd need to define what constitutes a "missed" report
         console.log('📊 Returning empty missed reports array (backend does not support missed status filter)');
         return [];
-        
+
       } catch (apiError) {
         // If the API call fails, return empty array to prevent breaking the page
         console.warn('API call for missed reports failed, returning empty array:', apiError);
         return [];
       }
-      
+
     } catch (error) {
       console.error('Missed reports fetch error:', error);
       // Return empty array instead of throwing to prevent breaking the page

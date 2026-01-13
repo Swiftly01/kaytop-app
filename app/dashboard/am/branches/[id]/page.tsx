@@ -12,7 +12,7 @@ import Pagination from '@/app/_components/ui/Pagination';
 import { ToastContainer } from '@/app/_components/ui/ToastContainer';
 import { useToast } from '@/app/hooks/useToast';
 import { PageSkeleton } from '@/app/_components/ui/Skeleton';
-import { unifiedDashboardService } from '@/lib/services/unifiedDashboard';
+import { dashboardService } from '@/lib/services/dashboard';
 import { unifiedUserService } from '@/lib/services/unifiedUser';
 import { reportsService } from '@/lib/services/reports';
 import type { ReportStatistics } from '@/lib/api/types';

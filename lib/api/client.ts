@@ -7,7 +7,7 @@ import { API_CONFIG, initializeConfiguration } from './config';
 import { interceptorManager } from './interceptors';
 import { DataTransformers } from './transformers';
 import { UnifiedAPIErrorHandler } from './errorHandler';
-import { authenticationManager } from './authManager';
+import Cookies from 'js-cookie';
 import type {
   ApiResponse,
   RequestConfig,
@@ -51,7 +51,11 @@ class UnifiedAPILogger implements APILogger {
   }
 
   logError(method: string, url: string, error: any, responseTime: number): void {
-    // Always log errors regardless of log level
+    // Check if error has explicitly requested suppression
+    if (error?.suppressLog) {
+      return;
+    }
+    // Always log errors regardless of log level unless suppressed
     console.error(`❌ [${method}] ${url} - ${error.status || 'Network Error'} (${responseTime}ms)`, error);
   }
 }
@@ -81,14 +85,15 @@ class UnifiedHttpClient implements UnifiedApiClient {
       'Content-Type': 'application/json',
     };
 
-    // Use authentication manager for token handling
+    // Use js-cookie to get token directly (aligned with main branch pattern)
     try {
-      const authHeaders = await authenticationManager.getAuthHeaders();
-      console.log('🔍 Auth Headers:', authHeaders);
-      console.log('🔍 Auth State:', authenticationManager.getAuthState());
-      return { ...headers, ...authHeaders };
+      const token = Cookies.get('token');
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+      return headers;
     } catch (error) {
-      console.error('🚨 Error getting auth headers:', error);
+      console.error('🚨 Error getting auth token from cookies:', error);
       return headers;
     }
   }
@@ -103,21 +108,10 @@ class UnifiedHttpClient implements UnifiedApiClient {
     const fullUrl = url.startsWith('http') ? url : `${this.baseURL}${url}`;
     const timeout = config?.timeout || this.defaultTimeout;
 
-    console.log('🔍 API Request Debug:', {
-      method,
-      url,
-      fullUrl,
-      baseURL: this.baseURL,
-      timeout,
-      hasData: !!data
-    });
-
     const headers = {
       ...(await this.getDefaultHeaders()),
       ...config?.headers,
     };
-
-    console.log('🔍 API Headers:', headers);
 
     // Handle FormData - don't set Content-Type for file uploads
     if (data instanceof FormData) {
@@ -157,7 +151,7 @@ class UnifiedHttpClient implements UnifiedApiClient {
       const responseTime = Date.now() - startTime;
 
       if (!response.ok) {
-        const error = await this.createApiError(response);
+        const error = await this.createApiError(response, config?.suppressErrorLog);
 
         // Log error only if suppression is not requested
         if (!config?.suppressErrorLog) {
@@ -181,23 +175,12 @@ class UnifiedHttpClient implements UnifiedApiClient {
       if (contentType && contentType.includes('application/json')) {
         responseData = await response.json();
       } else {
-        // Handle non-JSON responses
         const text = await response.text();
-        if (API_CONFIG.DEBUG) {
-          console.log('Non-JSON response received:', {
-            status: response.status,
-            contentType,
-            textLength: text.length,
-            text: text.substring(0, 200) + (text.length > 200 ? '...' : '')
-          });
-        }
-
-        // If response is empty, this indicates a backend issue
         if (!text || text.trim() === '') {
           responseData = {
             success: false,
             data: null,
-            message: `Backend returned empty response (Status: ${response.status}). This indicates a backend deployment issue.`
+            message: `Backend returned empty response (Status: ${response.status})`
           };
         } else {
           responseData = {
@@ -218,13 +201,18 @@ class UnifiedHttpClient implements UnifiedApiClient {
       this.logger.logSuccess(method, fullUrl, response.status, responseTime);
 
       return transformedData;
-    } catch (error) {
+    } catch (error: any) {
+      const endTime = Date.now();
+      const responseTime = endTime - startTime;
+      const shouldSuppress = config?.suppressErrorLog;
+
+      // Attach suppression flag to error object
+      if (error && typeof error === 'object') {
+        error.suppressLog = shouldSuppress;
+      }
+
       // Execute error interceptors
       interceptorManager.executeResponseErrorInterceptors(error);
-      clearTimeout(timeoutId);
-      const responseTime = Date.now() - startTime;
-
-      const shouldSuppress = (requestOptions as any)?.suppressErrorLog;
 
       if (!shouldSuppress) {
         console.error('🚨 API Request Failed:', {
@@ -232,41 +220,43 @@ class UnifiedHttpClient implements UnifiedApiClient {
           url: fullUrl,
           message: error instanceof Error ? error.message : 'Unknown error',
           status: (error as any)?.status,
-          name: error instanceof Error ? error.name : 'Unknown',
-          responseText: (error as any)?.responseText, // Often helpful in fetch errors
           responseTime
         });
       }
 
       if (error instanceof Error && error.name === 'AbortError') {
         const timeoutError = this.createNetworkError('Request timeout', 408);
-        this.logger.logError(method, fullUrl, timeoutError, responseTime);
+        if (!shouldSuppress) {
+          this.logger.logError(method, fullUrl, timeoutError, responseTime);
+        }
         throw timeoutError;
       }
 
       if (error instanceof TypeError && error.message.includes('fetch')) {
         const networkError = this.createNetworkError(`Network error: ${error.message}`, 0);
-        this.logger.logError(method, fullUrl, networkError, responseTime);
+        if (!shouldSuppress) {
+          this.logger.logError(method, fullUrl, networkError, responseTime);
+        }
         throw networkError;
       }
 
-      this.logger.logError(method, fullUrl, error, responseTime);
+      if (!shouldSuppress) {
+        this.logger.logError(method, fullUrl, error, responseTime);
 
-      // Log error with context
-      UnifiedAPIErrorHandler.logErrorWithContext(error, {
-        endpoint: fullUrl,
-        method,
-        requestData: data,
-        timestamp: new Date().toISOString()
-      });
+        // Log error with context
+        UnifiedAPIErrorHandler.logErrorWithContext(error, {
+          endpoint: fullUrl,
+          method,
+          requestData: data,
+          timestamp: new Date().toISOString()
+        });
+      }
 
       throw error;
     }
   }
 
   private transformResponse<T>(responseData: any, url: string): ApiResponse<T> {
-    console.log('🔄 Transforming API response for:', url);
-
     // Apply endpoint-specific transformations using the unified transformer
     if (url.includes('/dashboard/kpi')) {
       const transformedData = DataTransformers.transformDashboardKPIs(responseData.data || responseData);
@@ -301,7 +291,8 @@ class UnifiedHttpClient implements UnifiedApiClient {
 
     // Profile endpoints
     if (url.includes('/users/profile')) {
-      const transformedData = DataTransformers.transformUser(responseData.data || responseData);
+      // Use transformAdminProfile as it supports both User and AdminProfile fields
+      const transformedData = DataTransformers.transformAdminProfile(responseData.data || responseData);
       return {
         success: true,
         data: transformedData as T,
@@ -311,7 +302,6 @@ class UnifiedHttpClient implements UnifiedApiClient {
 
     // Loan management endpoints
     if (url.includes('/loans/')) {
-      // Handle paginated loan responses (like /loans/disbursed)
       if (responseData.data && responseData.meta) {
         const transformedData = DataTransformers.transformPaginatedResponse(
           responseData,
@@ -323,7 +313,6 @@ class UnifiedHttpClient implements UnifiedApiClient {
           message: responseData.message
         };
       }
-      // Handle direct array responses
       else if (Array.isArray(responseData.data) || Array.isArray(responseData)) {
         const transformedData = DataTransformers.transformPaginatedResponse(
           responseData,
@@ -335,9 +324,7 @@ class UnifiedHttpClient implements UnifiedApiClient {
           message: responseData.message
         };
       }
-      // Handle single loan responses
-      else if (responseData.data?.id || responseData.id || (Array.isArray(responseData) && responseData.length > 0)) {
-        // Handle customer loans endpoint which returns array directly
+      else if (responseData.data?.id || responseData.id || Array.isArray(responseData)) {
         if (Array.isArray(responseData)) {
           const transformedData = responseData.map(DataTransformers.transformLoan);
           return {
@@ -358,7 +345,6 @@ class UnifiedHttpClient implements UnifiedApiClient {
 
     // Savings management endpoints
     if (url.includes('/savings/')) {
-      // Handle savings transactions
       if (url.includes('/transactions/all')) {
         if (Array.isArray(responseData.data) || Array.isArray(responseData)) {
           const transformedData = DataTransformers.transformPaginatedResponse(
@@ -372,7 +358,6 @@ class UnifiedHttpClient implements UnifiedApiClient {
           };
         }
       }
-      // Handle savings accounts
       else if (Array.isArray(responseData.data) || Array.isArray(responseData)) {
         const transformedData = DataTransformers.transformPaginatedResponse(
           responseData,
@@ -384,7 +369,6 @@ class UnifiedHttpClient implements UnifiedApiClient {
           message: responseData.message
         };
       }
-      // Handle single savings account (customer savings)
       else if (responseData.data?.id || responseData.id) {
         const transformedData = DataTransformers.transformSavingsAccount(responseData.data || responseData);
         return {
@@ -397,7 +381,6 @@ class UnifiedHttpClient implements UnifiedApiClient {
 
     // Reports management endpoints
     if (url.includes('/reports')) {
-      // Handle reports statistics
       if (url.includes('/statistics') || url.includes('/dashboard/stats')) {
         const transformedData = DataTransformers.transformReportStatistics(responseData.data || responseData);
         return {
@@ -406,7 +389,6 @@ class UnifiedHttpClient implements UnifiedApiClient {
           message: responseData.message
         };
       }
-      // Handle paginated reports responses
       else if (responseData.data && responseData.meta) {
         const transformedData = DataTransformers.transformPaginatedResponse(
           responseData,
@@ -418,7 +400,6 @@ class UnifiedHttpClient implements UnifiedApiClient {
           message: responseData.message
         };
       }
-      // Handle direct array responses
       else if (Array.isArray(responseData.data) || Array.isArray(responseData)) {
         const transformedData = DataTransformers.transformPaginatedResponse(
           responseData,
@@ -430,7 +411,6 @@ class UnifiedHttpClient implements UnifiedApiClient {
           message: responseData.message
         };
       }
-      // Handle single report responses (get by ID, approve, decline)
       else if (responseData.data?.id || responseData.id || (responseData.data?.reportId || responseData.reportId)) {
         const transformedData = DataTransformers.transformReport(responseData.data || responseData);
         return {
@@ -441,7 +421,6 @@ class UnifiedHttpClient implements UnifiedApiClient {
       }
     }
 
-    // Default transformation for unknown endpoints
     return {
       success: responseData.success !== false,
       data: responseData.data || responseData,
@@ -449,13 +428,18 @@ class UnifiedHttpClient implements UnifiedApiClient {
     };
   }
 
-  private async createApiError(response: Response): Promise<ApiError> {
+  private async createApiError(response: Response, suppressErrorLog?: boolean): Promise<ApiError> {
     let errorData: any = {};
 
     try {
-      errorData = await response.json();
-    } catch {
-      // If response is not JSON, use status text
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        errorData = await response.json();
+      } else {
+        const text = await response.text();
+        errorData = { message: text || response.statusText };
+      }
+    } catch (e) {
       errorData = { message: response.statusText };
     }
 
@@ -463,11 +447,13 @@ class UnifiedHttpClient implements UnifiedApiClient {
     error.status = response.status;
     error.details = errorData;
 
-    // Classify error type and handle authentication errors
+    if (suppressErrorLog) {
+      (error as any).suppressLog = true;
+    }
+
     if (response.status === 401 || response.status === 403) {
       (error as AuthError).type = 'auth';
-      // Use authentication manager for handling auth failures
-      authenticationManager.handleAuthenticationFailure();
+      // Let middleware handle authentication failures instead of custom auth fix
     } else if (response.status >= 500) {
       (error as ServerError).type = 'server';
     }
@@ -484,7 +470,7 @@ class UnifiedHttpClient implements UnifiedApiClient {
 
   private isRetryableError(error: any): boolean {
     if (error.type === 'network') return true;
-    if (error.status && this.retryConfig.retryableStatusCodes.includes(error.status)) {
+    if (error.status && [408, 429, 500, 502, 503, 504].includes(error.status)) {
       return true;
     }
     return false;
@@ -495,27 +481,15 @@ class UnifiedHttpClient implements UnifiedApiClient {
   ): Promise<ApiResponse<T>> {
     let lastError: any;
 
-    for (let attempt = 0; attempt <= this.retryConfig.maxRetries; attempt++) {
+    for (let attempt = 0; attempt <= API_CONFIG.RETRY_ATTEMPTS; attempt++) {
       try {
         return await operation();
       } catch (error) {
         lastError = error;
-
-        // Don't retry on last attempt
-        if (attempt === this.retryConfig.maxRetries) {
+        if (attempt === API_CONFIG.RETRY_ATTEMPTS || !this.isRetryableError(error)) {
           break;
         }
-
-        // Don't retry non-retryable errors
-        if (!this.isRetryableError(error)) {
-          break;
-        }
-
-        // Wait before retry with exponential backoff
-        const delay = Math.pow(this.retryConfig.backoffMultiplier, attempt) * API_CONFIG.RETRY_DELAY;
-        if (API_CONFIG.DEBUG) {
-          console.log(`🔄 Retrying request in ${delay}ms (attempt ${attempt + 1}/${this.retryConfig.maxRetries})`);
-        }
+        const delay = Math.pow(2, attempt) * API_CONFIG.RETRY_DELAY;
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
@@ -544,8 +518,5 @@ class UnifiedHttpClient implements UnifiedApiClient {
   }
 }
 
-// Export singleton instance with unified capabilities
 export const apiClient = new UnifiedHttpClient();
-
-// Maintain backward compatibility
 export const unifiedApiClient = apiClient;

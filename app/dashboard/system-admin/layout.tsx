@@ -32,6 +32,7 @@ export default function SystemAdminLayout({
             type="checkbox"
             className="drawer-toggle lg:hidden"
             aria-label="Toggle navigation drawer"
+            suppressHydrationWarning
           />
           <SystemAdminSidebar />
           {children}

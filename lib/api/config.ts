@@ -18,35 +18,35 @@ const getEnvBoolean = (key: string, defaultValue: boolean): boolean => {
 export const API_CONFIG = {
   // Backend URL configuration
   BASE_URL: process.env.NEXT_PUBLIC_KAYTOP_API_BASE_URL || 'https://kaytop-production.up.railway.app',
-  
+
   // Timeout configuration (configurable via environment)
   TIMEOUT: getEnvNumber('NEXT_PUBLIC_API_TIMEOUT', 30000), // 30 seconds default
-  
+
   // Retry configuration (configurable via environment)
   RETRY_ATTEMPTS: getEnvNumber('NEXT_PUBLIC_API_RETRY_ATTEMPTS', 3),
   RETRY_DELAY: getEnvNumber('NEXT_PUBLIC_API_RETRY_DELAY', 1000), // 1 second default
   RETRY_MAX_DELAY: getEnvNumber('NEXT_PUBLIC_API_RETRY_MAX_DELAY', 10000), // 10 seconds default
-  
+
   // Debug mode configuration
   DEBUG: getEnvBoolean('NEXT_PUBLIC_API_DEBUG', process.env.NODE_ENV === 'development'),
-  
+
   // Logging configuration
   LOG_LEVEL: process.env.NEXT_PUBLIC_LOG_LEVEL || 'info', // 'debug', 'info', 'warn', 'error'
   LOG_API_CALLS: getEnvBoolean('NEXT_PUBLIC_LOG_API_CALLS', process.env.NODE_ENV === 'development'),
-  
+
   // Error tracking configuration
   ENABLE_ERROR_TRACKING: getEnvBoolean('NEXT_PUBLIC_ENABLE_ERROR_TRACKING', process.env.NODE_ENV === 'production'),
   ERROR_TRACKING_ENDPOINT: process.env.NEXT_PUBLIC_ERROR_TRACKING_ENDPOINT,
-  
+
   // Rate limiting configuration
   RATE_LIMIT_ENABLED: getEnvBoolean('NEXT_PUBLIC_RATE_LIMIT_ENABLED', true),
   RATE_LIMIT_MAX_REQUESTS: getEnvNumber('NEXT_PUBLIC_RATE_LIMIT_MAX_REQUESTS', 100),
   RATE_LIMIT_WINDOW_MS: getEnvNumber('NEXT_PUBLIC_RATE_LIMIT_WINDOW_MS', 60000), // 1 minute
-  
+
   // Cache configuration
   CACHE_ENABLED: getEnvBoolean('NEXT_PUBLIC_CACHE_ENABLED', true),
   CACHE_TTL: getEnvNumber('NEXT_PUBLIC_CACHE_TTL', 300000), // 5 minutes default
-  
+
   // Authentication configuration
   TOKEN_REFRESH_THRESHOLD: getEnvNumber('NEXT_PUBLIC_TOKEN_REFRESH_THRESHOLD', 300000), // 5 minutes before expiry
   AUTO_LOGOUT_ON_TOKEN_EXPIRE: getEnvBoolean('NEXT_PUBLIC_AUTO_LOGOUT_ON_TOKEN_EXPIRE', true),
@@ -140,20 +140,20 @@ export function getConfigurationSummary(): Record<string, any> {
  */
 export function initializeConfiguration(): void {
   const validation = validateConfiguration();
-  
+
   if (API_CONFIG.DEBUG || API_CONFIG.LOG_LEVEL === 'debug') {
     console.log('🔧 API Configuration Summary:', getConfigurationSummary());
   }
-  
+
   if (validation.warnings.length > 0) {
     console.warn('⚠️ Configuration warnings:', validation.warnings);
   }
-  
+
   if (!validation.isValid) {
     console.error('❌ Configuration errors:', validation.errors);
     throw new Error(`Configuration validation failed: ${validation.errors.join(', ')}`);
   }
-  
+
   if (API_CONFIG.DEBUG) {
     console.log('✅ Configuration validation passed');
   }
@@ -169,18 +169,18 @@ export const API_ENDPOINTS = {
     RESET_PASSWORD: '/auth/reset-password',
     CHANGE_PASSWORD: '/auth/change-password',
   },
-  
+
   // Users endpoints (from Postman collection)
   USERS: {
     PROFILE: '/users/profile',
     ME: '/users/me',
-    // PROFILE_PICTURE: '/users/me/profile-picture', // Not available on backend - use PATCH /users/me instead
+    PROFILE_PICTURE: '/users/me/profile-picture',
     FILTER: '/users/filter',
     MY_BRANCH: '/users/my-branch',
     STATES: '/users/states',
     BRANCHES: '/users/branches',
   },
-  
+
   // Admin endpoints (from Postman collection)
   ADMIN: {
     PROFILE: '/admin/profile',
@@ -210,7 +210,7 @@ export const API_ENDPOINTS = {
     LOAN_SUMMARY: (customerId: string) => `/loans/customer/${customerId}/loan-summary`,
     DISBURSEMENT_SUMMARY: (customerId: string) => `/loans/customer/${customerId}/disbursement-summary`,
     CUSTOMER_LOANS: (customerId: string) => `/loans/customer/${customerId}`,
-    
+
     // New endpoints from Postman collection
     DISBURSED: '/loans/disbursed',
     RECOLLECTIONS: '/loans/recollections',
@@ -218,13 +218,13 @@ export const API_ENDPOINTS = {
     ALL: '/loans/all',
     DISBURSEMENT_VOLUME: '/loans/disbursed/volume',
   },
-  
+
   // Customer Loans endpoints (from Postman collection)
   CUSTOMER_LOANS: {
     MY_LOANS: '/customer/loans/my-loans',
     ACTIVE_LOAN: '/customer/loans/active-loan',
   },
-  
+
   // Savings endpoints (from Postman collection)
   SAVINGS: {
     // Staff operations
@@ -234,24 +234,24 @@ export const API_ENDPOINTS = {
     WITHDRAW: (customerId: string) => `/savings/customer/${customerId}/withdraw`,
     APPROVE_WITHDRAWAL: (transactionId: string) => `/savings/transactions/${transactionId}/approve-withdraw`,
     CUSTOMER_SAVINGS: (customerId: string) => `/savings/customer/${customerId}`,
-    
+
     // New endpoints from Postman collection
     ALL_ACCOUNTS: '/savings/all',
     ALL_TRANSACTIONS: '/savings/transactions/all',
   },
-  
+
   // Customer Savings endpoints (from Postman collection)
   CUSTOMER_SAVINGS: {
     MY_BALANCE: '/customer/savings/my-balance',
     MY_TRANSACTIONS: '/customer/savings/my-transactions',
   },
-  
+
   // OTP endpoints (from Postman collection)
   OTP: {
     SEND: '/otp/send',
     VERIFY: '/otp/verify',
   },
-  
+
   // Dashboard endpoints (from Postman collection)
   DASHBOARD: {
     KPI: '/dashboard/kpi',
@@ -266,19 +266,19 @@ export const API_ENDPOINTS = {
     STATISTICS: '/reports/statistics',
     DASHBOARD_STATS: '/reports/dashboard/stats',
   },
-  
+
   // Activity Logs endpoints
   ACTIVITY_LOGS: {
     LIST: '/admin/activity-logs',
     BY_USER: (userId: string) => `/admin/activity-logs/user/${userId}`,
   },
-  
+
   // System Settings endpoints
   SYSTEM_SETTINGS: {
     GET: '/admin/system-settings',
     UPDATE: '/admin/system-settings',
   },
-  
+
   // Bulk Operations endpoints
   BULK: {
     USERS: '/admin/users/bulk',

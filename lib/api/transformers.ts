@@ -3,14 +3,14 @@
  * Handles transformation between backend API responses and frontend data models
  */
 
-import type { 
-  User, 
-  AdminProfile, 
-  Loan, 
-  DashboardKPIs, 
-  StatisticValue, 
+import type {
+  User,
+  AdminProfile,
+  Loan,
+  DashboardKPIs,
+  StatisticValue,
   BranchPerformance,
-  PaginatedResponse 
+  PaginatedResponse
 } from './types';
 
 // Export individual transformer functions for convenience
@@ -24,18 +24,19 @@ export const transformReportData = (data: any) => DataTransformers.transformRepo
 export const transformReportStatisticsData = (data: any) => DataTransformers.transformReportStatistics(data);
 
 export class DataTransformers {
-  
+
   /**
    * Transform backend user data to frontend User interface
    * Updated to handle actual backend response structure from /admin/users endpoints
    */
   static transformUser(backendUser: any): User {
     console.log('🔄 Transforming user data:', backendUser);
-    
+
     return {
       id: backendUser.id?.toString() || backendUser.userId?.toString() || '',
       firstName: backendUser.firstName || backendUser.first_name || '',
       lastName: backendUser.lastName || backendUser.last_name || '',
+      profilePicture: backendUser.profilePicture || backendUser.profile_picture || undefined,
       email: backendUser.email || '',
       mobileNumber: backendUser.mobileNumber || backendUser.mobile_number || backendUser.phone || '',
       // Normalize role - backend may return different role values, with intelligent detection fallback
@@ -65,6 +66,7 @@ export class DataTransformers {
       branch: backendProfile.branch || backendProfile.branchName || '',
       state: backendProfile.state || '',
       verificationStatus: DataTransformers.normalizeVerificationStatus(backendProfile.verificationStatus || backendProfile.verification_status),
+      profilePicture: backendProfile.profilePicture || backendProfile.profile_picture || undefined,
       createdAt: backendProfile.createdAt || backendProfile.created_at || new Date().toISOString(),
       updatedAt: backendProfile.updatedAt || backendProfile.updated_at || new Date().toISOString(),
     };
@@ -76,7 +78,7 @@ export class DataTransformers {
    */
   static transformLoan(backendLoan: any): Loan {
     console.log('🔄 Transforming loan data:', backendLoan);
-    
+
     return {
       id: backendLoan.id?.toString() || backendLoan.loanId?.toString() || '',
       // Extract customerId from nested user object or use direct field
@@ -102,7 +104,7 @@ export class DataTransformers {
    */
   static transformDashboardKPIs(backendKPIs: any): DashboardKPIs {
     console.log('🔄 Transforming dashboard KPIs:', backendKPIs);
-    
+
     // Calculate mock growth percentages based on current values (temporary solution)
     const calculateMockGrowth = (value: number): number => {
       if (value === 0) return 0;
@@ -116,55 +118,55 @@ export class DataTransformers {
         backendKPIs.totalCreditOfficers || 0,
         calculateMockGrowth(backendKPIs.totalCreditOfficers || 0)
       ),
-      
+
       // Use totalSavingsAccounts as proxy for customers (since customers aren't provided)
       // Note: This should ideally be the actual customer count from user filtering
       customers: DataTransformers.transformStatisticValue(
         backendKPIs.totalSavingsAccounts || 0,
         calculateMockGrowth(backendKPIs.totalSavingsAccounts || 0)
       ),
-      
+
       // Map loansProcessedThisPeriod to loansProcessed
       loansProcessed: DataTransformers.transformStatisticValue(
         backendKPIs.loansProcessedThisPeriod || backendKPIs.totalLoans || 0,
         calculateMockGrowth(backendKPIs.loansProcessedThisPeriod || backendKPIs.totalLoans || 0)
       ),
-      
+
       // Map loanValueThisPeriod to loanAmounts
       loanAmounts: DataTransformers.transformStatisticValue(
         backendKPIs.loanValueThisPeriod || backendKPIs.totalDisbursedValue || 0,
         calculateMockGrowth(backendKPIs.loanValueThisPeriod || backendKPIs.totalDisbursedValue || 0),
         true // isCurrency
       ),
-      
+
       // Map activeLoans directly
       activeLoans: DataTransformers.transformStatisticValue(
         backendKPIs.activeLoans || 0,
         calculateMockGrowth(backendKPIs.activeLoans || 0)
       ),
-      
+
       // Map overdueLoans to missedPayments
       missedPayments: DataTransformers.transformStatisticValue(
         backendKPIs.overdueLoans || 0,
         calculateMockGrowth(backendKPIs.overdueLoans || 0)
       ),
-      
+
       // Estimate branches count (use 1 as default since we don't have this data)
       branches: DataTransformers.transformStatisticValue(
         1, // Default to 1 branch since backend doesn't provide this
         0   // No growth data available
       ),
-      
+
       // Transform topPerformers to bestPerformingBranches
       bestPerformingBranches: DataTransformers.transformBranchPerformance(
         backendKPIs.topPerformers || backendKPIs.officerPerformance || []
       ),
-      
+
       // Create worst performing branches (reverse of top performers or empty)
       worstPerformingBranches: DataTransformers.transformBranchPerformance(
         (backendKPIs.topPerformers || backendKPIs.officerPerformance || []).slice().reverse().slice(0, 3)
       ),
-      
+
       // Report statistics KPIs (using mock data since backend doesn't provide these yet)
       totalReports: DataTransformers.transformStatisticValue(
         backendKPIs.totalReports || 0,
@@ -195,7 +197,7 @@ export class DataTransformers {
   ): StatisticValue {
     const numericValue = typeof value === 'string' ? parseFloat(value) || 0 : value || 0;
     const numericChange = typeof change === 'string' ? parseFloat(change) || 0 : change || 0;
-    
+
     // Generate change label
     let changeLabel = '';
     if (numericChange > 0) {
@@ -240,11 +242,11 @@ export class DataTransformers {
 
     // Group officers by branch and aggregate their performance
     const branchMap = new Map<string, BranchPerformance>();
-    
+
     officers.forEach(officer => {
       const branchName = officer.branch || 'Unknown Branch';
       const existing = branchMap.get(branchName);
-      
+
       if (existing) {
         existing.activeLoans += officer.loansProcessed || officer.loansApproved || 0;
         existing.amount += officer.loanValueProcessed || officer.totalValueProcessed || 0;
@@ -272,7 +274,7 @@ export class DataTransformers {
     transformItem: (item: any) => T
   ): PaginatedResponse<T> {
     console.log('🔄 Transforming paginated response:', backendResponse);
-    
+
     // Handle different backend response formats
     let data: any[] = [];
     let pagination: any = {};
@@ -362,7 +364,7 @@ export class DataTransformers {
     // If role is provided and valid, use it
     if (role) {
       const normalizedRole = role.toLowerCase().replace(/[-\s]/g, '_');
-      
+
       switch (normalizedRole) {
         case 'system_admin':
         case 'systemadmin':
@@ -387,49 +389,49 @@ export class DataTransformers {
           return 'customer';
       }
     }
-    
+
     // If no role provided, use intelligent detection based on user attributes
     if (user) {
       const email = (user.email || '').toLowerCase();
       const firstName = (user.firstName || '').toLowerCase();
       const lastName = (user.lastName || '').toLowerCase();
       const fullName = `${firstName} ${lastName}`.toLowerCase();
-      
+
       // System Admin detection
-      if (email === 'admin@kaytop.com' || 
-          firstName === 'system' || 
-          fullName.includes('system admin')) {
+      if (email === 'admin@kaytop.com' ||
+        firstName === 'system' ||
+        fullName.includes('system admin')) {
         return 'system_admin';
       }
-      
+
       // Branch Manager detection
-      if (email.includes('branch') || 
-          email.includes('bm@') ||
-          firstName === 'branch' || 
-          lastName === 'manager' ||
-          fullName.includes('branch manager') ||
-          email.includes('hqmanager') ||
-          fullName.includes('hq manager')) {
+      if (email.includes('branch') ||
+        email.includes('bm@') ||
+        firstName === 'branch' ||
+        lastName === 'manager' ||
+        fullName.includes('branch manager') ||
+        email.includes('hqmanager') ||
+        fullName.includes('hq manager')) {
         return 'branch_manager';
       }
-      
+
       // Account Manager detection
-      if (email.includes('account') || 
-          email.includes('am@') ||
-          firstName === 'account' || 
-          fullName.includes('account manager')) {
+      if (email.includes('account') ||
+        email.includes('am@') ||
+        firstName === 'account' ||
+        fullName.includes('account manager')) {
         return 'account_manager';
       }
-      
+
       // Credit Officer detection
-      if (email.includes('credit') || 
-          email.includes('officer') ||
-          firstName === 'credit' || 
-          fullName.includes('credit officer')) {
+      if (email.includes('credit') ||
+        email.includes('officer') ||
+        firstName === 'credit' ||
+        fullName.includes('credit officer')) {
         return 'credit_officer';
       }
     }
-    
+
     // Default to customer for regular users
     return 'customer';
   }
@@ -440,9 +442,9 @@ export class DataTransformers {
    */
   private static normalizeVerificationStatus(status: string): 'pending' | 'verified' | 'rejected' {
     if (!status) return 'pending';
-    
+
     const normalizedStatus = status.toLowerCase();
-    
+
     switch (normalizedStatus) {
       case 'verified':
       case 'approved':
@@ -468,9 +470,9 @@ export class DataTransformers {
    */
   private static normalizeLoanStatus(status: string): 'pending' | 'approved' | 'disbursed' | 'active' | 'completed' | 'defaulted' {
     if (!status) return 'pending';
-    
+
     const normalizedStatus = status.toLowerCase();
-    
+
     switch (normalizedStatus) {
       case 'pending':
       case 'review':
@@ -536,11 +538,11 @@ export class DataTransformers {
    */
   static transformSavingsAccount(backendSavings: any): any {
     console.log('🔄 Transforming savings data:', backendSavings);
-    
+
     // Extract customer info from nested user object
     const user = backendSavings.user || {};
     const customerName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Unknown Customer';
-    
+
     return {
       id: backendSavings.id?.toString() || backendSavings.accountId?.toString() || '',
       customerId: user.id?.toString() || backendSavings.customerId?.toString() || backendSavings.customer_id?.toString() || '',
@@ -567,12 +569,12 @@ export class DataTransformers {
    */
   static transformTransaction(backendTransaction: any): any {
     console.log('🔄 Transforming transaction data:', backendTransaction);
-    
+
     // Extract customer info from nested savings.user object if present
     const savings = backendTransaction.savings || {};
     const user = savings.user || backendTransaction.user || {};
     const customerName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Unknown Customer';
-    
+
     return {
       id: backendTransaction.id?.toString() || backendTransaction.transactionId?.toString() || '',
       customerId: user.id?.toString() || backendTransaction.customerId?.toString() || backendTransaction.customer_id?.toString() || '',
@@ -601,13 +603,13 @@ export class DataTransformers {
    */
   static transformReport(backendReport: any): any {
     console.log('🔄 Transforming report data:', backendReport);
-    
+
     // Extract credit officer info from nested user object if present
     const user = backendReport.user || backendReport.creditOfficer || {};
-    const creditOfficerName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 
-                             backendReport.creditOfficer || 
-                             'Unknown Officer';
-    
+    const creditOfficerName = `${user.firstName || ''} ${user.lastName || ''}`.trim() ||
+      backendReport.creditOfficer ||
+      'Unknown Officer';
+
     return {
       id: backendReport.id?.toString() || backendReport.reportId?.toString() || '',
       reportId: backendReport.reportId?.toString() || backendReport.id?.toString() || '',
@@ -644,13 +646,13 @@ export class DataTransformers {
    */
   static transformReportStatistics(backendStats: any): any {
     console.log('🔄 Transforming report statistics:', backendStats);
-    
+
     // Helper function to create statistic value with growth
     const createStatValue = (count: number, growth: number = 0) => ({
       count: count || 0,
       growth: growth || 0
     });
-    
+
     return {
       totalReports: createStatValue(
         backendStats.totalReports || backendStats.total || 0,
@@ -680,9 +682,9 @@ export class DataTransformers {
    */
   private static normalizeReportType(type: string): 'daily' | 'weekly' | 'monthly' {
     if (!type) return 'daily';
-    
+
     const normalizedType = type.toLowerCase();
-    
+
     switch (normalizedType) {
       case 'daily':
       case 'day':
@@ -703,9 +705,9 @@ export class DataTransformers {
    */
   private static normalizeReportStatus(status: string): 'submitted' | 'pending' | 'approved' | 'declined' {
     if (!status) return 'pending';
-    
+
     const normalizedStatus = status.toLowerCase();
-    
+
     switch (normalizedStatus) {
       case 'submitted':
       case 'submit':
@@ -732,7 +734,7 @@ export class DataTransformers {
       // Format: [{ month: 'Jan', amount: 1000000 }, ...]
       const labels = backendData.map(item => item.month || item.label || item.name || '');
       const data = backendData.map(item => item.amount || item.value || item.total || 0);
-      
+
       return {
         labels,
         datasets: [{
@@ -746,7 +748,7 @@ export class DataTransformers {
       // Format: { labels: [], data: [] } or { months: [], amounts: [] }
       const labels = backendData.labels || backendData.months || [];
       const data = backendData.data || backendData.amounts || backendData.values || [];
-      
+
       return {
         labels,
         datasets: [{
@@ -818,9 +820,9 @@ export class DataTransformers {
    */
   private static normalizeSavingsStatus(status: string): 'active' | 'inactive' | 'suspended' {
     if (!status) return 'active';
-    
+
     const normalizedStatus = status.toLowerCase();
-    
+
     switch (normalizedStatus) {
       case 'active':
       case 'open':
@@ -841,9 +843,9 @@ export class DataTransformers {
    */
   private static normalizeTransactionType(type: string): 'deposit' | 'withdrawal' | 'loan_coverage' {
     if (!type) return 'deposit';
-    
+
     const normalizedType = type.toLowerCase();
-    
+
     switch (normalizedType) {
       case 'deposit':
       case 'credit':
@@ -871,12 +873,12 @@ export class DataTransformers {
     if (typeof isApproved === 'boolean') {
       return isApproved ? 'approved' : 'pending';
     }
-    
+
     // Fallback to status string if provided
     if (!status) return 'pending';
-    
+
     const normalizedStatus = status.toLowerCase();
-    
+
     switch (normalizedStatus) {
       case 'pending':
       case 'review':

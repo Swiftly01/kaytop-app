@@ -35,7 +35,7 @@ export default function AMReportsPage() {
   });
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [selectedReportForDetails, setSelectedReportForDetails] = useState<Report | null>(null);
-  
+
   // API data state
   const [reportStatistics, setReportStatistics] = useState<ReportStatistics | null>(null);
   const [totalReports, setTotalReports] = useState(0);
@@ -113,7 +113,7 @@ export default function AMReportsPage() {
       // Safely handle reports response structure
       const reportsData = Array.isArray(reportsResponse?.data) ? reportsResponse.data : [];
       const paginationData = reportsResponse?.pagination || {};
-      
+
       setReports(reportsData);
       // Handle pagination safely - backend might not return pagination object
       const totalCount = paginationData.total || reportsData.length || 0;
@@ -146,7 +146,7 @@ export default function AMReportsPage() {
   // Convert API statistics to StatSection format
   const statistics = useMemo(() => {
     if (!reportStatistics) return [];
-    
+
     const statSections: StatSection[] = [
       {
         label: 'Total Reports',
@@ -200,9 +200,9 @@ export default function AMReportsPage() {
   const handleApplyFilters = (filters: ReportsFilters) => {
     setAppliedFilters(filters);
     setCurrentPage(1);
-    
+
     const activeCount = Object.values(filters).filter(v => v !== '').length;
-    
+
     if (activeCount > 0) {
       success(`${activeCount} filter${activeCount > 1 ? 's' : ''} applied successfully!`);
     }
@@ -211,10 +211,10 @@ export default function AMReportsPage() {
   const handleReportClick = async (report: Report) => {
     try {
       setLoading(true);
-      
+
       // Fetch detailed report information from API
       const detailedReport = await reportsService.getReportById(report.id);
-      
+
       setSelectedReportForDetails(detailedReport);
       setDetailsModalOpen(true);
     } catch (err) {
@@ -229,7 +229,7 @@ export default function AMReportsPage() {
     if (selectedReportForDetails) {
       try {
         setLoading(true);
-        
+
         const approvalData = {
           status: 'approved' as const,
           approvedBy: session?.role || 'area-manager', // Use actual user info when available
@@ -242,20 +242,20 @@ export default function AMReportsPage() {
         );
 
         // Update the report in the reports state
-        setReports(prevReports => 
-          prevReports.map(report => 
+        setReports(prevReports =>
+          prevReports.map(report =>
             report.id === selectedReportForDetails.id ? updatedReport : report
           )
         );
-        
+
         // Update the selected report for details to reflect the approval
         setSelectedReportForDetails(updatedReport);
-        
+
         success(`Report "${selectedReportForDetails.reportId}" approved successfully!`);
-        
+
         // Refresh statistics to reflect the change
         await fetchReportsData();
-        
+
       } catch (err) {
         console.error('Failed to approve report:', err);
         error('Failed to approve report. Please try again.');
@@ -269,12 +269,12 @@ export default function AMReportsPage() {
     if (selectedReportForDetails) {
       try {
         setLoading(true);
-        
+
         const declineData = {
           status: 'declined' as const,
-          approvedBy: session?.role || 'area-manager', // Use actual user info when available
+          approvedBy: session?.role || 'account-manager', // Use actual user info when available
           approvedAt: new Date().toISOString(),
-          comments: 'Report declined by area manager',
+          comments: 'Report declined by account manager',
         };
 
         const updatedReport = await reportsService.declineReport(
@@ -283,19 +283,19 @@ export default function AMReportsPage() {
         );
 
         // Update the report in the reports state
-        setReports(prevReports => 
-          prevReports.map(report => 
+        setReports(prevReports =>
+          prevReports.map(report =>
             report.id === selectedReportForDetails.id ? updatedReport : report
           )
         );
-        
+
         success(`Report "${selectedReportForDetails.reportId}" declined.`);
         setDetailsModalOpen(false);
         setSelectedReportForDetails(null);
-        
+
         // Refresh statistics to reflect the change
         await fetchReportsData();
-        
+
       } catch (err) {
         console.error('Failed to decline report:', err);
         error('Failed to decline report. Please try again.');
@@ -398,12 +398,12 @@ export default function AMReportsPage() {
               {loading ? (
                 <TableSkeleton rows={itemsPerPage} />
               ) : reports.length === 0 ? (
-                <div 
+                <div
                   className="bg-white rounded-[12px] border border-[#EAECF0] p-12 text-center"
                   role="status"
                   aria-live="polite"
                 >
-                  <p 
+                  <p
                     className="text-base text-[#475467]"
                     style={{ fontFamily: "'Open Sauce Sans', sans-serif" }}
                   >
@@ -416,8 +416,8 @@ export default function AMReportsPage() {
                     reports={reports}
                     selectedReports={selectedReports}
                     onSelectionChange={handleSelectionChange}
-                    onEdit={() => {}} // AM users can't edit reports directly
-                    onDelete={() => {}} // AM users can't delete reports
+                    onEdit={() => { }} // AM users can't edit reports directly
+                    onDelete={() => { }} // AM users can't delete reports
                     onReportClick={handleReportClick}
                   />
 

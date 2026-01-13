@@ -13,7 +13,6 @@ const requiredFiles = [
   'lib/api/client.ts',
   'lib/api/config.ts',
   'lib/api/errorHandler.ts',
-  'lib/api/authManager.ts',
   'lib/api/transformers.ts',
   'lib/services/reports.ts'
 ];
@@ -79,22 +78,21 @@ if (fs.existsSync(transformersPath)) {
   });
 }
 
-// Check if authentication manager has required methods
-const authManagerPath = 'lib/api/authManager.ts';
-if (fs.existsSync(authManagerPath)) {
-  const authManagerContent = fs.readFileSync(authManagerPath, 'utf8');
+// Check if API client uses official authentication
+const clientPath = 'lib/api/client.ts';
+if (fs.existsSync(clientPath)) {
+  const clientContent = fs.readFileSync(clientPath, 'utf8');
   
-  console.log('\n🔍 Checking authentication manager...');
+  console.log('\n🔍 Checking API client authentication...');
   
   const requiredMethods = [
-    'getAuthHeaders',
-    'handleAuthenticationFailure',
-    'isAuthenticated',
-    'getAccessToken'
+    'getDefaultHeaders',
+    'js-cookie',
+    'Authorization'
   ];
   
   requiredMethods.forEach(method => {
-    if (authManagerContent.includes(method)) {
+    if (clientContent.includes(method)) {
       console.log(`✅ ${method} implemented`);
     } else {
       console.log(`❌ ${method} missing`);
@@ -140,7 +138,7 @@ if (allFilesExist) {
   console.log('🎉 All Reports API Infrastructure components are properly set up!');
   console.log('\n📋 Summary:');
   console.log('✅ Unified API client with retry mechanisms');
-  console.log('✅ Authentication handling for reports API calls');
+  console.log('✅ Official authentication handling for reports API calls');
   console.log('✅ Error handling and user-friendly error messages');
   console.log('✅ Data transformers for reports and statistics');
   console.log('✅ Complete reports service with CRUD operations');

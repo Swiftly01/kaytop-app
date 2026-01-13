@@ -3,7 +3,6 @@
  * Comprehensive error handling for unified API interactions with enhanced logging and recovery
  */
 
-import { authenticationManager } from './authManager';
 import { API_CONFIG } from './config';
 import type { ApiError, AuthError, NetworkError, ServerError } from './types';
 
@@ -23,19 +22,21 @@ export interface ErrorContext {
 }
 
 export class UnifiedAPIErrorHandler {
-  
+
   /**
-   * Handle authentication errors using unified authentication manager
+   * Handle authentication errors using official auth system
    */
   static handleAuthenticationError(error: AuthError, options: ErrorHandlerOptions = {}): void {
     const { logError = true } = options;
-    
+
     if (logError) {
       console.error('🔐 Authentication error:', error);
     }
 
-    // Use unified authentication manager for handling auth failures
-    authenticationManager.handleAuthenticationFailure();
+    // Redirect to login - let middleware handle authentication
+    if (typeof window !== 'undefined') {
+      window.location.href = '/auth/bm/login';
+    }
   }
 
   /**
@@ -43,7 +44,7 @@ export class UnifiedAPIErrorHandler {
    */
   static handleNetworkError(error: NetworkError, options: ErrorHandlerOptions = {}): string {
     const { logError = true } = options;
-    
+
     if (logError) {
       console.error('Network error:', error);
     }
@@ -51,15 +52,15 @@ export class UnifiedAPIErrorHandler {
     if (error.message.includes('fetch')) {
       return 'Network connection error. Please check your internet connection and try again.';
     }
-    
+
     if (error.status === 0) {
       return 'Unable to connect to the server. Please check your internet connection.';
     }
-    
+
     if (error.status === 408) {
       return 'Request timeout. The server took too long to respond.';
     }
-    
+
     return 'Network error occurred. Please try again.';
   }
 
@@ -68,7 +69,7 @@ export class UnifiedAPIErrorHandler {
    */
   static handleServerError(error: ServerError, options: ErrorHandlerOptions = {}): string {
     const { logError = true } = options;
-    
+
     if (logError) {
       console.error('Server error:', error);
     }
@@ -92,7 +93,7 @@ export class UnifiedAPIErrorHandler {
    */
   static handleValidationError(error: ApiError, options: ErrorHandlerOptions = {}): string[] {
     const { logError = true } = options;
-    
+
     if (logError) {
       console.error('Validation error:', error);
     }
@@ -100,7 +101,7 @@ export class UnifiedAPIErrorHandler {
     if (error.status === 400 && error.details?.validation) {
       return error.details.validation.map((v: any) => v.message || 'Validation error');
     }
-    
+
     if (error.status === 422 && error.details?.errors) {
       // Handle Laravel-style validation errors
       const errors: string[] = [];
@@ -111,7 +112,7 @@ export class UnifiedAPIErrorHandler {
       });
       return errors;
     }
-    
+
     return [error.message || 'Validation error occurred'];
   }
 
@@ -120,7 +121,7 @@ export class UnifiedAPIErrorHandler {
    */
   static handleApiError(error: any, options: ErrorHandlerOptions = {}): string {
     const { logError = true } = options;
-    
+
     if (logError) {
       console.error('API error:', error);
     }
@@ -130,21 +131,21 @@ export class UnifiedAPIErrorHandler {
       this.handleAuthenticationError(error as AuthError, options);
       return 'Authentication failed. Please log in again.';
     }
-    
+
     if (error.type === 'network') {
       return this.handleNetworkError(error as NetworkError, options);
     }
-    
+
     if (error.type === 'server') {
       return this.handleServerError(error as ServerError, options);
     }
-    
+
     // Handle validation errors
     if (error.status === 400 || error.status === 422) {
       const validationErrors = this.handleValidationError(error, options);
       return validationErrors.join(', ');
     }
-    
+
     // Handle other HTTP errors
     switch (error.status) {
       case 404:
@@ -166,19 +167,19 @@ export class UnifiedAPIErrorHandler {
     if (typeof error === 'string') {
       return error;
     }
-    
+
     if (error.message) {
       return error.message;
     }
-    
+
     if (error.details?.message) {
       return error.details.message;
     }
-    
+
     if (error.response?.data?.message) {
       return error.response.data.message;
     }
-    
+
     return 'An unexpected error occurred. Please try again.';
   }
 
@@ -189,12 +190,12 @@ export class UnifiedAPIErrorHandler {
     if (error.type === 'network') {
       return true;
     }
-    
+
     if (error.status) {
       // Retry on server errors and rate limiting
       return [408, 429, 500, 502, 503, 504].includes(error.status);
     }
-    
+
     return false;
   }
 
@@ -202,9 +203,14 @@ export class UnifiedAPIErrorHandler {
    * Log error with enhanced context for debugging and monitoring
    */
   static logErrorWithContext(error: any, context: ErrorContext): void {
-    // Safely extract error properties, handling cases where error might be null/undefined
+    // Check if error logging is suppressed for this error
+    if (error?.suppressLog) {
+      return;
+    }
+
+    // Safely extract error properties...
     const safeError = error || {};
-    
+
     const errorLog = {
       timestamp: context.timestamp || new Date().toISOString(),
       error: {
@@ -230,18 +236,18 @@ export class UnifiedAPIErrorHandler {
         endpoint: context.endpoint,
         method: context.method,
         requestData: context.requestData ? JSON.stringify(context.requestData).substring(0, 1000) : null, // Limit size
-        userId: context.userId || authenticationManager.getCurrentUser()?.id,
+        userId: context.userId,
       },
       userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : 'server',
       url: typeof window !== 'undefined' ? window.location.href : 'server',
       sessionId: this.getSessionId(),
     };
-    
+
     console.error('🚨 Unified API Error Log:', errorLog);
-    
+
     // Also log the raw error for debugging
     console.error('🔍 Raw Error Object:', error);
-    
+
     // In production, send to error tracking service
     if (process.env.NODE_ENV === 'production') {
       this.sendToErrorTracking(errorLog);
@@ -253,7 +259,7 @@ export class UnifiedAPIErrorHandler {
    */
   private static getSessionId(): string {
     if (typeof window === 'undefined') return 'server-session';
-    
+
     let sessionId = sessionStorage.getItem('error-session-id');
     if (!sessionId) {
       sessionId = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -307,47 +313,49 @@ export class UnifiedAPIErrorHandler {
       jitter = true,
       retryCondition = this.isRetryableError
     } = options;
-    
+
     let lastError: any;
-    
+
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         return await operation();
       } catch (error) {
         lastError = error;
-        
+
         // Don't retry on last attempt
         if (attempt === maxRetries) {
           break;
         }
-        
+
         // Don't retry non-retryable errors
         if (!retryCondition(error)) {
           break;
         }
-        
+
         // Calculate delay with exponential backoff and optional jitter
         let delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay);
-        
+
         if (jitter) {
           // Add random jitter to prevent thundering herd
           delay = delay * (0.5 + Math.random() * 0.5);
         }
-        
+
         console.log(`🔄 Retrying operation in ${Math.round(delay)}ms (attempt ${attempt + 1}/${maxRetries})`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
-    
+
     throw lastError;
   }
 
   /**
-   * Clear stored authentication tokens (deprecated - use authenticationManager)
+   * Clear stored authentication tokens (deprecated - use official auth system)
    */
   private static clearStoredTokens(): void {
-    console.warn('⚠️ clearStoredTokens is deprecated. Use authenticationManager.handleAuthenticationFailure() instead.');
-    authenticationManager.handleAuthenticationFailure();
+    console.warn('⚠️ clearStoredTokens is deprecated. Use official AuthContext logout instead.');
+    if (typeof window !== 'undefined') {
+      window.location.href = '/auth/bm/login';
+    }
   }
 
   /**
@@ -357,7 +365,7 @@ export class UnifiedAPIErrorHandler {
     // This would integrate with your toast notification system
     // For now, we'll use console.error as a fallback
     console.error('Error:', message);
-    
+
     // Example integration with a toast library:
     // if (typeof window !== 'undefined' && window.toast) {
     //   window.toast.error(message);

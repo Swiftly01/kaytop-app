@@ -1,6 +1,6 @@
 /**
- * Area Manager Loans Service
- * Handles loan-related operations for Area Managers
+ * Account Manager Loans Service
+ * Handles loan-related operations for Account Managers
  */
 
 import { unifiedLoanService } from './unifiedLoan';
@@ -13,12 +13,12 @@ export interface AMLoanFilters {
 
 class AMLoansService {
   /**
-   * Get all loans for Area Manager view
+   * Get all loans for Account Manager view
    */
   async getAllLoans(params?: AMLoanFilters): Promise<PaginatedResponse<Loan>> {
     const page = parseInt(params?.page?.toString() || '1');
     const limit = parseInt(params?.limit?.toString() || '10');
-    
+
     return await unifiedLoanService.getLoans({ page, limit });
   }
 

@@ -78,11 +78,16 @@ const loggingInterceptor: RequestInterceptor & ResponseInterceptor = {
     console.error('[API Request Error]', error);
   },
   onResponseError: (error: any) => {
+    // Check if error logging is suppressed
+    if (error?.suppressLog) {
+      return;
+    }
+
     console.error('[API Response Error]', error);
-    
+
     // Log error using error logging service
     errorLogger.logApiError(error, error.url || 'unknown', error.method || 'unknown');
-    
+
     // Emit custom event for global error handling
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('api-error', { detail: error }));

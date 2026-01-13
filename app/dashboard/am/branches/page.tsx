@@ -11,7 +11,7 @@ import Pagination from '@/app/_components/ui/Pagination';
 import { StatisticsCardSkeleton, TableSkeleton } from '@/app/_components/ui/Skeleton';
 import AdvancedFiltersModal, { AdvancedFilters } from '@/app/_components/ui/AdvancedFiltersModal';
 import { DateRange } from 'react-day-picker';
-import { unifiedDashboardService } from '@/lib/services/unifiedDashboard';
+import { dashboardService } from '@/lib/services/dashboard';
 import { unifiedUserService } from '@/lib/services/unifiedUser';
 import { extractValue } from '@/lib/utils/dataExtraction';
 import { useAuth } from '@/app/context/AuthContext';
@@ -95,7 +95,7 @@ export default function AMBranchesPage() {
       setBranchData(branchRecords);
 
       // Fetch unified dashboard statistics
-      const dashboardData = await unifiedDashboardService.getKPIs();
+      const dashboardData = await dashboardService.getKPIs();
       const stats: StatSection[] = [
         {
           label: 'All Branches',

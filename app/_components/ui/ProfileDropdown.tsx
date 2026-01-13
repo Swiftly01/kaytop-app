@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { LogOut, Settings, User, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { JSX, useEffect, useState } from "react";
+import { API_CONFIG } from "@/lib/api/config";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -11,9 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown } from "lucide-react";
-import { authenticationManager } from "@/lib/api/authManager";
-import { authService } from "@/lib/services/auth";
+import { useAuth } from "@/app/context/AuthContext";
 import toast from "react-hot-toast";
 
 interface AdminProfile {
@@ -39,16 +39,22 @@ export default function ProfileDropdown({ data }: ProfileProps) {
   const [open, setOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [profile, setProfile] = useState<AdminProfile | null>(null);
-  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
-  
+  const { session, logOut } = useAuth();
+
   const router = useRouter();
 
   useEffect(() => {
-    const user = authenticationManager.getCurrentUser();
-    if (user) {
-      setProfile(user);
+    if (session) {
+      // Create profile from session data
+      setProfile({
+        id: 'current-user',
+        firstName: 'User',
+        lastName: '',
+        email: '',
+        role: session.role,
+      });
     }
-  }, []);
+  }, [session]);
 
   const handleLogout = () => {
     setShowLogoutConfirm(true);
@@ -56,33 +62,18 @@ export default function ProfileDropdown({ data }: ProfileProps) {
 
   const handleLogoutConfirm = async () => {
     try {
-      // Get user role before clearing auth
-      const currentUser = authenticationManager.getCurrentUser();
-      const userRole = currentUser?.role;
-      
-      // Debug logging to see what role is detected
-      console.log('🔍 Logout Debug - Current User:', currentUser);
-      console.log('🔍 Logout Debug - User Role:', userRole);
-      
-      // Call auth service logout (handles any server-side cleanup if available)
-      await authService.logout();
-      
-      // Force clear all authentication data including cookies
-      authenticationManager.forceLogout();
-      
-      // Show success message
+      const userRole = session?.role;
+
+      // Use official AuthContext logout
+      logOut();
+
       toast.success("You have successfully logged out");
-      
-      // Redirect based on user role with more comprehensive matching
-      let redirectPath = "/auth/bm/login"; // default to BM login for most users
-      
-      console.log('🔍 Logout Debug - User Role:', userRole);
-      
-      // Use the API role format (lowercase with underscores)
+
+      let redirectPath = "/auth/bm/login";
       switch (userRole) {
         case 'system_admin':
         case 'admin':
-          redirectPath = "/auth/login";
+          redirectPath = "/auth/bm/login";
           break;
         case 'branch_manager':
         case 'bm':
@@ -101,146 +92,152 @@ export default function ProfileDropdown({ data }: ProfileProps) {
           redirectPath = "/auth/customer/login";
           break;
         default:
-          // Fallback: if role doesn't match expected values, default to BM login
           redirectPath = "/auth/bm/login";
       }
-      
-      console.log('🔍 Logout Debug - Redirect Path:', redirectPath);
-      
-      // Close modal and redirect
+
       setShowLogoutConfirm(false);
-      
-      // Use window.location for a hard redirect to ensure cookies are cleared
       window.location.href = redirectPath;
-      
     } catch (error) {
       console.error('Logout error:', error);
       toast.error("An error occurred during logout");
-      
-      // Even if server logout fails, still clear local state
-      authenticationManager.forceLogout();
+      logOut();
       setShowLogoutConfirm(false);
-      window.location.href = "/auth/bm/login"; // Default to BM login on error
-    }
-  };
-
-  const handleLogoutCancel = () => {
-    setShowLogoutConfirm(false);
-  };
-
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      setShowLogoutConfirm(false);
+      window.location.href = "/auth/bm/login";
     }
   };
 
   const handleProfileClick = () => {
-    router.push("/dashboard/settings");
+    const userRole = session?.role;
+    let settingsPath = "/dashboard/settings";
+
+    switch (userRole) {
+      case 'system_admin':
+      case 'admin':
+        settingsPath = "/dashboard/system-admin/settings";
+        break;
+      case 'branch_manager':
+      case 'bm':
+        settingsPath = "/dashboard/bm/settings";
+        break;
+      case 'account_manager':
+      case 'am':
+        settingsPath = "/dashboard/am/settings";
+        break;
+      default:
+        settingsPath = "/dashboard/settings";
+    }
+    router.push(settingsPath);
   };
 
-  const handleSettingsClick = () => {
-    router.push("/dashboard/settings");
+  const resolveImageUrl = (path: string | null | undefined) => {
+    if (!path) return "/avatar.svg";
+    if (path.startsWith('http') || path.startsWith('data:') || path.startsWith('/avatar.svg')) {
+      return path;
+    }
+    return `${API_CONFIG.BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
   };
 
-  const src = data?.profilePicture || profile?.profilePicture || "/avatar.svg";
-  const displayName = data?.firstName || profile?.firstName || "User";
+  const src = resolveImageUrl(data?.profilePicture || profile?.profilePicture);
+
+  const getDisplayName = () => {
+    if (data?.firstName) return data.firstName;
+
+    if (profile) {
+      if (profile.firstName) return profile.firstName;
+      if ((profile as any).name) return (profile as any).name.split(' ')[0];
+      if ((profile as any).fullName) return (profile as any).fullName.split(' ')[0];
+      if (profile.role === 'system_admin' || profile.role === 'admin') return "System Admin";
+    }
+
+    return "User";
+  };
+
+  const displayName = getDisplayName();
 
   return (
     <>
       <DropdownMenu onOpenChange={setOpen}>
         <DropdownMenuTrigger className="flex items-center gap-2 transition outline-none cursor-pointer hover:opacity-80">
-          <span className="font-medium">{displayName}</span>
+          <span className="font-medium text-[#021C3E]">{displayName}</span>
 
-          <Avatar className="h-7 w-7">
+          <Avatar className="h-7 w-7 border border-gray-200">
             <AvatarImage src={src} alt="avatar" />
-            <AvatarFallback>
+            <AvatarFallback className="bg-[#7F56D9] text-white text-[10px]">
               {displayName.charAt(0).toUpperCase()}
             </AvatarFallback>
           </Avatar>
 
           <ChevronDown
             size={18}
-            className={`transition-transform ${open ? "rotate-180" : "rotate-0"}`}
+            className={`text-[#5A6880] transition-transform ${open ? "rotate-180" : "rotate-0"}`}
           />
         </DropdownMenuTrigger>
 
-        <DropdownMenuContent align="end" className="w-48">
-          <DropdownMenuLabel>
-            {profile ? `${profile.firstName} ${profile.lastName}` : 'My Account'}
+        <DropdownMenuContent className="w-56 mt-2 bg-white" align="end">
+          <DropdownMenuLabel className="border-b border-gray-50 pb-2">
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold text-[#021C3E]">
+                {data?.firstName && (data as any)?.lastName
+                  ? `${data.firstName} ${(data as any).lastName}`
+                  : (profile?.firstName && profile?.lastName)
+                    ? `${profile.firstName} ${profile.lastName}`
+                    : (profile as any)?.name || (profile as any)?.fullName || (profile?.role === 'system_admin' ? 'System Admin' : 'My Account')}
+              </span>
+              <span className="text-xs text-[#5A6880] font-normal lowercase">
+                {profile?.role?.replace('_', ' ') || 'User'}
+              </span>
+            </div>
           </DropdownMenuLabel>
 
-          <DropdownMenuItem 
-            className="cursor-pointer focus:bg-[#F9F5FF] focus:text-[#7F56D9]" 
+          <DropdownMenuItem
             onClick={handleProfileClick}
+            className="cursor-pointer gap-2 py-2 hover:bg-gray-50"
           >
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            Edit Profile
+            <User size={16} className="text-[#5A6880]" />
+            <span className="text-[#021C3E]">Profile</span>
           </DropdownMenuItem>
 
-          <DropdownMenuItem 
-            className="cursor-pointer focus:bg-[#F9F5FF] focus:text-[#7F56D9]" 
-            onClick={handleSettingsClick}
+          <DropdownMenuItem
+            onClick={handleProfileClick}
+            className="cursor-pointer gap-2 py-2 hover:bg-gray-50"
           >
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            Settings
+            <Settings size={16} className="text-[#5A6880]" />
+            <span className="text-[#021C3E]">Settings</span>
           </DropdownMenuItem>
 
-          <DropdownMenuSeparator />
-          
-          <DropdownMenuItem 
-            className="text-red-600 cursor-pointer focus:bg-red-50 focus:text-red-700" 
+          <DropdownMenuSeparator className="bg-gray-50" />
+
+          <DropdownMenuItem
             onClick={handleLogout}
+            className="text-red-600 cursor-pointer gap-2 py-2 focus:text-white focus:bg-red-600"
           >
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            Logout
+            <LogOut size={16} />
+            <span>Logout</span>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Logout Confirmation Dialog */}
+      {/* Logout Confirmation Modal */}
       {showLogoutConfirm && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{
-            backgroundColor: 'rgba(52, 64, 84, 0.7)',
-            backdropFilter: 'blur(16px)'
-          }}
-          onClick={handleBackdropClick}
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50"
+          onClick={(e) => e.target === e.currentTarget && setShowLogoutConfirm(false)}
         >
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-            <div className="flex items-center mb-4">
-              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mr-3">
-                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-[#021C3E] mb-1">
-                  Confirm Logout
-                </h3>
-                <p className="text-sm text-[#667085]">
-                  Are you sure you want to logout? You will need to sign in again to access your account.
-                </p>
-              </div>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-6">
+              <h3 className="text-xl font-bold text-[#021C3E] mb-2">Confirm Logout</h3>
+              <p className="text-[#5A6880]">Are you sure you want to log out of your account?</p>
             </div>
-            
-            <div className="flex justify-end space-x-3">
+            <div className="bg-gray-50 p-4 flex justify-end gap-3">
               <button
-                onClick={handleLogoutCancel}
-                className="px-4 py-2 text-[#344054] border border-[#D0D5DD] rounded-lg hover:bg-[#F9FAFB] transition-colors focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:ring-offset-2"
+                onClick={() => setShowLogoutConfirm(false)}
+                className="px-4 py-2 text-sm font-medium text-[#525F7F] hover:bg-gray-100 rounded-md transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleLogoutConfirm}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors shadow-sm"
               >
                 Logout
               </button>

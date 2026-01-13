@@ -4,8 +4,9 @@
  */
 
 import { apiClient } from '../api/client';
-import { API_ENDPOINTS } from '../api/config';
+import { API_ENDPOINTS, API_CONFIG } from '../api/config';
 import type { AdminProfile } from '../api/types';
+import { DataTransformers } from '../api/transformers';
 
 export interface UserProfileData {
   id: string;
@@ -43,10 +44,48 @@ export interface UserProfileService {
 }
 
 class UserProfileAPIService implements UserProfileService {
+  /**
+   * Helper to ensure image URLs are absolute
+   */
+  private ensureFullUrl(url: string | null | undefined): string | undefined {
+    if (!url) return undefined;
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+      return url;
+    }
+    // Prepend base URL for relative paths
+    const baseUrl = API_CONFIG.BASE_URL;
+    return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
+  }
+
+  /**
+   * Helper to map AdminProfile to UserProfileData
+   */
+  private mapToUserProfileData(data: any): UserProfileData {
+    // 1. Use DataTransformers for initial robust mapping
+    const profile = DataTransformers.transformAdminProfile(data);
+
+    // 2. Map to the specific UserProfileData interface
+    return {
+      id: String(profile.id),
+      firstName: profile.firstName,
+      lastName: profile.lastName,
+      email: profile.email,
+      mobileNumber: profile.mobileNumber,
+      role: profile.role,
+      branch: profile.branch,
+      state: profile.state,
+      verificationStatus: profile.verificationStatus,
+      profilePicture: this.ensureFullUrl(profile.profilePicture),
+      createdAt: profile.createdAt,
+      updatedAt: profile.updatedAt,
+    };
+  }
+
   async getUserProfile(): Promise<UserProfileData> {
     try {
       const response = await apiClient.get<AdminProfile>(
-        API_ENDPOINTS.USERS.PROFILE
+        API_ENDPOINTS.USERS.PROFILE,
+        { suppressErrorLog: true } // Suppress errors when called from server-side
       );
 
       // Handle both wrapped and direct response formats
@@ -59,30 +98,19 @@ class UserProfileAPIService implements UserProfileService {
         throw new Error('Invalid response format');
       }
 
-      // Transform to UserProfileData format
-      return {
-        id: String(profileData.id),
-        firstName: profileData.firstName,
-        lastName: profileData.lastName,
-        email: profileData.email,
-        mobileNumber: profileData.mobileNumber,
-        role: profileData.role,
-        branch: profileData.branch,
-        state: profileData.state,
-        verificationStatus: profileData.verificationStatus,
-        createdAt: profileData.createdAt,
-        updatedAt: profileData.updatedAt,
-      };
-    } catch (error) {
-      console.error('User profile fetch error:', error);
+      return this.mapToUserProfileData(profileData);
+    } catch (error: any) {
+      if (!error?.suppressLog) {
+        console.error('User profile fetch error:', error);
+      }
       throw error;
     }
   }
 
   async updateUserProfile(data: UpdateProfileData): Promise<UserProfileData> {
     try {
-      const response = await apiClient.put<AdminProfile>(
-        API_ENDPOINTS.USERS.PROFILE,
+      const response = await apiClient.patch<AdminProfile>(
+        API_ENDPOINTS.USERS.ME,
         data
       );
 
@@ -96,20 +124,7 @@ class UserProfileAPIService implements UserProfileService {
         throw new Error('Invalid response format');
       }
 
-      // Transform to UserProfileData format
-      return {
-        id: String(profileData.id),
-        firstName: profileData.firstName,
-        lastName: profileData.lastName,
-        email: profileData.email,
-        mobileNumber: profileData.mobileNumber,
-        role: profileData.role,
-        branch: profileData.branch,
-        state: profileData.state,
-        verificationStatus: profileData.verificationStatus,
-        createdAt: profileData.createdAt,
-        updatedAt: profileData.updatedAt,
-      };
+      return this.mapToUserProfileData(profileData);
     } catch (error) {
       console.error('User profile update error:', error);
       throw error;
@@ -137,12 +152,27 @@ class UserProfileAPIService implements UserProfileService {
       }
 
       const formData = new FormData();
-      formData.append('profilePicture', file);
+      // 2. Determine endpoint based on role
+      // System Admins must use the admin endpoint
+      // Other roles (Branch Manager, Account Manager) use the standard user endpoint
+      let endpoint: string;
+      let method: 'put' | 'patch';
+      let fieldName: string;
 
-      // 2. Use the specific Admin endpoint
-      // Note: We use the admin endpoint because the user-facing ones aren't working for files
-      const response = await apiClient.put<AdminProfile>(
-        API_ENDPOINTS.ADMIN.UPDATE_PROFILE_PICTURE(userProfile.id),
+      if (userProfile.role === 'system_admin') {
+        endpoint = API_ENDPOINTS.ADMIN.UPDATE_PROFILE_PICTURE(userProfile.id);
+        method = 'put';
+        fieldName = 'profilePicture';
+      } else {
+        endpoint = API_ENDPOINTS.USERS.PROFILE_PICTURE;
+        method = 'patch';
+        fieldName = 'file'; // Matches Branch Manager implementation
+      }
+
+      formData.append(fieldName, file);
+
+      const response = await apiClient[method]<AdminProfile>(
+        endpoint,
         formData,
         {
           headers: {
@@ -151,31 +181,15 @@ class UserProfileAPIService implements UserProfileService {
         }
       );
 
-      // Handle both wrapped and direct response formats
-      let profileData: AdminProfile;
-      if (response.success && response.data) {
-        profileData = response.data;
-      } else if ((response as any).id) {
-        profileData = response as unknown as AdminProfile;
-      } else {
-        throw new Error('Invalid response format');
+      // 3. Inspect response (optional debugging)
+      if (!response.success && !(response as any).id && !(response as any).url) {
+        console.warn('Profile picture upload response might be partial', response);
       }
 
-      // Transform to UserProfileData format
-      return {
-        id: String(profileData.id),
-        firstName: profileData.firstName,
-        lastName: profileData.lastName,
-        email: profileData.email,
-        mobileNumber: profileData.mobileNumber,
-        role: profileData.role,
-        branch: profileData.branch,
-        state: profileData.state,
-        profilePicture: profileData.profilePicture,
-        verificationStatus: profileData.verificationStatus,
-        createdAt: profileData.createdAt,
-        updatedAt: profileData.updatedAt,
-      };
+      // 4. FIX: Refetch the full profile to ensure we have complete data
+      // The upload endpoint might return only the image URL or a partial object,
+      // which causes the UI to wipe out other fields if we assume it's the full profile.
+      return await this.getUserProfile();
     } catch (error) {
       console.error('Profile picture update error:', error);
 

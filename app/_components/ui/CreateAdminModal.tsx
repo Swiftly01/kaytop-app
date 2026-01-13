@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useToast } from '@/app/hooks/useToast';
+import { ROLE_CONFIG, PERMISSION_CATEGORIES, UserRoleType } from '@/lib/roleConfig';
 
 // Types and Interfaces
 interface CreateAdminModalProps {
@@ -14,8 +15,9 @@ interface NewAdminData {
   name: string;
   phoneNumber: string;
   email: string;
-  role: 'HQ' | 'AM' | 'CO' | 'BM';
+  role: UserRoleType;
   permissions: string[];
+  branch?: string;
 }
 
 interface ValidationState {
@@ -41,44 +43,12 @@ interface FormData {
   name: string;
   phoneNumber: string;
   email: string;
-  role: 'HQ' | 'AM' | 'CO' | 'BM' | '';
+  role: UserRoleType | '';
   permissions: string[];
+  branch: string;
 }
 
-// Role Configuration
-const ROLE_CONFIG = {
-  HQ: {
-    label: 'Headquarters',
-    color: '#AB659C',
-    backgroundColor: '#FBEFF8',
-    defaultPermissions: ['Dashboard', 'Payment', 'Subscription', 'Company', 'Service', 'Blacklist', 'Pricing']
-  },
-  AM: {
-    label: 'Area Manager',
-    color: '#4C5F00',
-    backgroundColor: '#ECF0D9',
-    defaultPermissions: ['Dashboard', 'Payment', 'Subscription', 'Company', 'Service']
-  },
-  CO: {
-    label: 'Credit Officer',
-    color: '#462ACD',
-    backgroundColor: '#DEDAF3',
-    defaultPermissions: ['Dashboard', 'Company', 'Service']
-  },
-  BM: {
-    label: 'Branch Manager',
-    color: '#AB659C',
-    backgroundColor: '#FBEFF8',
-    defaultPermissions: ['Dashboard', 'Payment', 'Subscription', 'Company', 'Service', 'Blacklist']
-  }
-};
-
-// Permission Categories
-const PERMISSION_CATEGORIES = {
-  'Core Operations': ['Dashboard', 'Payment', 'Subscription'],
-  'Management': ['Company', 'Service', 'Blacklist'],
-  'Configuration': ['Pricing']
-};
+// Role and permission configurations moved to @/lib/roleConfig.ts
 
 export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdminModalProps) {
   const { success, error } = useToast();
@@ -91,12 +61,13 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
     phoneNumber: '',
     email: '',
     role: '',
-    permissions: []
+    permissions: [],
+    branch: ''
   });
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  
+
   // Validation state
   const [validation, setValidation] = useState<ValidationState>({
     name: { isValid: true },
@@ -179,25 +150,26 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
 
   // Check if form has changes
   const checkForChanges = () => {
-    const hasChanges = formData.name !== '' || 
-                      formData.phoneNumber !== '' || 
-                      formData.email !== '' || 
-                      formData.role !== '' || 
-                      formData.permissions.length > 0;
+    const hasChanges = formData.name !== '' ||
+      formData.phoneNumber !== '' ||
+      formData.email !== '' ||
+      formData.role !== '' ||
+      formData.branch !== '' ||
+      formData.permissions.length > 0;
     setHasUnsavedChanges(hasChanges);
   };
 
   // Memoized calculations for performance
   const canSave = useMemo(() => {
-    return validation.name.isValid && 
-           validation.phoneNumber.isValid && 
-           validation.email.isValid && 
-           validation.role.isValid && 
-           formData.permissions.length > 0 &&
-           formData.name !== '' &&
-           formData.phoneNumber !== '' &&
-           formData.email !== '' &&
-           formData.role !== '';
+    return validation.name.isValid &&
+      validation.phoneNumber.isValid &&
+      validation.email.isValid &&
+      validation.role.isValid &&
+      formData.permissions.length > 0 &&
+      formData.name !== '' &&
+      formData.phoneNumber !== '' &&
+      formData.email !== '' &&
+      formData.role !== '';
   }, [validation, formData]);
 
   // Focus management
@@ -329,7 +301,7 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
         {/* Modal Header */}
         <div className="flex items-center justify-between p-6 border-b border-[#EAECF0]">
           <div className="flex-1">
-            <h2 
+            <h2
               id="create-admin-modal-title"
               className="text-lg font-semibold"
               style={{
@@ -342,7 +314,7 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
             >
               Create Admin
             </h2>
-            <p 
+            <p
               id="create-admin-modal-description"
               className="text-sm mt-1"
               style={{
@@ -374,11 +346,11 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
             aria-label="Close modal"
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path 
-                d="M18 6L6 18M6 6L18 18" 
-                stroke="currentColor" 
-                strokeWidth="2" 
-                strokeLinecap="round" 
+              <path
+                d="M18 6L6 18M6 6L18 18"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
                 strokeLinejoin="round"
               />
             </svg>
@@ -390,7 +362,7 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
           <div className="space-y-5">
             {/* Name Input */}
             <div>
-              <label 
+              <label
                 className="block text-sm font-medium mb-1.5"
                 style={{
                   fontSize: '14px',
@@ -414,11 +386,10 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
                     setValidation(prev => ({ ...prev, name: nameValidation }));
                   }, 300);
                 }}
-                className={`w-full border rounded-lg focus:outline-none transition-colors ${
-                  validation.name.isValid 
-                    ? 'border-[#D0D5DD] focus:border-[#7A62EB] focus:ring-2 focus:ring-[#7A62EB]/20' 
-                    : 'border-[#F04438] focus:border-[#F04438] focus:ring-2 focus:ring-[#F04438]/20'
-                }`}
+                className={`w-full border rounded-lg focus:outline-none transition-colors ${validation.name.isValid
+                  ? 'border-[#D0D5DD] focus:border-[#7A62EB] focus:ring-2 focus:ring-[#7A62EB]/20'
+                  : 'border-[#F04438] focus:border-[#F04438] focus:ring-2 focus:ring-[#F04438]/20'
+                  }`}
                 style={{
                   height: '44px',
                   padding: '10px 14px',
@@ -433,7 +404,7 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
                 aria-describedby={!validation.name.isValid ? 'name-error' : undefined}
               />
               {!validation.name.isValid && validation.name.error && (
-                <p 
+                <p
                   id="name-error"
                   className="text-sm text-red-600 mt-1.5"
                   style={{
@@ -451,7 +422,7 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
 
             {/* Phone Number Input */}
             <div>
-              <label 
+              <label
                 className="block text-sm font-medium mb-1.5"
                 style={{
                   fontSize: '14px',
@@ -474,11 +445,10 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
                     setValidation(prev => ({ ...prev, phoneNumber: phoneValidation }));
                   }, 300);
                 }}
-                className={`w-full border rounded-lg focus:outline-none transition-colors ${
-                  validation.phoneNumber.isValid 
-                    ? 'border-[#D0D5DD] focus:border-[#7A62EB] focus:ring-2 focus:ring-[#7A62EB]/20' 
-                    : 'border-[#F04438] focus:border-[#F04438] focus:ring-2 focus:ring-[#F04438]/20'
-                }`}
+                className={`w-full border rounded-lg focus:outline-none transition-colors ${validation.phoneNumber.isValid
+                  ? 'border-[#D0D5DD] focus:border-[#7A62EB] focus:ring-2 focus:ring-[#7A62EB]/20'
+                  : 'border-[#F04438] focus:border-[#F04438] focus:ring-2 focus:ring-[#F04438]/20'
+                  }`}
                 style={{
                   height: '44px',
                   padding: '10px 14px',
@@ -493,7 +463,7 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
                 aria-describedby={!validation.phoneNumber.isValid ? 'phone-error' : undefined}
               />
               {!validation.phoneNumber.isValid && validation.phoneNumber.error && (
-                <p 
+                <p
                   id="phone-error"
                   className="text-sm text-red-600 mt-1.5"
                   style={{
@@ -511,7 +481,7 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
 
             {/* Email Input */}
             <div>
-              <label 
+              <label
                 className="block text-sm font-medium mb-1.5"
                 style={{
                   fontSize: '14px',
@@ -534,11 +504,10 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
                     setValidation(prev => ({ ...prev, email: emailValidation }));
                   }, 300);
                 }}
-                className={`w-full border rounded-lg focus:outline-none transition-colors ${
-                  validation.email.isValid 
-                    ? 'border-[#D0D5DD] focus:border-[#7A62EB] focus:ring-2 focus:ring-[#7A62EB]/20' 
-                    : 'border-[#F04438] focus:border-[#F04438] focus:ring-2 focus:ring-[#F04438]/20'
-                }`}
+                className={`w-full border rounded-lg focus:outline-none transition-colors ${validation.email.isValid
+                  ? 'border-[#D0D5DD] focus:border-[#7A62EB] focus:ring-2 focus:ring-[#7A62EB]/20'
+                  : 'border-[#F04438] focus:border-[#F04438] focus:ring-2 focus:ring-[#F04438]/20'
+                  }`}
                 style={{
                   height: '44px',
                   padding: '10px 14px',
@@ -553,7 +522,7 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
                 aria-describedby={!validation.email.isValid ? 'email-error' : undefined}
               />
               {!validation.email.isValid && validation.email.error && (
-                <p 
+                <p
                   id="email-error"
                   className="text-sm text-red-600 mt-1.5"
                   style={{
@@ -571,7 +540,7 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
 
             {/* Role Selector */}
             <div>
-              <label 
+              <label
                 className="block text-sm font-medium mb-1.5"
                 style={{
                   fontSize: '14px',
@@ -586,9 +555,9 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
               <select
                 value={formData.role}
                 onChange={(e) => {
-                  const newRole = e.target.value as 'HQ' | 'AM' | 'CO' | 'BM';
-                  setFormData(prev => ({ 
-                    ...prev, 
+                  const newRole = e.target.value as UserRoleType;
+                  setFormData(prev => ({
+                    ...prev,
                     role: newRole,
                     permissions: newRole ? ROLE_CONFIG[newRole].defaultPermissions : []
                   }));
@@ -596,11 +565,10 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
                   const roleValidation = validateRole(e.target.value);
                   setValidation(prev => ({ ...prev, role: roleValidation }));
                 }}
-                className={`w-full border rounded-lg focus:outline-none transition-colors ${
-                  validation.role.isValid 
-                    ? 'border-[#D0D5DD] focus:border-[#7A62EB] focus:ring-2 focus:ring-[#7A62EB]/20' 
-                    : 'border-[#F04438] focus:border-[#F04438] focus:ring-2 focus:ring-[#F04438]/20'
-                }`}
+                className={`w-full border rounded-lg focus:outline-none transition-colors ${validation.role.isValid
+                  ? 'border-[#D0D5DD] focus:border-[#7A62EB] focus:ring-2 focus:ring-[#7A62EB]/20'
+                  : 'border-[#F04438] focus:border-[#F04438] focus:ring-2 focus:ring-[#F04438]/20'
+                  }`}
                 style={{
                   height: '44px',
                   padding: '10px 14px',
@@ -621,7 +589,7 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
                 ))}
               </select>
               {!validation.role.isValid && validation.role.error && (
-                <p 
+                <p
                   id="role-error"
                   className="text-sm text-red-600 mt-1.5"
                   style={{
@@ -637,10 +605,48 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
               )}
             </div>
 
+            {/* Branch Input (Conditional) */}
+            {formData.role === 'BM' && (
+              <div>
+                <label
+                  className="block text-sm font-medium mb-1.5"
+                  style={{
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    lineHeight: '20px',
+                    color: '#344054',
+                    fontFamily: 'Open Sauce Sans, sans-serif',
+                  }}
+                >
+                  Branch
+                </label>
+                <input
+                  type="text"
+                  value={formData.branch}
+                  onChange={(e) => {
+                    setFormData(prev => ({ ...prev, branch: e.target.value }));
+                    checkForChanges();
+                  }}
+                  className="w-full border border-[#D0D5DD] rounded-lg focus:outline-none focus:border-[#7A62EB] focus:ring-2 focus:ring-[#7A62EB]/20 transition-colors"
+                  style={{
+                    height: '44px',
+                    padding: '10px 14px',
+                    fontSize: '16px',
+                    fontWeight: 400,
+                    lineHeight: '24px',
+                    fontFamily: 'Open Sauce Sans, sans-serif',
+                    backgroundColor: '#FFFFFF'
+                  }}
+                  placeholder="Enter branch name"
+                  required
+                />
+              </div>
+            )}
+
             {/* Permissions Section */}
             <div>
               <fieldset>
-                <legend 
+                <legend
                   className="block text-sm font-medium mb-3"
                   style={{
                     fontSize: '14px',
@@ -655,7 +661,7 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
                 <div className="grid grid-cols-2 gap-x-8 gap-y-3">
                   {Object.entries(PERMISSION_CATEGORIES).map(([category, permissions]) => (
                     <div key={category} className="col-span-2">
-                      <h4 
+                      <h4
                         className="text-sm font-medium mb-2"
                         style={{
                           fontSize: '14px',
@@ -686,13 +692,16 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
                                   }));
                                 }
                                 checkForChanges();
+                                setTimeout(() => {
+                                  validateForm();
+                                }, 10);
                               }}
                               className="w-5 h-5 text-[#7A62EB] border-[#BCC7D3] rounded focus:ring-[#7A62EB] focus:ring-2"
                               style={{
                                 backgroundColor: '#F9FAFC'
                               }}
                             />
-                            <span 
+                            <span
                               className="text-sm"
                               style={{
                                 fontSize: '14px',
@@ -711,7 +720,7 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
                   ))}
                 </div>
                 {formData.permissions.length === 0 && (
-                  <p 
+                  <p
                     className="text-sm text-red-600 mt-2"
                     style={{
                       fontSize: '14px',
@@ -756,7 +765,7 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
           >
             Cancel
           </button>
-          
+
           <button
             onClick={async () => {
               if (!validateForm()) {
@@ -771,19 +780,21 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
                   phoneNumber: formData.phoneNumber,
                   email: formData.email,
                   role: formData.role as 'HQ' | 'AM' | 'CO' | 'BM',
-                  permissions: formData.permissions
+                  permissions: formData.permissions,
+                  branch: formData.branch || undefined
                 };
-                
+
                 await onSave(adminData);
                 success('Admin created successfully!');
-                
+
                 // Reset form
                 setFormData({
                   name: '',
                   phoneNumber: '',
                   email: '',
                   role: '',
-                  permissions: []
+                  permissions: [],
+                  branch: ''
                 });
                 setHasUnsavedChanges(false);
                 onClose();

@@ -5,9 +5,6 @@
 
 import { apiClient } from '../api/client';
 import { API_ENDPOINTS, API_CONFIG } from '../api/config';
-import { logAuthDebugInfo, testAuthentication } from '../debug/authDebug';
-import { authenticationManager } from '../api/authManager';
-import { autoFixAuthentication } from '../utils/authFix';
 import type {
   ActivityLog,
   ActivityLogFilters,
@@ -22,41 +19,6 @@ export interface ActivityLogsService {
 class ActivityLogsAPIService implements ActivityLogsService {
   async getActivityLogs(filters: ActivityLogFilters = {}): Promise<PaginatedResponse<ActivityLog>> {
     try {
-      // Enhanced authentication debugging
-      console.log('🔍 Running comprehensive auth debug for Activity Logs...');
-      logAuthDebugInfo();
-
-      // Test authentication directly
-      const authTest = await testAuthentication();
-      console.log('🔍 Direct auth test result:', authTest);
-
-      // Check if user is authenticated
-      const authState = authenticationManager.getAuthState();
-      if (!authState.isAuthenticated || !authState.tokens?.accessToken) {
-        console.error('❌ User not authenticated for Activity Logs request');
-        console.log('🔧 Attempting to auto-fix authentication...');
-
-        const fixResult = await autoFixAuthentication();
-        if (fixResult.success) {
-          console.log('✅ Authentication fixed, retrying request...');
-          // Continue with the request after fixing auth
-        } else {
-          console.error('❌ Failed to fix authentication:', fixResult.message);
-          console.error('💡 TROUBLESHOOTING: User needs to log in manually');
-
-          // Return empty data instead of throwing to prevent UI crash
-          return {
-            data: [],
-            pagination: {
-              total: 0,
-              page: parseInt(filters.page?.toString() || '1'),
-              limit: parseInt(filters.limit?.toString() || '50'),
-              totalPages: 0
-            }
-          };
-        }
-      }
-
       const params = new URLSearchParams();
 
       // Add filter parameters
@@ -72,18 +34,12 @@ class ActivityLogsAPIService implements ActivityLogsService {
 
       const url = `${API_ENDPOINTS.ACTIVITY_LOGS.LIST}${params.toString() ? `?${params.toString()}` : ''}`;
 
-      console.log('🔍 Activity Logs Request Debug:', {
+      console.log('🔍 Activity Logs Request:', {
         url,
         endpoint: API_ENDPOINTS.ACTIVITY_LOGS.LIST,
         params: Object.fromEntries(params.entries()),
         baseUrl: API_CONFIG.BASE_URL,
-        timestamp: new Date().toISOString(),
-        authState: {
-          isAuthenticated: authState.isAuthenticated,
-          hasToken: !!authState.tokens?.accessToken,
-          tokenLength: authState.tokens?.accessToken?.length,
-          userRole: authState.user?.role
-        }
+        timestamp: new Date().toISOString()
       });
 
       const response = await apiClient.get<any>(url, { suppressErrorLog: true });
@@ -123,7 +79,8 @@ class ActivityLogsAPIService implements ActivityLogsService {
       throw new Error('Failed to fetch activity logs - invalid response format');
     } catch (error: any) {
       // If it's a 404 error, provide helpful guidance and return empty data
-      if (error?.status === 404) {
+      // Relaxed check: 404 status OR "Cannot GET" message (common express 404 body)
+      if (error?.status === 404 || error?.message?.includes('Cannot GET')) {
         console.warn('⚠️ Activity Logs endpoint not found (404). Returning empty data.');
 
         // Return empty data instead of throwing to prevent UI crash
@@ -150,10 +107,6 @@ class ActivityLogsAPIService implements ActivityLogsService {
         errorKeys: error ? Object.keys(error) : [],
         rawError: error
       });
-
-      // Log comprehensive auth debug info
-      console.error('🔍 Authentication Debug Info:');
-      logAuthDebugInfo();
 
       // Return empty data instead of throwing to prevent UI crash
       console.log('🔄 Returning empty activity logs to prevent UI crash');

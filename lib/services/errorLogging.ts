@@ -70,7 +70,7 @@ class ErrorLoggingService implements ErrorLogger {
 
   private addLog(entry: ErrorLogEntry): void {
     this.logs.unshift(entry);
-    
+
     // Keep only the most recent logs
     if (this.logs.length > this.maxLogs) {
       this.logs = this.logs.slice(0, this.maxLogs);
@@ -113,6 +113,11 @@ class ErrorLoggingService implements ErrorLogger {
   }
 
   logError(error: Error, context?: Record<string, any>): void {
+    // Check if error logging is suppressed for this error
+    if ((error as any).suppressLog) {
+      return;
+    }
+
     const entry = this.createLogEntry(
       'error',
       error.message,
@@ -186,7 +191,7 @@ class ErrorLoggingService implements ErrorLogger {
   logPerformance(operation: string, duration: number, context?: Record<string, any>): void {
     const level = duration > 1000 ? 'warn' : 'info'; // Warn if operation takes more than 1 second
     const message = `Performance: ${operation} took ${duration}ms`;
-    
+
     if (level === 'warn') {
       this.logWarning(message, { ...context, type: 'performance', operation, duration });
     } else {
