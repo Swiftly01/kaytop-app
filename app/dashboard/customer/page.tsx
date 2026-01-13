@@ -402,7 +402,7 @@ const userName = profile
                     </div>
                     </div>
                     <div className="lg:col-span-5">
-                           <p className="pb-5 text-md capitalize font-semibold">Payment Schedule</p>
+                           <p className="pb-5 text-lg capitalize font-semibold">Payment Schedule</p>
                            <div className="p-10 bg-white">
                                <PaymentScheduleTable
                   isLoading={isLoadingPaymentSchedule}

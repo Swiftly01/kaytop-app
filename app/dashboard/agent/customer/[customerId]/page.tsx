@@ -371,13 +371,13 @@ function handleViewSchedule() {
           <h1 className="text-2xl font-semibold mb-3">Customer Details</h1>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          <div className="lg:col-span-3">
+        <div className="grid grid-cols-1 lg:grid-cols-6 gap-6 mb-6">
+          <div className="lg:col-span-6">
            {/* KPI CARDS */}
                 <KpiCards
                   loanAmount={Number(loan?.totalRepayable)}
                   nextPayment={Number(loan?.dailyRepayment)}
-                  nextDate={loan.dueDate}
+                  nextDate={loan?.dueDate}
                   savingsBalance={Number(savings?.data?.balance ?? 0)}
                   loanChartData={loanSummary}
                   savingsChartData={savingsSummary}
@@ -427,9 +427,8 @@ function handleViewSchedule() {
 
             </div>
             </div>
-            <div className="lg:col-span-2">
-           <div>
-                   <p className="pb-5 text-md">Transaction History</p>
+            <div className="lg:col-span-5">
+                   <p className="pb-5 text-lg font-semibold">Transaction History</p>
                    <div className="p-10 bg-white">
                      <BranchCustomerSavingsTable
                        isLoading={isLoadingSavings}
@@ -441,7 +440,6 @@ function handleViewSchedule() {
                        }
                      />
                    </div>
-                 </div>
             </div>
 
         </div>
@@ -468,7 +466,7 @@ function handleViewSchedule() {
        <RecordRepaymentModal
         isOpen={isRepaymentModalOpen}
         onClose={() => setIsRepaymentModalOpen(false)}
-        loanId={loan.id}
+        loanId={loan?.id}
         customerId={customer?.id}
       />
       <AddSavingsModal

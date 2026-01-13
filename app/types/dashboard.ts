@@ -7,6 +7,7 @@ export interface MetricProps {
   change?: string;
   changeColor?: "green" | "red";
   border: boolean;
+  sparkline?: number[]; 
 }
 
 export interface SummaryProps {
