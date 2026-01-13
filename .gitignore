@@ -39,18 +39,3 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-# Development and documentation files
-.kiro/
-.vscode/
-docs/
-debug-*.html
-*.tsbuildinfo
-
-# Test files
-**/__tests__/
-**/__examples__/
-**/*.test.*
-**/*.spec.*
-jest.config.*
-jest.setup.*
