@@ -7,8 +7,9 @@ import z from "zod";
 import AvatarUploadForm from "./AvatarUploadForm";
 import Button from "./Button";
 import Error from "./Error";
-import Input from "./Input";
+// import Input from "./Input";
 import Spinner from "./Spinner";
+import { Input } from "@/components/ui/input";
 
 interface ProfileProps {
   data?: ProfileResponse;

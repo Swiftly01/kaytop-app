@@ -6,6 +6,7 @@ import { Menu, X } from "lucide-react";
 import { AddCustomerFlowProvider } from "./AddCustomerFlow/AddCustomerFlowProvider";
 import AddCustomerFlowModal from "./AddCustomerFlow/AddCustomerFlowModal";
 import { Toaster } from "react-hot-toast";
+import DashboardWrapper from "@/app/_components/ui/auth/DashboardWrapper";
 
 
 
@@ -124,10 +125,12 @@ export default function DashboardLayout({
       {/* Main Content */}
       <main className="flex-1 w-full max-w-6xl mx-auto p-6">
         {/* {children} */}
+        <DashboardWrapper>
         <AddCustomerFlowProvider>
           {children}
           <AddCustomerFlowModal />
         </AddCustomerFlowProvider>
+        </DashboardWrapper>
         </main>
 
       {/* Footer */}

@@ -21,8 +21,9 @@ import { ACTION_CONFIG } from "@/lib/modalActionConfig";
 import React from "react";
 import Button from "./Button";
 import Error from "./Error";
-import Input from "./Input";
+// import Input from "./Input";
 import Spinner from "./Spinner";
+import { Input } from "@/components/ui/input";
 
 type ReportAction = "approve" | "decline";
 

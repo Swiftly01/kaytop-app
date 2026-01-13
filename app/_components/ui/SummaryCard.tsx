@@ -8,8 +8,8 @@ interface SummaryCardProps {
 export default function SummaryCard({item}: SummaryCardProps) {
   return (
     <div>
-      <p className="text-sm text-gray-500">{item.label}</p>
-      <h1 className="text-sm text-neutral-700">{item.value}</h1>
+      <p className="text-sm text-slate-400">{item.label}</p>
+      <h1 className="font-medium">{item.value}</h1>
     </div>
   );
 }
