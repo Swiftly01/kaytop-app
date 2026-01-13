@@ -194,7 +194,7 @@ const statusMutation = useUpdateVerificationStatus(customerId!);
           <ul className="space-y-3">
             {statusContent.items.map((item, index) => (
               <li key={index} className="flex items-start gap-3 text-sm text-muted-foreground">
-                <span className="w-2 h-2 rounded-full bg-[hsl(262,83%,58%)] mt-1.5 flex-shrink-0" />
+                <span className="w-2 h-2 rounded-full bg-[hsl(262,83%,58%)] mt-1.5 shrink-0" />
                 {item}
               </li>
             ))}
@@ -220,7 +220,7 @@ const statusMutation = useUpdateVerificationStatus(customerId!);
 
         {/* RIGHT SIDE — Camera / Preview */}
         <div className="w-[50%]">
-          <div className="relative rounded-xl overflow-hidden border border-border bg-muted aspect-[4/3]">
+          <div className="relative rounded-xl overflow-hidden border border-border bg-muted aspect-4/3">
             {/* Corner Brackets */}
             <div className="absolute inset-4 pointer-events-none z-10">
               <div className="absolute top-0 left-0 w-8 h-8 border-l-2 border-t-2 border-[hsl(262,83%,58%)] rounded-tl-lg" />

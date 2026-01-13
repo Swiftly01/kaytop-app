@@ -78,7 +78,7 @@ export default function Step3UploadID({
 
         <div className="flex items-start gap-4">
           {/* Upload Icon */}
-          <div className="w-10 h-10 rounded-full border border-border flex items-center justify-center flex-shrink-0 bg-[hsl(220,14%,96%)]">
+          <div className="w-10 h-10 rounded-full border border-border flex items-center justify-center shrink-0 bg-[hsl(220,14%,96%)]">
             <UploadCloud className="w-5 h-5 text-[hsl(215,16%,47%)]" />
           </div>
 
