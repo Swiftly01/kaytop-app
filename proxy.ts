@@ -5,7 +5,7 @@ const roleDashboardRoutes: Record<string, string> = {
   BRANCH_MANAGER: ROUTES.Bm.DASHBOARD,
   ADMIN: "/dashboard/admin",
   USER: "/dashboard/customer",
-  CREDIT_OFFICER: "/dashboard/customer",
+  CREDIT_OFFICER: "/dashboard/agent",
 };
 
 export const getDashboardRouteByRole = (role?: string) =>

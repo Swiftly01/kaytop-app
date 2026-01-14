@@ -323,6 +323,13 @@ export default function DashboardPage() {
       if (!activeLoan?.id) return;
       setLoan(activeLoan);
     }, [activeLoan]);
+
+    useEffect(() => {
+  if (!activeLoan?.id) return;
+
+  setContextParam(activeLoan.id, PaginationKey.active_loan_id);
+}, [activeLoan?.id]);
+
   
     /* =======================
        LOADING GUARD
@@ -337,7 +344,7 @@ export default function DashboardPage() {
   
   function handleViewHistory() {
     if (!activeLoan) return;
-    setContextParam(activeLoan.id, PaginationKey.active_loan_id);
+    // setContextParam(activeLoan.id, PaginationKey.active_loan_id);
     setIsHistoryOpen(true);
   }
 const userName = profile
