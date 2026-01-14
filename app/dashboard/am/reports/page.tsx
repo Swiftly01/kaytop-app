@@ -49,6 +49,8 @@ export default function AMReportsPage() {
       setLoading(true);
       setApiError(null);
 
+      console.log('🔍 AM Reports - Fetching data with filters:', filters);
+
       // Build API filters from current state
       const apiFilters: APIReportFilters = {
         page: currentPage,
@@ -56,7 +58,17 @@ export default function AMReportsPage() {
         ...filters,
       };
 
-      // Apply period filter
+      console.log('📋 AM Reports - API filters:', apiFilters);
+
+      // Note: Backend /reports endpoint does NOT support dateFrom/dateTo filtering
+      // Date filtering will be applied to statistics endpoint only
+      // For reports list, we fetch all and can filter client-side if needed
+      
+      // Store date range for statistics API call
+      let statsDateFrom: string | undefined;
+      let statsDateTo: string | undefined;
+
+      // Apply period filter for statistics
       if (selectedPeriod) {
         const now = new Date();
         let startDate: Date;
@@ -78,14 +90,14 @@ export default function AMReportsPage() {
             break;
         }
 
-        apiFilters.dateFrom = startDate.toISOString().split('T')[0];
+        statsDateFrom = startDate.toISOString().split('T')[0];
       }
 
-      // Apply custom date range filter
+      // Apply custom date range filter for statistics
       if (dateRange?.from) {
-        apiFilters.dateFrom = dateRange.from.toISOString().split('T')[0];
+        statsDateFrom = dateRange.from.toISOString().split('T')[0];
         if (dateRange.to) {
-          apiFilters.dateTo = dateRange.to.toISOString().split('T')[0];
+          statsDateTo = dateRange.to.toISOString().split('T')[0];
         }
       }
 
@@ -104,19 +116,50 @@ export default function AMReportsPage() {
       const [reportsResponse, statisticsResponse] = await Promise.all([
         reportsService.getAllReports(apiFilters),
         reportsService.getReportStatistics({
-          dateFrom: apiFilters.dateFrom,
-          dateTo: apiFilters.dateTo,
+          dateFrom: statsDateFrom,
+          dateTo: statsDateTo,
           branchId: apiFilters.branchId,
         }),
       ]);
 
-      // Safely handle reports response structure
-      const reportsData = Array.isArray(reportsResponse?.data) ? reportsResponse.data : [];
-      const paginationData = reportsResponse?.pagination || {};
+      console.log('📦 AM Reports - Raw API response:', reportsResponse);
+      console.log('📊 AM Reports - Statistics response:', statisticsResponse);
+
+      // Safely handle reports response structure - PaginatedResponse has {data: [], pagination: {}}
+      const rawReportsData = Array.isArray(reportsResponse?.data) ? reportsResponse.data : [];
+
+      console.log('✅ AM Reports - Processed data:', { 
+        reportsCount: rawReportsData.length, 
+        total: reportsResponse?.pagination?.total 
+      });
+
+      // Transform API data to match expected Report interface
+      const reportsData = rawReportsData.map((report: any) => ({
+        id: report.id?.toString() || '',
+        reportId: report.title || `Report #${report.id}`,
+        creditOfficer: report.submittedBy ? `${report.submittedBy.firstName} ${report.submittedBy.lastName}` : 'Unknown',
+        creditOfficerId: report.submittedBy?.id?.toString() || '',
+        branch: report.branch || 'Unknown Branch',
+        branchId: report.branch || '',
+        email: report.submittedBy?.email || '',
+        dateSent: report.reportDate || report.submittedAt?.split('T')[0] || '',
+        timeSent: report.submittedAt?.split('T')[1]?.split('.')[0] || '',
+        reportType: (report.type === 'quarterly' || report.type === 'annual' || report.type === 'custom' ? 'monthly' : report.type) as 'daily' | 'weekly' | 'monthly',
+        status: report.status?.toLowerCase() as 'submitted' | 'pending' | 'approved' | 'declined',
+        isApproved: report.status?.toLowerCase() === 'approved',
+        loansDispursed: report.totalLoansProcessed || 0,
+        loansValueDispursed: report.totalLoansDisbursed || '0',
+        savingsCollected: report.totalSavingsProcessed || '0',
+        repaymentsCollected: parseFloat(report.totalRecollections || '0'),
+        createdAt: report.createdAt || '',
+        updatedAt: report.updatedAt || '',
+        approvedBy: report.reviewedBy ? `${report.reviewedBy.firstName} ${report.reviewedBy.lastName}` : undefined,
+        declineReason: report.declineReason || undefined,
+      }));
 
       setReports(reportsData);
-      // Handle pagination safely - backend might not return pagination object
-      const totalCount = paginationData.total || reportsData.length || 0;
+      // Handle pagination - use total from pagination object
+      const totalCount = reportsResponse?.pagination?.total || reportsData.length || 0;
       setTotalReports(totalCount);
       setReportStatistics(statisticsResponse);
 

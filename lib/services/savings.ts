@@ -107,7 +107,7 @@ class SavingsAPIService implements SavingsService {
         ? API_ENDPOINTS.SAVINGS.APPROVE_WITHDRAWAL(transactionId)
         : API_ENDPOINTS.SAVINGS.APPROVE_LOAN_COVERAGE(transactionId);
 
-      const response = await apiClient.put<Transaction>(endpoint);
+      const response = await apiClient.post<Transaction>(endpoint);
 
       // Backend returns direct data format, not wrapped in success/data
       if (response && typeof response === 'object') {

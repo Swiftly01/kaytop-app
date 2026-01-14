@@ -4,6 +4,7 @@
  */
 
 import apiClient from '@/lib/apiClient';
+import { unifiedUserService } from './unifiedUser';
 import type { DashboardParams } from '../api/types';
 
 export interface GrowthCalculationService {
@@ -215,16 +216,12 @@ class GrowthCalculationAPIService implements GrowthCalculationService {
    */
   private async getPreviousCreditOfficerCount(params: DashboardParams): Promise<number> {
     try {
-      const queryParams = new URLSearchParams();
-      if (params.startDate) queryParams.append('startDate', params.startDate);
-      if (params.endDate) queryParams.append('endDate', params.endDate);
-      queryParams.append('limit', '1000');
+      // Use unifiedUserService which applies DataTransformers
+      const response = await unifiedUserService.getUsers({ limit: 1000 });
+      const users = response.data || [];
       
-      const response = await apiClient.get<any>(`/admin/users?${queryParams.toString()}`);
-      const users = response.data?.data || response.data || [];
-      
-      const creditOfficers = users.filter((user: any) => 
-        user.role === 'credit_officer' || user.role === 'creditofficer'
+      const creditOfficers = users.filter(user => 
+        user.role === 'credit_officer'
       );
       
       return creditOfficers.length;
@@ -238,15 +235,11 @@ class GrowthCalculationAPIService implements GrowthCalculationService {
    */
   private async getPreviousCustomerCount(params: DashboardParams): Promise<number> {
     try {
-      const queryParams = new URLSearchParams();
-      if (params.startDate) queryParams.append('startDate', params.startDate);
-      if (params.endDate) queryParams.append('endDate', params.endDate);
-      queryParams.append('limit', '1000');
+      // Use unifiedUserService which applies DataTransformers
+      const response = await unifiedUserService.getUsers({ limit: 1000 });
+      const users = response.data || [];
       
-      const response = await apiClient.get<any>(`/admin/users?${queryParams.toString()}`);
-      const users = response.data?.data || response.data || [];
-      
-      const customers = users.filter((user: any) => user.role === 'customer');
+      const customers = users.filter(user => user.role === 'customer');
       
       return customers.length;
     } catch (error) {

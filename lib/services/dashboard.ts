@@ -163,8 +163,7 @@ class DashboardAPIService implements DashboardService {
     try {
       console.log('🔍 Dashboard getReportStatistics called with params:', params);
       
-      // Skip the problematic /reports/statistics endpoint entirely
-      // Use dashboard KPI endpoint which is known to work
+      // Use the dedicated reports dashboard stats endpoint
       const queryParams = new URLSearchParams();
       
       if (params.startDate) {
@@ -179,40 +178,53 @@ class DashboardAPIService implements DashboardService {
         queryParams.append('branch', params.branch);
       }
 
-      const url = `${API_ENDPOINTS.DASHBOARD.KPI}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-      console.log('🌐 Fetching dashboard KPI data for report statistics:', url);
+      const url = `${API_ENDPOINTS.REPORTS.DASHBOARD_STATS}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      console.log('🌐 Fetching report statistics from dedicated endpoint:', url);
       
       const response = await apiClient.get<any>(url);
       
-      // Extract report-related statistics from dashboard KPI response
+      console.log('🔍 Raw reports dashboard stats response:', JSON.stringify(response, null, 2));
+      
+      // Extract report statistics from the response
       let reportStats: ReportStatistics;
       
       if (response && response.data) {
         const data = response.data;
         
-        // Try to extract report statistics from KPI data if available
+        console.log('🔍 Extracted data object:', JSON.stringify(data, null, 2));
+        
+        // Backend returns: totalPending, totalApproved, totalDeclined
+        // Calculate total reports from the sum of all statuses
+        const totalCount = (data.totalPending || 0) + (data.totalApproved || 0) + (data.totalDeclined || 0);
+        
+        // The endpoint returns report statistics in a different format
+        // Transform to match the expected ReportStatistics interface
         reportStats = {
           totalReports: {
-            count: data.totalReports?.count || data.reports?.total || 0,
-            growth: data.totalReports?.growth || data.reports?.growth || 0
+            count: data.totalReports?.count || data.total || totalCount,
+            growth: data.totalReports?.growth || data.totalGrowth || 0
           },
           submittedReports: {
-            count: data.submittedReports?.count || data.reports?.submitted || 0,
-            growth: data.submittedReports?.growth || 0
+            // Backend doesn't distinguish between submitted and pending
+            count: data.submittedReports?.count || data.submitted || 0,
+            growth: data.submittedReports?.growth || data.submittedGrowth || 0
           },
           pendingReports: {
-            count: data.pendingReports?.count || data.reports?.pending || 0,
-            growth: data.pendingReports?.growth || 0
+            count: data.pendingReports?.count || data.pending || data.totalPending || 0,
+            growth: data.pendingReports?.growth || data.pendingGrowth || 0
           },
           approvedReports: {
-            count: data.approvedReports?.count || data.reports?.approved || 0,
-            growth: data.approvedReports?.growth || 0
+            count: data.approvedReports?.count || data.approved || data.totalApproved || 0,
+            growth: data.approvedReports?.growth || data.approvedGrowth || 0
           },
           missedReports: {
-            count: data.missedReports?.count || data.reports?.missed || 0,
-            growth: data.missedReports?.growth || 0
+            // Backend doesn't have missed reports, use declined as a proxy or 0
+            count: data.missedReports?.count || data.missed || data.totalDeclined || 0,
+            growth: data.missedReports?.growth || data.missedGrowth || 0
           }
         };
+        
+        console.log('🔍 Constructed reportStats:', JSON.stringify(reportStats, null, 2));
       } else {
         // Fallback to default values if no data is available
         reportStats = {
@@ -224,7 +236,7 @@ class DashboardAPIService implements DashboardService {
         };
       }
       
-      console.log('✅ Successfully fetched report statistics from dashboard KPI:', reportStats);
+      console.log('✅ Successfully fetched report statistics:', reportStats);
       return reportStats;
       
     } catch (error) {

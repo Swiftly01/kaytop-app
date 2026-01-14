@@ -6,6 +6,7 @@
 
 import apiClient from '@/lib/apiClient';
 import { growthCalculationService } from './growthCalculation';
+import { unifiedUserService } from './unifiedUser';
 import type { DashboardKPIs, DashboardParams, StatisticValue } from '../api/types';
 
 export interface AccurateDashboardService {
@@ -76,15 +77,29 @@ class AccurateDashboardAPIService implements AccurateDashboardService {
    */
   private async fetchUsersData(): Promise<any[]> {
     try {
-      const response = await apiClient.get<any>('/admin/users?limit=1000');
+      // Use unifiedUserService which now transforms data with role detection
+      const response = await unifiedUserService.getUsers({ limit: 1000 });
       
-      if (response.data && Array.isArray(response.data.data)) {
-        return response.data.data;
-      } else if (Array.isArray(response.data)) {
-        return response.data;
+      console.log('🔍 Raw users API response:', response);
+      
+      const users = response.data || [];
+      
+      // Debug: Log role distribution
+      const roleDistribution: Record<string, number> = {};
+      users.forEach(user => {
+        const role = user.role || 'undefined';
+        roleDistribution[role] = (roleDistribution[role] || 0) + 1;
+      });
+      
+      console.log('👥 Users role distribution:', roleDistribution);
+      console.log(`📊 Total users fetched: ${users.length}`);
+      
+      // Debug: Show sample users
+      if (users.length > 0) {
+        console.log('📝 Sample user:', users[0]);
       }
       
-      return [];
+      return users;
     } catch (error) {
       console.error('Users data fetch error:', error);
       return [];
@@ -124,17 +139,30 @@ class AccurateDashboardAPIService implements AccurateDashboardService {
       queryParams.append('limit', '1000'); // Get more data for accurate calculations
       
       const endpoint = `/loans/all${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      console.log('🔍 Fetching loans from endpoint:', endpoint);
+      
       const response = await apiClient.get<any>(endpoint);
       
+      console.log('📦 Raw loans API response:', response);
+      
+      let loansArray: any[] = [];
+      
       if (response.data && Array.isArray(response.data.data)) {
-        return response.data.data;
+        loansArray = response.data.data;
+        console.log(`✅ Extracted ${loansArray.length} loans from response.data.data`);
       } else if (Array.isArray(response.data)) {
-        return response.data;
+        loansArray = response.data;
+        console.log(`✅ Extracted ${loansArray.length} loans from response.data`);
+      } else if (Array.isArray(response)) {
+        loansArray = response;
+        console.log(`✅ Extracted ${loansArray.length} loans from response`);
+      } else {
+        console.warn('⚠️ Unexpected response structure:', response);
       }
       
-      return [];
+      return loansArray;
     } catch (error) {
-      console.error('Loans data fetch error:', error);
+      console.error('❌ Loans data fetch error:', error);
       return [];
     }
   }
@@ -155,17 +183,49 @@ class AccurateDashboardAPIService implements AccurateDashboardService {
       user.role === 'credit_officer' || user.role === 'creditofficer'
     );
     
-    const customers = usersData.filter(user => 
-      user.role === 'customer'
-    );
+    console.log('🔍 Filtering customers from users data...');
+    console.log(`📊 Total users to filter: ${usersData.length}`);
+    
+    const customers = usersData.filter(user => {
+      const isCustomer = user.role === 'customer';
+      if (isCustomer) {
+        console.log('✅ Found customer:', user);
+      }
+      return isCustomer;
+    });
+    
+    console.log(`👥 Customers found: ${customers.length}`);
+    console.log(`👔 Credit officers found: ${creditOfficers.length}`);
     
     const activeLoans = loansData.filter(loan => 
       loan.status === 'active' || loan.status === 'disbursed'
     );
     
-    const totalLoanAmount = loansData.reduce((sum, loan) => 
-      sum + (parseFloat(loan.amount) || 0), 0
-    );
+    console.log('💰 Calculating total loan amount from loans data...');
+    console.log(`📊 Total loans to process: ${loansData.length}`);
+    
+    // Debug: Show sample loan data
+    if (loansData.length > 0) {
+      console.log('📝 Sample loan:', loansData[0]);
+      console.log('💵 Sample loan amount:', loansData[0].amount);
+      console.log('💵 Sample loan amount type:', typeof loansData[0].amount);
+    }
+    
+    const totalLoanAmount = loansData.reduce((sum, loan) => {
+      // Handle both number and string amounts
+      const amount = typeof loan.amount === 'string' 
+        ? parseFloat(loan.amount.replace(/[^0-9.-]/g, '')) 
+        : (loan.amount || 0);
+      
+      if (isNaN(amount)) {
+        console.warn('⚠️ Invalid loan amount:', loan.amount, 'for loan:', loan.id);
+        return sum;
+      }
+      
+      return sum + amount;
+    }, 0);
+    
+    console.log(`💰 Total loan amount calculated: ${totalLoanAmount}`);
     
     const missedPayments = loansData.filter(loan => 
       loan.status === 'defaulted' || loan.status === 'overdue'

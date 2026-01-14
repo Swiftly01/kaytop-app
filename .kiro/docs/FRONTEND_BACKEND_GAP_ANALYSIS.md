@@ -12,7 +12,7 @@ Based on comprehensive scanning of the frontend codebase and backend endpoint te
 - ✅ `POST /otp/verify` - **WORKING** (referenced in auth service)
 
 ### Dashboard Endpoints
-- ✅ `GET /admin/dashboard/kpi` - **WORKING** (100% success rate in tests)
+- ✅ `GET /dashboard/kpi` - **WORKING** (95.2% success rate in tests - NO /admin prefix)
 
 ### User Management Endpoints
 - ✅ `GET /admin/users` - **WORKING** (100% success rate in tests)
@@ -170,7 +170,7 @@ Based on comprehensive scanning of the frontend codebase and backend endpoint te
 ### URL Pattern Mismatches:
 1. **Loans**: Frontend expects `/loans/all`, backend provides `/loans`
 2. **Savings**: Frontend expects `/savings/all`, backend provides `/savings`
-3. **Dashboard KPI**: Frontend uses `/dashboard/kpi`, backend uses `/admin/dashboard/kpi`
+3. ~~**Dashboard KPI**: RESOLVED - Correct endpoint is `/dashboard/kpi` (NO /admin prefix)~~
 
 ## 🎯 **RECOMMENDATIONS**
 

@@ -85,9 +85,17 @@ export default function BranchesPage() {
               cos: creditOfficers.length.toString(),
               customers: customers.length,
             };
-          } catch (error) {
-            console.warn(`Failed to get user counts for branch ${record.name}:`, error);
-            return record; // Return original record if user fetch fails
+          } catch (error: any) {
+            // Log warning but don't fail - return record with zero counts
+            const errorMsg = error?.message || 'Unknown error';
+            const statusCode = error?.response?.status || error?.status;
+            console.warn(`Failed to get user counts for branch "${record.name}" (${statusCode || 'no status'}): ${errorMsg}`);
+            
+            return {
+              ...record,
+              cos: '0',
+              customers: 0,
+            };
           }
         })
       );
@@ -425,6 +433,7 @@ export default function BranchesPage() {
                     '--tw-ring-color': 'var(--color-primary-600)'
                   } as React.CSSProperties}
                   aria-label="Search branches"
+                  suppressHydrationWarning
                 />
                 {searchQuery && (
                   <button

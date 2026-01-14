@@ -95,20 +95,9 @@ class ReportsAPIService implements ReportsService {
       if (filters.status) params.append('status', filters.status);
       if (filters.reportType) params.append('reportType', filters.reportType);
 
-      // Validate and add date filters
-      if (filters.dateFrom) {
-        const dateFrom = this.validateDateFormat(filters.dateFrom);
-        if (dateFrom) {
-          params.append('dateFrom', dateFrom);
-        }
-      }
-
-      if (filters.dateTo) {
-        const dateTo = this.validateDateFormat(filters.dateTo);
-        if (dateTo) {
-          params.append('dateTo', dateTo);
-        }
-      }
+      // Note: Backend /reports endpoint does NOT support dateFrom/dateTo filtering
+      // Only status, branch, type, page, and limit are supported per API documentation
+      // Date filtering should be done client-side if needed
 
       if (filters.page) params.append('page', filters.page.toString());
       if (filters.limit) params.append('limit', filters.limit.toString());
@@ -239,7 +228,7 @@ class ReportsAPIService implements ReportsService {
    */
   async approveReport(id: string, data: ReportApprovalData): Promise<Report> {
     try {
-      const response: ApiResponse<Report> = await apiClient.put(
+      const response: ApiResponse<Report> = await apiClient.post(
         API_ENDPOINTS.REPORTS.APPROVE(id),
         data
       );
@@ -262,7 +251,7 @@ class ReportsAPIService implements ReportsService {
    */
   async declineReport(id: string, data: ReportApprovalData): Promise<Report> {
     try {
-      const response: ApiResponse<Report> = await apiClient.put(
+      const response: ApiResponse<Report> = await apiClient.post(
         API_ENDPOINTS.REPORTS.DECLINE(id),
         data
       );
@@ -327,7 +316,7 @@ class ReportsAPIService implements ReportsService {
         }
       }
 
-      const finalUrl = `${API_ENDPOINTS.REPORTS.STATISTICS}?${params.toString()}`;
+      const finalUrl = `${API_ENDPOINTS.REPORTS.DASHBOARD_STATS}?${params.toString()}`;
       console.log('🌐 Final API URL with params:', finalUrl);
       console.log('📋 URL params string:', params.toString());
 
@@ -435,10 +424,9 @@ class ReportsAPIService implements ReportsService {
       console.log('⚠️ Branch statistics endpoint not available, using general reports with branch filter');
 
       // Use the general reports endpoint with branch filtering to get reports data
+      // Note: dateFrom/dateTo are not supported by the backend API, so we fetch all reports
       const reportsResponse = await this.getAllReports({
         branchId: validatedBranchId,
-        dateFrom: filters.dateFrom,
-        dateTo: filters.dateTo,
         page: 1,
         limit: 1000 // Get a large number to calculate statistics
       });
@@ -513,20 +501,8 @@ class ReportsAPIService implements ReportsService {
         params.append('branchId', validatedBranchId);
       }
 
-      // Validate and add date filters
-      if (filters.dateFrom) {
-        const dateFrom = this.validateDateFormat(filters.dateFrom);
-        if (dateFrom) {
-          params.append('dateFrom', dateFrom);
-        }
-      }
-
-      if (filters.dateTo) {
-        const dateTo = this.validateDateFormat(filters.dateTo);
-        if (dateTo) {
-          params.append('dateTo', dateTo);
-        }
-      }
+      // Note: Backend /reports endpoint does NOT support dateFrom/dateTo filtering
+      // Date filtering removed as it's not supported by the API
 
       console.log('🔍 Missed reports URL params:', params.toString());
 

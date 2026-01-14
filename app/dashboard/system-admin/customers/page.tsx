@@ -87,8 +87,27 @@ export default function CustomersPage() {
         ...(filters?.region && { state: filters.region }),
       });
       
+      console.log('🔍 System Admin - Fetched users response:', allUsersResponse);
+      console.log(`📊 Total users fetched: ${allUsersResponse.data.length}`);
+      
+      // Debug: Log role distribution
+      const roleDistribution: Record<string, number> = {};
+      allUsersResponse.data.forEach(user => {
+        const role = user.role || 'undefined';
+        roleDistribution[role] = (roleDistribution[role] || 0) + 1;
+      });
+      console.log('👥 Role distribution:', roleDistribution);
+      
       // Frontend filtering: Only show users with role 'customer'
-      const customerUsers = allUsersResponse.data.filter(user => user.role === 'customer');
+      const customerUsers = allUsersResponse.data.filter(user => {
+        const isCustomer = user.role === 'customer';
+        if (isCustomer) {
+          console.log('✅ Found customer user:', user);
+        }
+        return isCustomer;
+      });
+      
+      console.log(`🎯 Filtered customers: ${customerUsers.length}`);
       
       // Apply additional frontend filters if needed
       let filteredCustomers = customerUsers;

@@ -81,11 +81,34 @@ class BranchAPIService implements BranchService {
   async getAllBranches(params?: PaginationParams): Promise<PaginatedResponse<Branch>> {
     try {
       // Use the working /users/branches endpoint to get branch names
-      const branchesResponse = await apiClient.get<string[]>(API_ENDPOINTS.USERS.BRANCHES);
+      const branchesResponse = await apiClient.get<any>(API_ENDPOINTS.USERS.BRANCHES);
+      
+      console.log('🔍 Branches API Response:', branchesResponse);
+      console.log('🔍 Response data type:', typeof branchesResponse.data);
+      console.log('🔍 Is array?:', Array.isArray(branchesResponse.data));
+      
+      // Handle different response formats
+      let branchNames: string[] = [];
       
       if (isSuccessResponse(branchesResponse)) {
+        // Wrapped response: { success: true, data: [...] }
+        branchNames = branchesResponse.data.data || branchesResponse.data;
+      } else if (Array.isArray(branchesResponse.data)) {
+        // Direct array response
+        branchNames = branchesResponse.data;
+      } else if (Array.isArray(branchesResponse)) {
+        // Response is the array itself
+        branchNames = branchesResponse as unknown as string[];
+      } else {
+        console.error('❌ Unexpected response format:', branchesResponse);
+        throw new Error('Unexpected response format from branches endpoint');
+      }
+      
+      console.log('✅ Branch names extracted:', branchNames);
+      
+      if (branchNames.length > 0) {
         // Get users for each branch to build complete branch data
-        const branchPromises = branchesResponse.data.map(async (branchName, index) => {
+        const branchPromises = branchNames.map(async (branchName, index) => {
           try {
             // Get users for this branch to calculate statistics
             const { userService } = await import('./users');
@@ -146,7 +169,17 @@ class BranchAPIService implements BranchService {
         };
       }
 
-      throw new Error('Failed to fetch branches from backend');
+      // If no branches found, return empty result
+      console.warn('⚠️ No branches found in response');
+      return {
+        data: [],
+        pagination: {
+          page: params?.page || 1,
+          limit: params?.limit || 10,
+          total: 0,
+          totalPages: 0
+        }
+      };
     } catch (error) {
       console.error('Branches fetch error:', error);
       throw error;

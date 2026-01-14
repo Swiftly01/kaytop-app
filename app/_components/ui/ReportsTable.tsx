@@ -137,9 +137,9 @@ export default function ReportsTable({ reports, selectedReports, onSelectionChan
                   {report.creditOfficer}
                 </td>
 
-                {/* Time Sent (Email) Cell */}
+                {/* Time Sent Cell */}
                 <td className="px-6 py-4 text-sm text-gray-600">
-                  {report.email}
+                  {report.timeSent}
                 </td>
 
                 {/* Date Cell */}

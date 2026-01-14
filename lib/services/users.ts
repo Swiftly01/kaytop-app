@@ -255,30 +255,44 @@ class UserAPIService implements UserService {
       
       const response = await apiClient.get<any>(url);
 
-      // Backend returns direct data format, not wrapped in success/data
-      if (response && typeof response === 'object') {
+      // Extract the actual data from Axios response
+      const data = response.data || response;
+
+      // Backend returns { users: [], total: 0 } format
+      if (data && typeof data === 'object') {
+        // Check if it's the branch-specific format: { users: [], total: number }
+        if (data.users && Array.isArray(data.users)) {
+          return this.createPaginatedResponse(data.users, data.total || data.users.length, params);
+        }
         // Check if it's wrapped in success/data format
-        if (isSuccessResponse(response)) {
-          return response.data;
+        else if (isSuccessResponse(data)) {
+          return data.data;
         }
         // Check if it's direct array format (users list)
-        else if (Array.isArray(response)) {
-          // Backend returns direct array, create paginated response structure
-          return this.createPaginatedResponse(response, response.length, params);
+        else if (Array.isArray(data)) {
+          return this.createPaginatedResponse(data, data.length, params);
         }
         // Check if it's already a paginated response object
-        else if (response.data && Array.isArray(response.data)) {
-          return response as unknown as PaginatedResponse<User>;
+        else if (data.data && Array.isArray(data.data)) {
+          return data as unknown as PaginatedResponse<User>;
         }
-        // Check if it has users array (branch-specific format)
-        else if ((response as any).users && Array.isArray((response as any).users)) {
-          return this.createPaginatedResponse((response as any).users, (response as any).total || (response as any).users.length, params);
+        // Check if response indicates no users found (empty result)
+        else if (data.message && data.message.toLowerCase().includes('no users found')) {
+          return this.createPaginatedResponse([], 0, params);
         }
       }
 
+      console.error('[getUsersByBranch] No format matched - throwing error');
+      console.error('[getUsersByBranch] Response structure:', JSON.stringify(data, null, 2));
       throw new Error('Failed to fetch users by branch - invalid response format');
-    } catch (error) {
-      console.error('Users by branch fetch error:', error);
+    } catch (error: any) {
+      // Handle 404 errors gracefully (branch might not have users)
+      if (error?.response?.status === 404 || error?.status === 404) {
+        console.warn(`[getUsersByBranch] Branch "${branch}" not found or has no users (404)`);
+        return this.createPaginatedResponse([], 0, params);
+      }
+      
+      console.error(`[getUsersByBranch] Error for branch "${branch}":`, error);
       throw error;
     }
   }

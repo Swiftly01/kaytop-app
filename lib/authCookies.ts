@@ -14,11 +14,13 @@ export function convertRoleForMiddleware(role: string): string {
     'systemadmin': 'ADMIN',
     'admin': 'ADMIN',
     'administrator': 'ADMIN',
-    'hq_manager': 'ADMIN',
-    'hq manager': 'ADMIN',
-    'hqmanager': 'ADMIN',
-    'hq': 'ADMIN',
-    'headquarters_manager': 'ADMIN',
+
+    // HQ Manager redirects to AM dashboard (same as Account Manager)
+    'hq_manager': 'ACCOUNT_MANAGER',
+    'hq manager': 'ACCOUNT_MANAGER',
+    'hqmanager': 'ACCOUNT_MANAGER',
+    'hq': 'ACCOUNT_MANAGER',
+    'headquarters_manager': 'ACCOUNT_MANAGER',
 
     'branch_manager': 'BRANCH_MANAGER',
     'branchmanager': 'BRANCH_MANAGER',

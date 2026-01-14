@@ -1,6 +1,5 @@
 import { Metadata } from "next";
 import React from "react";
-import "../../styles/globals.css";
 
 import Sidebar from "@/app/_components/layouts/dashboard/Sidebar";
 import Navbar from "@/app/_components/layouts/dashboard/Navbar";
@@ -19,26 +18,24 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default function BMLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="">
-      <body className=" bg-neutral-100">
-        <Navbar />
-        <div className="pt-16 drawer lg:drawer-open">
-          <input
-            id="my-drawer-4"
-            type="checkbox"
-            className="drawer-toggle lg:hidden"
-          />
-          <Sidebar />
-          <DashboardWrapper>{children}</DashboardWrapper>
-          <Toaster position="top-right" />
-        </div>
-      </body>
-    </html>
+    <div className="bg-neutral-100 min-h-screen">
+      <Navbar />
+      <div className="pt-16 drawer lg:drawer-open">
+        <input
+          id="my-drawer-4"
+          type="checkbox"
+          className="drawer-toggle lg:hidden"
+        />
+        <Sidebar />
+        <DashboardWrapper>{children}</DashboardWrapper>
+        <Toaster position="top-right" />
+      </div>
+    </div>
   );
 }

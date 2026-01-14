@@ -190,27 +190,16 @@ export default function AccountManagerDashboard() {
     // Debug: Log the dashboard data structure
     console.log('🔍 AM Dashboard data structure:', JSON.stringify(dashboardData, null, 2));
 
-    // Helper function to safely extract values from nested structure
+    // Helper function to safely extract values from the data structure
     const extractValue = (data: any) => {
-      // Handle nested structure: data.value.value or direct structure: data.value
-      if (data && typeof data === 'object') {
-        if (data.value && typeof data.value === 'object' && 'value' in data.value) {
-          // Nested structure
-          return {
-            value: data.value.value || 0,
-            change: data.value.change || 0,
-            changeLabel: data.value.changeLabel || '',
-            isCurrency: data.value.isCurrency || false,
-          };
-        } else if ('value' in data) {
-          // Direct structure
-          return {
-            value: data.value || 0,
-            change: data.change || 0,
-            changeLabel: data.changeLabel || '',
-            isCurrency: data.isCurrency || false,
-          };
-        }
+      // The data structure from accurateDashboard is: { value, change, changeLabel, isCurrency }
+      if (data && typeof data === 'object' && 'value' in data) {
+        return {
+          value: data.value || 0,
+          change: data.change || 0,
+          changeLabel: data.changeLabel || '',
+          isCurrency: data.isCurrency || false,
+        };
       }
       // Fallback
       return {
@@ -244,27 +233,16 @@ export default function AccountManagerDashboard() {
   const getMiddleCardSections = () => {
     if (!dashboardData) return [];
 
-    // Helper function to safely extract values from nested structure
+    // Helper function to safely extract values from the data structure
     const extractValue = (data: any) => {
-      // Handle nested structure: data.value.value or direct structure: data.value
-      if (data && typeof data === 'object') {
-        if (data.value && typeof data.value === 'object' && 'value' in data.value) {
-          // Nested structure
-          return {
-            value: data.value.value || 0,
-            change: data.value.change || 0,
-            changeLabel: data.value.changeLabel || '',
-            isCurrency: data.value.isCurrency || false,
-          };
-        } else if ('value' in data) {
-          // Direct structure
-          return {
-            value: data.value || 0,
-            change: data.change || 0,
-            changeLabel: data.changeLabel || '',
-            isCurrency: data.isCurrency || false,
-          };
-        }
+      // The data structure from accurateDashboard is: { value, change, changeLabel, isCurrency }
+      if (data && typeof data === 'object' && 'value' in data) {
+        return {
+          value: data.value || 0,
+          change: data.change || 0,
+          changeLabel: data.changeLabel || '',
+          isCurrency: data.isCurrency || false,
+        };
       }
       // Fallback
       return {
@@ -277,7 +255,7 @@ export default function AccountManagerDashboard() {
 
     return [
       {
-        label: "Loan Amounts",
+        label: "Total Loan",
         ...extractValue(dashboardData.loanAmounts),
       },
       {

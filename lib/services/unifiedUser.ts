@@ -4,6 +4,7 @@
  */
 
 import apiClient from '@/lib/apiClient';
+import { DataTransformers } from '../api/transformers';
 import type {
   User,
   UserFilterParams,
@@ -39,13 +40,60 @@ class UnifiedUserAPIService implements UnifiedUserService {
 
     const endpoint = `/admin/users${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     
-    const response: ApiResponse<PaginatedResponse<User>> = await apiClient.get(endpoint);
-    return response.data;
+    const response = await apiClient.get(endpoint);
+    // Extract data from Axios response
+    const data = response.data || response;
+    
+    // Handle different response formats
+    if (data && typeof data === 'object') {
+      // Check if it's already a paginated response
+      if (data.data && Array.isArray(data.data)) {
+        // Transform each user through DataTransformers
+        const transformedUsers = data.data.map((user: any) => DataTransformers.transformUser(user));
+        
+        return {
+          ...data,
+          data: transformedUsers
+        } as PaginatedResponse<User>;
+      }
+      // Check if it's a direct array
+      else if (Array.isArray(data)) {
+        // Transform each user through DataTransformers
+        const transformedUsers = data.map((user: any) => DataTransformers.transformUser(user));
+        
+        return {
+          data: transformedUsers,
+          pagination: {
+            page: parseInt(params?.page?.toString() || '1'),
+            limit: parseInt(params?.limit?.toString() || '1000'),
+            total: transformedUsers.length,
+            totalPages: 1
+          }
+        };
+      }
+    }
+    
+    throw new Error('Invalid response format from getUsers');
   }
 
   async getUserById(id: string): Promise<User> {
-    const response: ApiResponse<User> = await apiClient.get(`/admin/users/${id}`);
-    return response.data;
+    const response = await apiClient.get(`/admin/users/${id}`);
+    // Extract data from Axios response
+    const data = response.data || response;
+    
+    // Handle different response formats
+    if (data && typeof data === 'object') {
+      // Check if it's wrapped in a success/data format
+      if (data.success && data.data) {
+        return DataTransformers.transformUser(data.data);
+      }
+      // Check if it's direct user data (has user fields)
+      else if (data.id || data.email || data.firstName) {
+        return DataTransformers.transformUser(data);
+      }
+    }
+    
+    throw new Error('Invalid response format from getUserById');
   }
 
   async updateUser(id: string, data: Partial<User>): Promise<User> {
@@ -58,13 +106,43 @@ class UnifiedUserAPIService implements UnifiedUserService {
       state: data.state,
     };
 
-    const response: ApiResponse<User> = await apiClient.put(`/admin/users/${id}`, updateData);
-    return response.data;
+    const response = await apiClient.patch(`/admin/users/${id}`, updateData);
+    // Extract data from Axios response
+    const responseData = response.data || response;
+    
+    // Handle different response formats
+    if (responseData && typeof responseData === 'object') {
+      // Check if it's wrapped in a success/data format
+      if (responseData.success && responseData.data) {
+        return DataTransformers.transformUser(responseData.data);
+      }
+      // Check if it's direct user data
+      else if (responseData.id || responseData.email || responseData.firstName) {
+        return DataTransformers.transformUser(responseData);
+      }
+    }
+    
+    throw new Error('Invalid response format from updateUser');
   }
 
   async createUser(userData: CreateUserRequest): Promise<User> {
-    const response: ApiResponse<User> = await apiClient.post('/admin/users', userData);
-    return response.data;
+    const response = await apiClient.post('/admin/users', userData);
+    // Extract data from Axios response
+    const data = response.data || response;
+    
+    // Handle different response formats
+    if (data && typeof data === 'object') {
+      // Check if it's wrapped in a success/data format
+      if (data.success && data.data) {
+        return DataTransformers.transformUser(data.data);
+      }
+      // Check if it's direct user data
+      else if (data.id || data.email || data.firstName) {
+        return DataTransformers.transformUser(data);
+      }
+    }
+    
+    throw new Error('Invalid response format from createUser');
   }
 
   async deleteUser(id: string): Promise<void> {
@@ -82,8 +160,40 @@ class UnifiedUserAPIService implements UnifiedUserService {
 
     const endpoint = `/users/filter${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     
-    const response: ApiResponse<PaginatedResponse<User>> = await apiClient.get(endpoint);
-    return response.data;
+    const response = await apiClient.get(endpoint);
+    // Extract data from Axios response
+    const data = response.data || response;
+    
+    // Handle different response formats
+    if (data && typeof data === 'object') {
+      // Check if it's already a paginated response
+      if (data.data && Array.isArray(data.data)) {
+        // Transform each user through DataTransformers
+        const transformedUsers = data.data.map((user: any) => DataTransformers.transformUser(user));
+        
+        return {
+          ...data,
+          data: transformedUsers
+        } as PaginatedResponse<User>;
+      }
+      // Check if it's a direct array
+      else if (Array.isArray(data)) {
+        // Transform each user through DataTransformers
+        const transformedUsers = data.map((user: any) => DataTransformers.transformUser(user));
+        
+        return {
+          data: transformedUsers,
+          pagination: {
+            page: parseInt(params?.page?.toString() || '1'),
+            limit: parseInt(params?.limit?.toString() || '1000'),
+            total: transformedUsers.length,
+            totalPages: 1
+          }
+        };
+      }
+    }
+    
+    throw new Error('Invalid response format from searchUsers');
   }
 }
 

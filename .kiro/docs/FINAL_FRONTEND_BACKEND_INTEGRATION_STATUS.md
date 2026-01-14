@@ -51,7 +51,7 @@
 - ✅ `GET /savings/transactions/all` - **WORKING** (transaction history)
 
 #### Dashboard & Analytics
-- ✅ `GET /admin/dashboard/kpi` - **WORKING** (dashboard KPIs)
+- ✅ `GET /dashboard/kpi` - **WORKING** (dashboard KPIs - NO /admin prefix)
 
 #### System Management
 - ✅ `GET /admin/branches` - **WORKING** (branch management)

@@ -5,6 +5,7 @@
 
 import apiClient from '@/lib/apiClient';
 import { API_ENDPOINTS } from '../api/config';
+import { unifiedUserService } from './unifiedUser';
 import type { BranchPerformance, DashboardParams, PaginatedResponse, Loan } from '../api/types';
 import { isSuccessResponse, isFailureResponse, extractResponseData } from '../utils/responseHelpers';
 
@@ -194,15 +195,9 @@ class BranchPerformanceAPIService implements BranchPerformanceService {
    */
   private async fetchUsers(): Promise<any[]> {
     try {
-      const response = await apiClient.get<any>('/admin/users?limit=1000');
-      
-      if (response.data && Array.isArray(response.data.data)) {
-        return response.data.data;
-      } else if (Array.isArray(response.data)) {
-        return response.data;
-      }
-      
-      return [];
+      // Use unifiedUserService which now transforms data with role detection
+      const response = await unifiedUserService.getUsers({ limit: 1000 });
+      return response.data || [];
     } catch (error) {
       console.error('Error fetching users:', error);
       return [];

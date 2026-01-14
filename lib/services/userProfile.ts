@@ -94,13 +94,29 @@ class UserProfileAPIService implements UserProfileService {
         profileData = response.data;
       } else if ((response as any).id) {
         profileData = response as unknown as AdminProfile;
+      } else if ((response as any).data && (response as any).data.id) {
+        // Handle nested data format
+        profileData = (response as any).data;
       } else {
+        // Log the actual response structure for debugging
+        console.error('❌ Invalid response format. Response structure:', {
+          hasSuccess: 'success' in (response || {}),
+          hasId: 'id' in (response || {}),
+          hasData: 'data' in (response || {}),
+          responseKeys: response ? Object.keys(response) : [],
+          responseType: typeof response,
+          response: response
+        });
         throw new Error('Invalid response format');
       }
 
       return this.mapToUserProfileData(profileData);
     } catch (error: any) {
-      if (!error?.suppressLog) {
+      // Suppress 401 errors during server-side rendering (expected when no auth token)
+      const is401 = error?.response?.status === 401 || error?.status === 401;
+      const isServerSide = typeof window === 'undefined';
+      
+      if (!error?.suppressLog && !(is401 && isServerSide)) {
         console.error('User profile fetch error:', error);
       }
       throw error;
@@ -120,7 +136,19 @@ class UserProfileAPIService implements UserProfileService {
         profileData = response.data;
       } else if ((response as any).id) {
         profileData = response as unknown as AdminProfile;
+      } else if ((response as any).data && (response as any).data.id) {
+        // Handle nested data format
+        profileData = (response as any).data;
       } else {
+        // Log the actual response structure for debugging
+        console.error('❌ Invalid response format. Response structure:', {
+          hasSuccess: 'success' in (response || {}),
+          hasId: 'id' in (response || {}),
+          hasData: 'data' in (response || {}),
+          responseKeys: response ? Object.keys(response) : [],
+          responseType: typeof response,
+          response: response
+        });
         throw new Error('Invalid response format');
       }
 

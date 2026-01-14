@@ -140,15 +140,47 @@ export default function BMReportsPage() {
         }),
       ]);
 
-      // Safely handle reports response structure
-      const reportsData = Array.isArray(reportsResponse?.data) ? reportsResponse.data : [];
-      const paginationData = reportsResponse?.pagination || {};
+      console.log('🔍 BM Reports - Raw reportsResponse:', reportsResponse);
+      console.log('🔍 BM Reports - reportsResponse.data:', reportsResponse?.data);
+      
+      // Safely handle reports response structure - PaginatedResponse has {data: [], pagination: {}}
+      const rawReportsData = Array.isArray(reportsResponse?.data) ? reportsResponse.data : [];
+      
+      console.log('🔍 BM Reports - reportsData array:', rawReportsData);
+      console.log('🔍 BM Reports - reportsData.length:', rawReportsData.length);
+      
+      // Transform API data to match expected Report interface
+      const reportsData = rawReportsData.map((report: any) => ({
+        id: report.id?.toString() || '',
+        reportId: report.title || `Report #${report.id}`,
+        creditOfficer: report.submittedBy ? `${report.submittedBy.firstName} ${report.submittedBy.lastName}` : 'Unknown',
+        creditOfficerId: report.submittedBy?.id?.toString() || '',
+        branch: report.branch || 'Unknown Branch',
+        branchId: report.branch || '',
+        email: report.submittedBy?.email || '',
+        dateSent: report.reportDate || report.submittedAt?.split('T')[0] || '',
+        timeSent: report.submittedAt?.split('T')[1]?.split('.')[0] || '',
+        reportType: (report.type === 'quarterly' || report.type === 'annual' || report.type === 'custom' ? 'monthly' : report.type) as 'daily' | 'weekly' | 'monthly',
+        status: report.status?.toLowerCase() as 'submitted' | 'pending' | 'approved' | 'declined',
+        isApproved: report.status?.toLowerCase() === 'approved',
+        loansDispursed: report.totalLoansProcessed || 0,
+        loansValueDispursed: report.totalLoansDisbursed || '0',
+        savingsCollected: report.totalSavingsProcessed || '0',
+        repaymentsCollected: parseFloat(report.totalRecollections || '0'),
+        createdAt: report.createdAt || '',
+        updatedAt: report.updatedAt || '',
+        approvedBy: report.reviewedBy ? `${report.reviewedBy.firstName} ${report.reviewedBy.lastName}` : undefined,
+        declineReason: report.declineReason || undefined,
+      }));
       
       setReports(reportsData);
-      // Handle pagination safely - backend might not return pagination object
-      const totalCount = paginationData.total || reportsData.length || 0;
+      // Handle pagination - use total from pagination object
+      const totalCount = reportsResponse?.pagination?.total || reportsData.length || 0;
+      console.log('🔍 BM Reports - totalCount:', totalCount);
       setTotalReports(totalCount);
       setReportStatistics(statisticsResponse);
+      
+      console.log('✅ BM Reports - State updated with', reportsData.length, 'reports');
 
     } catch (err) {
       console.error('Failed to fetch BM reports data:', err);

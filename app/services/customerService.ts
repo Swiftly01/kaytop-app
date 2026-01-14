@@ -1,10 +1,12 @@
 import apiClient from "@/lib/apiClient";
 import { apiBaseUrl } from "@/lib/config";
+import { unifiedUserService } from "@/lib/services/unifiedUser";
 import { AxiosError } from "axios";
 import {
   CustomerDataResponse,
   CustomerListResponse,
   CustomerSavingsResponse,
+  CustomerData,
 } from "../types/customer";
 import {
   ActiveLoanData,
@@ -44,11 +46,10 @@ export class CustomerService {
     customerId: number
   ): Promise<CustomerDataResponse> {
     try {
-      const response = await apiClient.get(
-        `${apiBaseUrl}/admin/users/${customerId}`
-      );
-      // console.log(response);
-      return { data: response.data };
+      // Use unifiedUserService which applies DataTransformers
+      const user = await unifiedUserService.getUserById(customerId.toString());
+      // Type assertion: The backend may return additional fields beyond the User type
+      return { data: user as any as CustomerData };
     } catch (error: AxiosError | unknown) {
       const err = error as AxiosError;
       console.log("Error fetching branch customer by id", err.response?.data);

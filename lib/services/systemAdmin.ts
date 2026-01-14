@@ -69,37 +69,47 @@ class SystemAdminAPIService implements SystemAdminService {
         `${API_ENDPOINTS.LOANS.DISBURSED}?page=${page}&limit=${limit}`
       );
 
-      // Handle ApiResponse format from unified client
+      // Handle various response formats
+      let dataArray: any[] = [];
+      
+      // Check if response is wrapped with success field
       if (isSuccessResponse(response)) {
-        // Check if data is already paginated
-        if (Array.isArray(response.data)) {
-          return {
-            data: response.data.map((item: any) => this.transformDisbursementRecord(item)),
-            pagination: {
-              page,
-              limit,
-              total: response.data.length,
-              totalPages: Math.ceil(response.data.length / limit)
-            }
-          };
-        } else if (response.data.data && Array.isArray(response.data.data)) {
-          // Handle nested pagination structure
-          return {
-            data: response.data.data.map((item: any) => this.transformDisbursementRecord(item)),
-            pagination: response.data.pagination || response.data.meta || {
-              page,
-              limit,
-              total: response.data.data.length,
-              totalPages: Math.ceil(response.data.data.length / limit)
-            }
-          };
+        if (Array.isArray(response.data.data)) {
+          dataArray = response.data.data;
+        } else if (Array.isArray(response.data)) {
+          dataArray = response.data;
         }
       }
+      // Check if response.data is directly an array
+      else if (Array.isArray(response.data)) {
+        dataArray = response.data;
+      }
+      // Check if it's a direct array response (not wrapped in response.data)
+      else if (Array.isArray(response)) {
+        dataArray = response;
+      }
 
-      throw new Error((response.data as any).message || 'Failed to fetch disbursements');
+      return {
+        data: dataArray.map((item: any) => this.transformDisbursementRecord(item)),
+        pagination: {
+          page,
+          limit,
+          total: dataArray.length,
+          totalPages: Math.ceil(dataArray.length / limit)
+        }
+      };
     } catch (error) {
       console.error('Disbursements fetch error:', error);
-      throw error;
+      // Return empty data instead of throwing to prevent dashboard from breaking
+      return {
+        data: [],
+        pagination: {
+          page,
+          limit,
+          total: 0,
+          totalPages: 0
+        }
+      };
     }
   }
 
@@ -109,37 +119,47 @@ class SystemAdminAPIService implements SystemAdminService {
         `${API_ENDPOINTS.LOANS.RECOLLECTIONS}?page=${page}&limit=${limit}`
       );
 
-      // Handle ApiResponse format from unified client
+      // Handle various response formats
+      let dataArray: any[] = [];
+      
+      // Check if response is wrapped with success field
       if (isSuccessResponse(response)) {
-        // Check if data is already paginated
-        if (Array.isArray(response.data)) {
-          return {
-            data: response.data.map((item: any) => this.transformRecollectionRecord(item)),
-            pagination: {
-              page,
-              limit,
-              total: response.data.length,
-              totalPages: Math.ceil(response.data.length / limit)
-            }
-          };
-        } else if (response.data.data && Array.isArray(response.data.data)) {
-          // Handle nested pagination structure
-          return {
-            data: response.data.data.map((item: any) => this.transformRecollectionRecord(item)),
-            pagination: response.data.pagination || response.data.meta || {
-              page,
-              limit,
-              total: response.data.data.length,
-              totalPages: Math.ceil(response.data.data.length / limit)
-            }
-          };
+        if (Array.isArray(response.data.data)) {
+          dataArray = response.data.data;
+        } else if (Array.isArray(response.data)) {
+          dataArray = response.data;
         }
       }
+      // Check if response.data is directly an array
+      else if (Array.isArray(response.data)) {
+        dataArray = response.data;
+      }
+      // Check if it's a direct array response (not wrapped in response.data)
+      else if (Array.isArray(response)) {
+        dataArray = response;
+      }
 
-      throw new Error((response.data as any).message || 'Failed to fetch recollections');
+      return {
+        data: dataArray.map((item: any) => this.transformRecollectionRecord(item)),
+        pagination: {
+          page,
+          limit,
+          total: dataArray.length,
+          totalPages: Math.ceil(dataArray.length / limit)
+        }
+      };
     } catch (error) {
       console.error('Recollections fetch error:', error);
-      throw error;
+      // Return empty data instead of throwing to prevent dashboard from breaking
+      return {
+        data: [],
+        pagination: {
+          page,
+          limit,
+          total: 0,
+          totalPages: 0
+        }
+      };
     }
   }
 
@@ -157,37 +177,47 @@ class SystemAdminAPIService implements SystemAdminService {
 
       console.log('🔍 getSavings - Response received:', response);
 
-      // Handle ApiResponse format from unified client
+      // Handle various response formats
+      let dataArray: any[] = [];
+      
+      // Check if response is wrapped with success field
       if (isSuccessResponse(response)) {
-        // Check if data is already paginated
-        if (Array.isArray(response.data)) {
-          return {
-            data: response.data.map((item: any) => this.transformSavingsRecord(item)),
-            pagination: {
-              page,
-              limit,
-              total: response.data.length,
-              totalPages: Math.ceil(response.data.length / limit)
-            }
-          };
-        } else if (response.data.data && Array.isArray(response.data.data)) {
-          // Handle nested pagination structure
-          return {
-            data: response.data.data.map((item: any) => this.transformSavingsRecord(item)),
-            pagination: response.data.pagination || response.data.meta || {
-              page,
-              limit,
-              total: response.data.data.length,
-              totalPages: Math.ceil(response.data.data.length / limit)
-            }
-          };
+        if (Array.isArray(response.data.data)) {
+          dataArray = response.data.data;
+        } else if (Array.isArray(response.data)) {
+          dataArray = response.data;
         }
       }
+      // Check if response.data is directly an array
+      else if (Array.isArray(response.data)) {
+        dataArray = response.data;
+      }
+      // Check if it's a direct array response (not wrapped in response.data)
+      else if (Array.isArray(response)) {
+        dataArray = response;
+      }
 
-      throw new Error((response.data as any).message || 'Failed to fetch savings');
+      return {
+        data: dataArray.map((item: any) => this.transformSavingsRecord(item)),
+        pagination: {
+          page,
+          limit,
+          total: dataArray.length,
+          totalPages: Math.ceil(dataArray.length / limit)
+        }
+      };
     } catch (error) {
       console.error('Savings fetch error:', error);
-      throw error;
+      // Return empty data instead of throwing to prevent dashboard from breaking
+      return {
+        data: [],
+        pagination: {
+          page,
+          limit,
+          total: 0,
+          totalPages: 0
+        }
+      };
     }
   }
 
@@ -197,37 +227,47 @@ class SystemAdminAPIService implements SystemAdminService {
         `${API_ENDPOINTS.LOANS.MISSED}?page=${page}&limit=${limit}`
       );
 
-      // Handle ApiResponse format from unified client
+      // Handle various response formats
+      let dataArray: any[] = [];
+      
+      // Check if response is wrapped with success field
       if (isSuccessResponse(response)) {
-        // Check if data is already paginated
-        if (Array.isArray(response.data)) {
-          return {
-            data: response.data.map((item: any) => this.transformMissedPaymentRecord(item)),
-            pagination: {
-              page,
-              limit,
-              total: response.data.length,
-              totalPages: Math.ceil(response.data.length / limit)
-            }
-          };
-        } else if (response.data.data && Array.isArray(response.data.data)) {
-          // Handle nested pagination structure
-          return {
-            data: response.data.data.map((item: any) => this.transformMissedPaymentRecord(item)),
-            pagination: response.data.pagination || response.data.meta || {
-              page,
-              limit,
-              total: response.data.data.length,
-              totalPages: Math.ceil(response.data.data.length / limit)
-            }
-          };
+        if (Array.isArray(response.data.data)) {
+          dataArray = response.data.data;
+        } else if (Array.isArray(response.data)) {
+          dataArray = response.data;
         }
       }
+      // Check if response.data is directly an array
+      else if (Array.isArray(response.data)) {
+        dataArray = response.data;
+      }
+      // Check if it's a direct array response (not wrapped in response.data)
+      else if (Array.isArray(response)) {
+        dataArray = response;
+      }
 
-      throw new Error((response.data as any).message || 'Failed to fetch missed payments');
+      return {
+        data: dataArray.map((item: any) => this.transformMissedPaymentRecord(item)),
+        pagination: {
+          page,
+          limit,
+          total: dataArray.length,
+          totalPages: Math.ceil(dataArray.length / limit)
+        }
+      };
     } catch (error) {
       console.error('Missed payments fetch error:', error);
-      throw error;
+      // Return empty data instead of throwing to prevent dashboard from breaking
+      return {
+        data: [],
+        pagination: {
+          page,
+          limit,
+          total: 0,
+          totalPages: 0
+        }
+      };
     }
   }
 

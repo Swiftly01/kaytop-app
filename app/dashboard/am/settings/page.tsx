@@ -49,7 +49,9 @@ export default function AMSettingsPage() {
     const fetchProfile = async () => {
       try {
         setIsPageLoading(true);
+        console.log('🔍 AM Settings - Fetching user profile...');
         const data = await userProfileService.getUserProfile();
+        console.log('📦 AM Settings - User profile data:', data);
         setUserProfile(data);
 
         // Initialize form fields
@@ -57,8 +59,15 @@ export default function AMSettingsPage() {
         setLastName(data.lastName || '');
         setMobileNumber(data.mobileNumber || '');
         setEmail(data.email || '');
+        
+        console.log('✅ AM Settings - Form initialized:', {
+          firstName: data.firstName,
+          lastName: data.lastName,
+          mobileNumber: data.mobileNumber,
+          email: data.email
+        });
       } catch (err) {
-        console.error('Failed to fetch profile:', err);
+        console.error('❌ AM Settings - Failed to fetch profile:', err);
         error('Failed to load profile information');
       } finally {
         setIsPageLoading(false);
