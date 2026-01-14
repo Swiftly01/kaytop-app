@@ -5,7 +5,7 @@ import Link from "next/link";
 import Button from "@/app/_components/ui/Button";
 import RecordRepaymentModal from "./RecordRepaymentModal";
 import AddSavingsModal from "./AddSavingsModal";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { CustomerService } from "@/app/services/customerService";
 import { useBranchCustomerLoan } from "@/app/dashboard/bm/queries/loan/useBranchCustomerLoan";
 import { useBranchCustomerById } from "@/app/dashboard/bm/queries/customers/useBranchCustomerById";
@@ -21,7 +21,7 @@ import ProfileSummary from "@/app/_components/ui/ProfileSummary";
 import BranchCustomerSavingsTable from "@/app/_components/ui/table/BranchCustomerSavingsTable";
 import PaymentScheduleTable from "@/app/_components/ui/table/PaymentScheduleTable";
 import { Items } from "@/app/types/loan";
-import { X } from "lucide-react";
+import { ArrowLeft, X } from "lucide-react";
 
 
 
@@ -237,6 +237,7 @@ export function PaymentScheduleModal({
 
 export default function DashboardPage() {
   const { customerId } = useParams();
+  const router = useRouter();
 const id = Number(customerId);
   /* =======================
      UI STATE
@@ -367,6 +368,15 @@ function handleViewSchedule() {
     <div className="min-h-screen bg-slate-50">
 
       <main className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        {/* Back Navigation */}
+        <button
+          onClick={() => router.push("/dashboard/agent/customer")}
+          className="flex items-center gap-2 text-sm text-secondary hover:text-foreground mb-3 cursor-pointer"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to Customers</span>
+        </button>
+
         <div className="mb-6">
           <h1 className="text-2xl font-semibold mb-3">Customer Details</h1>
         </div>
@@ -458,9 +468,6 @@ function handleViewSchedule() {
     handlePageChange(page, PaginationKey.payment_schedule_page)
   }
 />
-
-
-
 
 
        <RecordRepaymentModal

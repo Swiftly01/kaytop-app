@@ -8,6 +8,9 @@ const roleDashboardRoutes: Record<string, string> = {
   CREDIT_OFFICER: "/dashboard/agent",
 };
 
+export const getDashboardRouteByRole = (role?: string) =>
+  role ? roleDashboardRoutes[role] ?? "/" : "/";
+
 export async function proxy(request: NextRequest) {
   const token = request.cookies.get("token")?.value;
   const role = request.cookies.get("role")?.value;
