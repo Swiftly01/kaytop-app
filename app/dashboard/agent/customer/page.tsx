@@ -24,7 +24,7 @@ export default function CustomersPage() {
   const { handlePageChange } = usePageChange();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-6">
       {/* Header */}
      
       <CustomerHeader data={data} isLoading={isLoading} />

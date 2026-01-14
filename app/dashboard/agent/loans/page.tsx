@@ -66,14 +66,14 @@ const [selectedLoanId, setSelectedLoanId] = useState<number | null>(null);
 
 
   return (
-    <div className=" space-y-6">
+    <div className=" space-y-6 px-6">
       {/* Header */}
       <CustomerHeader title="Loans" data={data} isLoading={isLoading} />
 
        {/* Stats */}
             <CustomerMetric
               item={metricData}
-              cols={3}
+              cols={4}
               isLoading={isLoading}
               error={error}
             />
