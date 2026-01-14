@@ -55,7 +55,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.1.5",
-    "@testing-library/react": "^15.0.0",
+    "@testing-library/react": "^16.0.0",
     "@types/commander": "^2.12.2",
     "@types/jest": "^29.5.8",
     "@types/js-cookie": "^3.0.6",
