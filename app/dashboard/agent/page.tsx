@@ -17,6 +17,10 @@ import CreateLoanModal from "./loans/CreateLoanModal";
 import { CustomerHeader } from "@/app/_components/ui/CustomerHeader";
 import { useDashboardQuery } from "../bm/queries/kpi/useDashboardQuery";
 import { PenLine, UserRoundPlus } from "lucide-react";
+import { ActivityChart } from "./dashboard/ActivityChart";
+import { KpiCards } from "./dashboard/KpiCards";
+import { UpcomingPayments, UpcomingPaymentUI } from "./dashboard/UpcomingPayments";
+import { useLoanRecollections } from "./queries/useLoanRecollections";
 
 type Payment = {
   name: string;
@@ -25,28 +29,7 @@ type Payment = {
   avatar?: string;
 };
 
-const barData = [
-  { name: "Jan", a: 120, b: 60, c: 40 },
-  { name: "Feb", a: 140, b: 80, c: 50 },
-  { name: "Mar", a: 160, b: 70, c: 60 },
-  { name: "Apr", a: 170, b: 85, c: 55 },
-  { name: "May", a: 180, b: 95, c: 70 },
-  { name: "Jun", a: 190, b: 110, c: 80 },
-  { name: "Jul", a: 200, b: 120, c: 90 },
-  { name: "Aug", a: 210, b: 130, c: 95 },
-  { name: "Sep", a: 220, b: 125, c: 100 },
-  { name: "Oct", a: 230, b: 140, c: 110 },
-  { name: "Nov", a: 240, b: 150, c: 120 },
-  { name: "Dec", a: 250, b: 160, c: 130 },
-];
 
-const donutData = [
-  { name: "Active loans", value: 60 },
-  { name: "Missed payments", value: 25 },
-  { name: "New users", value: 15 },
-];
-
-const DONUT_COLORS = ["#6B21A8", "#C4B5FD", "#EDE9FE"];
 
 const payments: Payment[] = [
   {
@@ -72,125 +55,62 @@ const payments: Payment[] = [
 export default function AgentDashboardPage() {
    const { start } = useCustomerFlow();
    const [isLoanModalOpen, setLoanModalOpen] = useState(false);
-    const { isLoading, error, data } = useDashboardQuery();
+   const {
+    data: dashboardData,
+    isLoading: isDashboardLoading,
+    error: dashboardError,
+  } = useDashboardQuery();
+
+  const {
+    data: recollectionsResponse,
+    isLoading: isRecollectionsLoading,
+  } = useLoanRecollections(1, 5);
+
+const rawData = Array.isArray(recollectionsResponse)
+  ? recollectionsResponse
+  : recollectionsResponse?.data;
+
+const recollections: UpcomingPaymentUI[] =
+  rawData?.map((item) => ({
+    name: item.name,
+    amount: `₦${Number(item.amountToBePaid).toLocaleString()}`,
+    due: new Date(item.dateToBePaid).toLocaleDateString(),
+    avatar: "/avatar-placeholder.png",
+  })) ?? [];
+
+
+
+
+  /* ---------------------- ERROR STATE ---------------------- */
+
+  if (dashboardError) {
+    return (
+      <div className="p-6 text-red-600">
+        Failed to load dashboard data
+      </div>
+    );
+  }
    
+
+
+
 
   return (
     <div className="space-y-6 pb-12">
       {/* Header row: Title + controls */}
-       <CustomerHeader title="Dashboard" data={data} isLoading={isLoading} />
+       <CustomerHeader title="Dashboard" data={dashboardData} isLoading={isDashboardLoading} />
 
 
       {/* Activity area: Bar chart + donut on right */}
-      <section className="bg-white rounded-2xl p-6 shadow-sm border">
-        <h2 className="text-slate-800 font-medium mb-4">Activity</h2>
-        <hr  className="pb-6"/>
-
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* Bar chart container */}
-          <div className="flex-1 min-h-60">
-            <div className="h-[260px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={barData} margin={{ top: 10, right: 10, left: -16, bottom: 10 }}>
-                  <XAxis dataKey="name" tickLine={false} axisLine={false} />
-                  <YAxis tickLine={false} axisLine={false} />
-                  <Tooltip />
-                  {/* stacked bars with purple shades */}
-                  <Bar dataKey="c" stackId="a" fill="#C4B5FD" radius={[6, 6, 0, 0]} />
-                  <Bar dataKey="b" stackId="a" fill="#8B5CF6" radius={[6, 6, 0, 0]} />
-                  <Bar dataKey="a" stackId="a" fill="#5B21B6" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Donut chart */}
-          <div className="w-full lg:w-64 shrink-0 bg-white ">
-            <div className="h-[260px] flex items-center justify-center">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={donutData}
-                    innerRadius="70%"
-                    outerRadius="90%"
-                    dataKey="value"
-                    startAngle={90}
-                    endAngle={-270}
-                    paddingAngle={2}
-                    cornerRadius={8}
-                  >
-                    {donutData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={DONUT_COLORS[index % DONUT_COLORS.length]} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-           <div className="px-3 pb-3">
-              {/* legend */}
-              <ul className="space-y-2">
-                <li className="flex items-center gap-2 text-sm text-slate-600">
-                  <span className="w-3 h-3 rounded-full bg-[#5B21B6]" /> Active loans
-                </li>
-                <li className="flex items-center gap-2 text-sm text-slate-600">
-                  <span className="w-3 h-3 rounded-full bg-[#C4B5FD]" /> Missed payments
-                </li>
-                <li className="flex items-center gap-2 text-sm text-slate-600">
-                  <span className="w-3 h-3 rounded-full bg-[#EDE9FE]" /> New users
-                </li>
-              </ul>
-            </div>
-        </div>
-      </section>
+       <ActivityChart data={dashboardData} isLoading={isDashboardLoading} />
+      
 
       {/* Stat cards + Upcoming payments */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
         {/* Left & center: 3 cards (spans 2 columns on lg) */}
-        <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {/* Purple card */}
-          <div className="bg-linear-to-br from-[#5B21B6] to-[#7C3AED] text-white rounded-xl p-4 shadow-md flex flex-col justify-between">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-md bg-white/20 flex items-center justify-center">📦</div>
-              <div>
-                <p className="text-sm opacity-90">Today's Collections</p>
-                <p className="text-xl font-semibold mt-1">₦64,240.60</p>
-              </div>
-            </div>
-            <div className="mt-4 h-2 bg-white/20 rounded-full overflow-hidden">
-              <div className="w-3/4 h-full bg-white rounded-full" />
-            </div>
-          </div>
-
-          {/* Green card */}
-          <div className="bg-linear-to-br from-[#059669] to-[#10B981] text-white rounded-xl p-4 shadow-md flex flex-col justify-between">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-md bg-white/20 flex items-center justify-center">💼</div>
-              <div>
-                <p className="text-sm opacity-90">Active Loans</p>
-                <p className="text-xl font-semibold mt-1">12</p>
-              </div>
-            </div>
-            <div className="mt-4 h-2 bg-white/20 rounded-full overflow-hidden">
-              <div className="w-2/3 h-full bg-white rounded-full" />
-            </div>
-          </div>
-
-          {/* Blue card */}
-          <div className="bg-linear-to-br from-[#60A5FA] to-[#BFDBFE] text-slate-900 rounded-xl p-4 shadow-md flex flex-col justify-between">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-md bg-white/40 flex items-center justify-center">👥</div>
-              <div>
-                <p className="text-sm opacity-90">Total Customers</p>
-                <p className="text-xl font-semibold mt-1">24</p>
-              </div>
-            </div>
-            <div className="mt-4 h-2 bg-white/40 rounded-full overflow-hidden">
-              <div className="w-1/3 h-full bg-white rounded-full" />
-            </div>
-          </div>
-
+        <div className="lg:col-span-2 space-y-4">
+          <KpiCards data={dashboardData} isLoading={isDashboardLoading} />
+          
           {/* Quick actions row under cards (full width of the 3 cards when on small) */}
           <div className="sm:col-span-3 flex flex-col sm:flex-row gap-4 mt-2">
             <button onClick={start} className="flex-1 bg-white p-4 rounded-xl shadow border text-left cursor-pointer">
@@ -220,35 +140,11 @@ export default function AgentDashboardPage() {
         </div>
 
         {/* Right column: Upcoming Payments */}
-        <aside className="bg-white rounded-2xl p-5 shadow-sm border">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium">Upcoming Payments</h3>
-            <button className="text-sm text-slate-500">•••</button>
-          </div>
-
-          <div className="space-y-4">
-            {payments.map((p, i) => (
-              <div key={i} className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <img
-                    src={p.avatar ?? "/avatar-placeholder.png"}
-                    alt={p.name}
-                    className="h-10 w-10 rounded-full object-cover"
-                  />
-                  <div>
-                    <p className="font-semibold text-slate-800">{p.name}</p>
-                    <p className="text-sm text-slate-500">Due {p.due}</p>
-                  </div>
-                </div>
-                <div className="text-green-600 font-semibold">{p.amount}</div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-4 text-sm text-indigo-600 hover:underline cursor-pointer">
-            Show more
-          </div>
-        </aside>
+        <UpcomingPayments
+          payments={recollections}
+          isLoading={isRecollectionsLoading}
+        />;
+        
       </div>
 
             {/*  Loan Modal */}
