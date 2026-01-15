@@ -11,17 +11,17 @@ import { handleAxiosError } from "@/lib/errorHandler";
 
 type OtpPin = string;
 
-export function useUserOtpVerification(purpose: Purpose) {
+export function useUserOtpVerification(){
+    const searchParams = useSearchParams();
   const [email] = useLocalStorageState<string | null>(null, "email");
 
   // Detect purpose from query param or default to email verification
-  // const queryPurpose = searchParams?.get("purpose") as Purpose | null;
-  // const [purpose] = useState<Purpose>(
-  //   queryPurpose === Purpose.Password_reset
-  //     ? Purpose.Password_reset
-  //     : Purpose.Email_verification
-  // );
-  
+  const queryPurpose = searchParams?.get("purpose") as Purpose | null;
+  const [purpose] = useState<Purpose>(
+    queryPurpose === Purpose.Password_reset
+      ? Purpose.Password_reset
+      : Purpose.Email_verification
+  );
 
 
   const [countDown, setCountDown] = useState<number>(OTP_DURATION);
