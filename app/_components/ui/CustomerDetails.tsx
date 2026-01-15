@@ -35,8 +35,8 @@ export default function CustomerDetails() {
     data: savings,
   } = useBranchCustomerSavings();
 
-  const profileSummary = data?.data
-    ? getBranchCustomerProfileSummary(data.data)
+  const profileSummary = data
+    ? getBranchCustomerProfileSummary(data)
     : [];
 
   const { handlePageChange, setContextParam } = usePageChange();
