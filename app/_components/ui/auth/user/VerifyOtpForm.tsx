@@ -8,6 +8,7 @@ import { Purpose } from "@/app/types/auth";
 
 interface VerifyOtpFormProps {
   purpose: Purpose.Password_reset | Purpose.Email_verification;
+  // purpose: Purpose;
 }
 
 export default function VerifyOtpForm({ purpose }: VerifyOtpFormProps) {
