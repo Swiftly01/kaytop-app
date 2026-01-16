@@ -34,6 +34,7 @@ export interface CustomerData {
 }
 
 export interface CustomerDataResponse {
+  id: number;
   data: CustomerData;
 }
 

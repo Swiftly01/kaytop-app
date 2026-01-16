@@ -1,7 +1,7 @@
 "use client";
 import Button from "@/app/_components/ui/Button";
 import { Checkbox } from "@/app/_components/ui/Checkbox";
-import Input from "@/app/_components/ui/Input";
+// import Input from "@/app/_components/ui/Input";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
@@ -16,6 +16,7 @@ import { ROUTES } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import Spinner from "../Spinner";
 import toast from "react-hot-toast";
+import { Input } from "@/components/ui/input";
 
 const schema = z.object({
   email: z.email("Invalid email format"),
@@ -50,6 +51,7 @@ export default function LoginForm() {
 
       const accessToken = response.access_token;
       const role = response.role;
+      console.log("role",role);
       auth(accessToken, role);
       setCookie(accessToken, role);
       toast.success("You have logged in successfuly");

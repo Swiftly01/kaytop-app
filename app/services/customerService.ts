@@ -2,6 +2,7 @@ import apiClient from "@/lib/apiClient";
 import { apiBaseUrl } from "@/lib/config";
 import { AxiosError } from "axios";
 import {
+  CustomerData,
   CustomerDataResponse,
   CustomerListResponse,
   CustomerSavingsResponse,
@@ -42,13 +43,14 @@ export class CustomerService {
 
   static async getBranchCustomerById(
     customerId: number
-  ): Promise<CustomerDataResponse> {
+  ): Promise<CustomerData> {
     try {
-      const response = await apiClient.get(
+      const response = await apiClient.get<CustomerData>(
         `${apiBaseUrl}/admin/users/${customerId}`
       );
       // console.log(response);
-      return { data: response.data };
+      // return { data: response.data };
+      return  response.data;
     } catch (error: AxiosError | unknown) {
       const err = error as AxiosError;
       console.log("Error fetching branch customer by id", err.response?.data);

@@ -1,7 +1,7 @@
 "use client";
 import React, { JSX, useEffect, useState } from "react";
 import Button from "../Button";
-import Input from "../Input";
+// import Input from "../Input";
 import { useForm } from "react-hook-form";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,6 +16,7 @@ import Link from "next/link";
 import { ROUTES } from "@/lib/utils";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
+import { Input } from "@/components/ui/input";
 
 const schema = z.object({
   email: z.email(),

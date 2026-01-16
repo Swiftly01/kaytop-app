@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import Button from "../Button";
-import Input from "../Input";
+// import Input from "../Input";
 import { ROUTES } from "@/lib/utils";
 import z, { email } from "zod";
 import { useForm } from "react-hook-form";
@@ -15,6 +15,7 @@ import Error from "../Error";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { useLocalStorageState } from "@/app/hooks/useLocalStorage";
+import { Input } from "@/components/ui/input";
 
 const schema = z.object({
   email: z.email("Invalid email format"),

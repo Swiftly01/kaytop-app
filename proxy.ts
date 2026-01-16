@@ -4,8 +4,12 @@ import { ROUTES } from "./lib/utils";
 const roleDashboardRoutes: Record<string, string> = {
   BRANCH_MANAGER: ROUTES.Bm.DASHBOARD,
   ADMIN: "/dashboard/admin",
-  USER: "/dashboard/user",
+  USER: "/dashboard/customer",
+  CREDIT_OFFICER: "/dashboard/agent",
 };
+
+export const getDashboardRouteByRole = (role?: string) =>
+  role ? roleDashboardRoutes[role] ?? "/" : "/";
 
 export async function proxy(request: NextRequest) {
   const token = request.cookies.get("token")?.value;

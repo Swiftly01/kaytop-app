@@ -18,6 +18,7 @@ export interface UpdateProfileData {
   lastName: string;
   mobileNumber: string;
   email: string;
+  dob: string;
 }
 
 export interface AvatarFormData {
@@ -27,5 +28,6 @@ export interface AvatarFormData {
 export interface UploadAvatarResponse {
   message: string;
   url: string;
+  profilePicture: string;
 }
 

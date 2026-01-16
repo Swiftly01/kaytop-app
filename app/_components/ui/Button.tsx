@@ -7,13 +7,15 @@ type ButtonProps = {
   type?: "button" | "submit" | "reset" ;
   fullWidth?: boolean;
   className?: string;
+  onClick?: () => void;
+  loading?: boolean;
   disabled?: boolean;
 };
 
 const variants = {
   primary: "bg-primary-300 text-primary hover:text-white font-medium",
+  secondary: "bg-brand-secondary text-brand-purple hover:text-white font-medium",
   tertiary: "bg-brand-purple text-white hover:text-white font-medium",
-  secondary: "text-brand-purple hover:bg-brand-purple hover:text-white",
   danger: "bg-red-500 text-white hover:bg-red-600",
 };
 
@@ -30,13 +32,17 @@ export default function Button({
   type = "submit",
   fullWidth = false,
   className = "",
+  onClick,
+  loading = false,
   disabled = false,
+  // type = "button", // default type
   ...props
 }: ButtonProps) {
   const isDisabled = disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer";
   return (
     <button
       {...props}
+      onClick={onClick}
       className={`relative  rounded-md 
                        overflow-hidden transition-all duration-300
                        before:content-[''] before:absolute before:top-0 before:left-0

@@ -1,5 +1,5 @@
 import Button from "@/app/_components/ui/Button";
-import Input  from "@/app/_components/ui/Input";
+import { Input } from "@/components/ui/input";
 import React, { JSX } from "react";
 
 export default function page(): JSX.Element {

@@ -36,6 +36,14 @@ export const ROUTES: Routes = {
     REPORT: "/dashboard/bm/report",
     SETTING: "/dashboard/bm/setting",
   },
+  User: {
+    Auth: {
+      LOGIN: "/auth/user/login",
+      VERIFY_OTP: "/auth/user/verify-otp",
+      FORGOT_PASSWORD: "/auth/user/forgot-password",
+      RESET_PASSWORD: "/auth/user/reset-password",
+    },
+  }
 };
 
 export function formatDate(date?: string | Date | null) {
@@ -76,6 +84,7 @@ interface DashboardReportMetrics {
 
 interface BranchLoanMetrics extends DashboardMetrics {
   totalLoans: number;
+  overdueLoans: number;
 }
 
 interface BranchLoanMetricsInput {
@@ -230,6 +239,28 @@ export function getBranchLoanMetrics({
   ];
 }
 
+export function getUserBranchLoanMetrics({
+  data,
+}: BranchLoanMetricsInput): MetricProps[] {
+  return [
+    {
+      title: "Total Loans",
+      value: data?.totalLoans.toString(),
+      border: false,
+    },
+    {
+      title: "Active Loans",
+      value: data?.activeLoans.toString(),
+      border: true,
+    },
+    {
+      title: "Missed Loans",
+      value: data?.overdueLoans.toString(),
+      border: true,
+    }
+  ];
+}
+
 export function getCustomerMetrics({
   data,
 }: DashboardMetricsInput): MetricProps[] {
@@ -304,6 +335,15 @@ export function mapLoanDetailsData(
   ];
 }
 
+export function mapUserLoanDetailsData(
+  data: LoanDetailsApiResponse
+): SummaryProps[] {
+  return [
+    { label: "Loan Id", value: data.loanDetails.id },
+    { label: "Borrower", value: (data.customerDetails.firstName + " " + data.customerDetails.lastName) },
+  ];
+}
+
 export function mapOtherLoanDetailsData(
   data: LoanDetailsApiResponse
 ): SummaryProps[] {
@@ -320,8 +360,8 @@ export function mapLoanIntrestData(
   data: LoanDetailsApiResponse
 ): SummaryProps[] {
   return [
-    { label: "Intrest Rate", value: data.loanDetails.interestRate },
-    { label: "Loan status", value: data.loanDetails.status },
+    { label: "Intrest Rate", value: `${data.loanDetails.interestRate}%` },
+     { label: "Loan status", value:  data.loanDetails.status.toUpperCase() },
   ];
 }
 

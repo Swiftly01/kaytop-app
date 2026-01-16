@@ -7,12 +7,13 @@ export interface MetricProps {
   change?: string;
   changeColor?: "green" | "red";
   border: boolean;
+  sparkline?: number[]; 
 }
 
 export interface SummaryProps {
   label: string;
-  value?: string | number;
-  [key: string]: string | number | undefined;
+  value?: string | number | React.ReactNode;
+  [key: string]: string | number | React.ReactNode | undefined;
 }
 
 export interface ReportStats {
@@ -199,6 +200,7 @@ export enum PaginationKey {
   report_page = "ReportPage",
   report_type = "reportType",
   report_id = "reportId",
+  customer_savings_transactions_page = "customerSavingsTransactionsPage",
 }
 
 export interface TableStateProps {

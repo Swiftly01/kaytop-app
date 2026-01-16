@@ -25,8 +25,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="">
-      <body className=" bg-neutral-100">
+    <div lang="en" className="">
+      <div className=" bg-neutral-100">
         <Navbar />
         <div className="pt-16 drawer lg:drawer-open">
           <input
@@ -38,7 +38,7 @@ export default function RootLayout({
           <DashboardWrapper>{children}</DashboardWrapper>
           <Toaster position="top-right" />
         </div>
-      </body>
-    </html>
+      </div>
+    </div>
   );
 }

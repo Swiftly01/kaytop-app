@@ -13,6 +13,14 @@ export interface Routes {
     REPORT: string;
     SETTING: string;
   };
+  User: {
+    Auth: {
+        LOGIN: string;
+    FORGOT_PASSWORD: string;
+    VERIFY_OTP: string;
+    RESET_PASSWORD: string;
+    },
+  };
 }
 
 export interface MenuItem {

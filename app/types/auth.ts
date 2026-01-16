@@ -19,7 +19,8 @@ export enum Purpose {
 export interface OtpData {
   email: string;
   code?: string;
-  purpose: Purpose.Password_reset;
+  // purpose: Purpose.Password_reset;
+  purpose: Purpose;
 }
 
 export interface VerifyOtpResponse {
@@ -47,6 +48,7 @@ export interface ApiErrorResponse {
 export interface LoginResponse {
   access_token: string;
   role: string;
+  isVerified: boolean;
 }
 
 //Generic response type
@@ -78,3 +80,19 @@ export interface NestValidationErrorResponse {
   message: string[];
   error: string;
 }
+
+export interface SignupData {
+  firstName: string;
+  lastName: string;
+  dob?: string;
+  email: string;
+  mobileNumber: string;
+  password: string;
+  branch: string;
+  state: string;
+}
+
+export interface SignupResponse {
+  message: string;
+}
+

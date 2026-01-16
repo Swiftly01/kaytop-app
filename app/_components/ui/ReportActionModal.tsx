@@ -21,8 +21,9 @@ import { ACTION_CONFIG } from "@/lib/modalActionConfig";
 import React from "react";
 import Button from "./Button";
 import Error from "./Error";
-import Input from "./Input";
+// import Input from "./Input";
 import Spinner from "./Spinner";
+import { Input } from "@/components/ui/input";
 
 type ReportAction = "approve" | "decline";
 
@@ -68,7 +69,7 @@ export function ReportActionModal({
   return (
     <Dialog
       open={open}
-      onOpenChange={(open) => {
+      onOpenChange={(open:any) => {
         setOpen(open);
         if (!open) reset();
       }}
@@ -88,7 +89,7 @@ export function ReportActionModal({
 
       <DialogContent
         className="sm:max-w-[425px]"
-        onInteractOutside={(e) => isSubmitting && e.preventDefault()}
+        onInteractOutside={(e:any) => isSubmitting && e.preventDefault()}
       >
         <form onSubmit={handleSubmit((data) => reportAction(data))}>
           <DialogHeader>
