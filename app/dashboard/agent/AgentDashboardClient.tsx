@@ -1,17 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  PieChart,
-  Pie,
-  Cell,
-} from "recharts";
 import { useCustomerFlow } from "./AddCustomerFlow/AddCustomerFlowProvider";
 import CreateLoanModal from "./loans/CreateLoanModal";
 import { CustomerHeader } from "@/app/_components/ui/CustomerHeader";
@@ -68,7 +57,7 @@ const recollections: UpcomingPaymentUI[] =
 
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-6 pb-12 px-6">
       {/* Header row: Title + controls */}
        <CustomerHeader title="Dashboard" data={dashboardData} isLoading={isDashboardLoading} />
 
@@ -84,8 +73,9 @@ const recollections: UpcomingPaymentUI[] =
           <KpiCards data={dashboardData} isLoading={isDashboardLoading} />
           
           {/* Quick actions row under cards (full width of the 3 cards when on small) */}
-          <div className="sm:col-span-3 flex flex-col sm:flex-row gap-4 mt-2">
-            <button onClick={start} className="flex-1 bg-white p-4 rounded-xl shadow border text-left cursor-pointer">
+          <p className="text-slate-900 font-semibold text-lg">Quick Actions</p>
+          <div className="sm:col-span-3 flex flex-col sm:flex-row gap-4 mt-1">
+            <button onClick={start} className="flex-1 bg-white px-4 py-5 rounded-xl shadow border text-left cursor-pointer">
               <div className="flex items-center gap-4">
               <div className="rounded-full w-10 h-10 bg-[#f4ebff] flex items-center justify-center">
                 <UserRoundPlus className="text-[#7f56d9]" />
@@ -97,7 +87,7 @@ const recollections: UpcomingPaymentUI[] =
               </div>
             </button>
 
-            <button  onClick={() => setLoanModalOpen(true)} className="flex-1 cursor-pointer bg-white p-4 rounded-xl shadow border text-left">
+            <button  onClick={() => setLoanModalOpen(true)} className="flex-1 cursor-pointer bg-white px-4 py-5 rounded-xl shadow border text-left">
               <div className="flex items-center gap-4">
               <div className="rounded-full w-10 h-10 bg-[#f4ebff] flex items-center justify-center">
                   <PenLine className="text-[#7f56d9]" />
@@ -115,7 +105,7 @@ const recollections: UpcomingPaymentUI[] =
         <UpcomingPayments
           payments={recollections}
           isLoading={isRecollectionsLoading}
-        />;
+        />
         
       </div>
 

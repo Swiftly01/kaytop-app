@@ -97,6 +97,9 @@ export function ActivityChart({ data, isLoading }: ActivityChartProps) {
           <div className="h-[260px] flex items-center justify-center">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
+                <Tooltip
+      formatter={(value: number, name: string) => [`${value}`, name]}
+    />
                 <Pie
                   data={donutData}
                   innerRadius="70%"

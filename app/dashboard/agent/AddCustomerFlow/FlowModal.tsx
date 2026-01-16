@@ -14,7 +14,7 @@ export default function FlowModal({ children }: { children: React.ReactNode }) {
         
         {/* Close button */}
         <button
-          className="absolute right-4 top-4 text-slate-600 hover:text-slate-900"
+          className="absolute right-4 top-4 text-slate-600 hover:text-slate-900 cursor-pointer"
           onClick={close}
         >
           <X className="w-5 h-5" />

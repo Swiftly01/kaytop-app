@@ -82,7 +82,7 @@ export default function AddSavingsModal({
       <div className="bg-card w-full max-w-md rounded-xl shadow-lg relative p-6 animate-in fade-in slide-in-from-bottom-3">
         {/* Close button */}
         <button
-          className="absolute right-4 top-4 text-muted-foreground hover:text-foreground transition-colors"
+          className="absolute right-4 top-4 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
           onClick={handleClose}
         >
           <X className="w-5 h-5" />
