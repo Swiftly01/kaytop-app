@@ -15,6 +15,13 @@ export interface SummaryProps {
   [key: string]: string | number | undefined;
 }
 
+export interface ReportStats {
+  totalApproved: number;
+  totalDeclined: number;
+  totalPending: number;
+  totalReports: number;
+}
+
 export interface DashboardKpi {
   branch: string;
   timeFilter: string;
@@ -61,15 +68,7 @@ export interface DashboardKpi {
   // Rankings
   topPerformers: unknown[];
 
-  // Reports (newly added for KPI integration)
-  totalReports: number;
-  pendingReports: number;
-  approvedReports: number;
-  missedReports: number;
-  totalReportsGrowth: number;
-  pendingReportsGrowth: number;
-  approvedReportsGrowth: number;
-  missedReportsGrowth: number;
+  reportStats: ReportStats;
 }
 
 type Status = "active" | "scheduled";
@@ -197,9 +196,9 @@ export enum PaginationKey {
   loan_page_repayment = "loanPageRepayment",
   active_loan_page = "activeLoanPage",
   completed_loan_page = "completeLoanPage",
-  report_page = "reportPage",
+  report_page = "ReportPage",
+  report_type = "reportType",
   report_id = "reportId",
-  report_type = "reportType"
 }
 
 export interface TableStateProps {

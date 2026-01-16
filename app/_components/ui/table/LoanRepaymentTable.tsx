@@ -67,7 +67,7 @@ export default function LoanRepaymentTable({
       </table>
       {meta && onPageChange && (
         <Pagination
-          currentPage={meta.page}
+          page={meta.page}
           totalPages={meta.totalPages}
           onPageChange={onPageChange}
         />

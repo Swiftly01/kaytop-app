@@ -3,13 +3,8 @@ import { ROUTES } from "./lib/utils";
 
 const roleDashboardRoutes: Record<string, string> = {
   BRANCH_MANAGER: ROUTES.Bm.DASHBOARD,
-  ADMIN: "/dashboard/system-admin",
-  SYSTEM_ADMIN: "/dashboard/system-admin",
-  ACCOUNT_MANAGER: "/dashboard/am",
-  AM: "/dashboard/am",
-  CREDIT_OFFICER: "/dashboard/co",
-  CO: "/dashboard/co",
-  USER: "/dashboard/customer",
+  ADMIN: "/dashboard/admin",
+  USER: "/dashboard/user",
 };
 
 export async function proxy(request: NextRequest) {
