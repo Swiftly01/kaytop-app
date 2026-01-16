@@ -30,7 +30,7 @@ import ReportsTable from "./table/ReportsTable";
 export default function ReportClient() {
   const [reportType, setReportType] = useState<ReportType | undefined>();
   const { isLoading, error, data } = useDashboardQuery();
-  const metricData = data ? getReportMetrics({ data }) : [];
+  const metricData = data ? getReportMetrics(data) : [];
 
   const branch = data?.branch;
 

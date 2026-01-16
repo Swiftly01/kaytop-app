@@ -15,8 +15,8 @@ interface QueryProps {
 export function useReport({ branch }: QueryProps) {
   const searchParams = useSearchParams();
   const rawStatus = searchParams.get("status");
-  const status =
-    rawStatus && isReportStatus(rawStatus) ? rawStatus : ReportStatus.PENDING;
+  const status: ReportStatus | undefined =
+    rawStatus && isReportStatus(rawStatus) ? (rawStatus as ReportStatus) : ReportStatus.PENDING;
 
   const { page, limit } = useUrlPagination(PaginationKey.report_page);
   const type = useUrlParam<ReportType>(PaginationKey.report_type, (value) =>

@@ -71,7 +71,7 @@ export class ReportService {
   }
 
   static async approveReport({ data, reportId }: ApproveReportProps) {
-    const response = await apiClient.put(
+    const response = await apiClient.post(
       `${apiBaseUrl}/reports/${reportId}/approve`,
       data
     );
@@ -81,7 +81,7 @@ export class ReportService {
   }
 
   static async declineReport({ data, reportId }: ApproveReportProps) {
-    const response = await apiClient.put(
+    const response = await apiClient.post(
       `${apiBaseUrl}/reports/${reportId}/decline`,
       { declineReason: data.remarks }
     );

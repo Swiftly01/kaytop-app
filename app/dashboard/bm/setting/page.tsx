@@ -36,7 +36,7 @@ export default async function page(): Promise<JSX.Element> {
                 Account Information
               </h1>
 
-              <SettingsForm data={profile} /> 
+              <SettingsForm data={profile} />
             </div>
           </div>
 
@@ -65,6 +65,8 @@ export default async function page(): Promise<JSX.Element> {
                 </div>
 
                 <div className="mt-2 border-b border-gray-200"></div>
+                {/* Two Factor Authentication - Disabled temporarily as backend is not ready */}
+                {/* 
                 <div className="my-10">
                   <h1 className="text-sm font-semibold text-neutral-700">
                     Two Factor Authentication
@@ -84,6 +86,7 @@ export default async function page(): Promise<JSX.Element> {
                     <Switch disabled />
                   </div>
                 </div>
+                */}
               </div>
 
               <div className="py-6 bg-white rounded-md px-7">

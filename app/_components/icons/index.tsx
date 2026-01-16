@@ -1,0 +1,11 @@
+export { ArrowDownIcon } from './arrow-down-icon';
+export { BranchesIcon } from './branches-icon';
+export { CalendarIcon } from './calendar-icon';
+export { CreditOfficersIcon } from './credit-officers-icon';
+export { CustomersIcon } from './customers-icon';
+export { DashboardIcon } from './dashboard-icon';
+export { DotsVerticalIcon } from './dots-vertical-icon';
+export { FilterIcon } from './filter-icon';
+export { LoansIcon } from './loans-icon';
+export { ReportIcon } from './report-icon';
+export { SettingsIcon } from './settings-icon';

@@ -1,0 +1,224 @@
+'use client';
+
+import { useState } from 'react';
+import { Checkbox } from './Checkbox';
+
+interface MissedReport {
+  id: string;
+  reportId: string;
+  branchName: string;
+  status: 'Missed';
+  dateDue: string;
+}
+
+interface MissedReportsTableProps {
+  data: MissedReport[];
+  onEdit?: (id: string) => void;
+  onDelete?: (id: string) => void;
+  onViewDetails?: (id: string) => void;
+}
+
+export default function MissedReportsTable({ data, onEdit, onDelete, onViewDetails }: MissedReportsTableProps) {
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const handleSelectAll = (checked: boolean | 'indeterminate') => {
+    if (checked === true) {
+      setSelectedIds(data.map(report => report.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectOne = (id: string, checked: boolean | 'indeterminate') => {
+    if (checked === true) {
+      setSelectedIds([...selectedIds, id]);
+    } else {
+      setSelectedIds(selectedIds.filter(selectedId => selectedId !== id));
+    }
+  };
+
+  const handleEdit = (id: string) => {
+    console.log('Edit Missed Report:', id);
+    onEdit?.(id);
+  };
+
+  const handleDelete = (id: string) => {
+    console.log('Delete Missed Report:', id);
+    onDelete?.(id);
+  };
+
+  const handleViewDetails = (id: string) => {
+    console.log('View Details:', id);
+    onViewDetails?.(id);
+  };
+
+  const allSelected = data.length > 0 && selectedIds.length === data.length;
+
+  return (
+    <div
+      className="w-full bg-white rounded-lg overflow-hidden"
+      style={{
+        border: '1px solid #E5E7EB'
+      }}
+    >
+      {/* Table */}
+      <div className="overflow-x-auto">
+        <table className="w-full" style={{ borderCollapse: 'collapse', minWidth: '800px' }}>
+          {/* Table Header */}
+          <thead>
+            <tr className="bg-gray-50 border-b border-gray-200">
+              {/* Checkbox + Report ID Column */}
+              <th className="px-6 py-3 text-left">
+                <div className="flex items-center gap-3">
+                  <Checkbox
+                    checked={allSelected}
+                    onCheckedChange={handleSelectAll}
+                    aria-label="Select all missed reports"
+                  />
+                  <span className="text-xs font-medium text-gray-700">
+                    Report Id
+                  </span>
+                </div>
+              </th>
+
+              {/* Branch Name Column */}
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-700">
+                Branch Name
+              </th>
+
+              {/* Status Column */}
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-700">
+                Status
+              </th>
+
+              {/* Date Due Column */}
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-700">
+                Date Due
+              </th>
+
+              {/* Actions Column */}
+              <th className="px-6 py-3"></th>
+            </tr>
+          </thead>
+
+          {/* Table Body */}
+          <tbody>
+            {data.map((report) => (
+              <tr
+                key={report.id}
+                className="border-b border-gray-200 hover:bg-gray-50 transition-colors"
+              >
+                {/* Report ID Cell */}
+                <td className="px-6 py-4">
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      checked={selectedIds.includes(report.id)}
+                      onCheckedChange={(checked) => handleSelectOne(report.id, checked)}
+                      aria-label={`Select report ${report.reportId}`}
+                    />
+                    <span className="text-sm text-gray-600">
+                      {report.reportId}
+                    </span>
+                  </div>
+                </td>
+
+                {/* Branch Name Cell */}
+                <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                  {report.branchName}
+                </td>
+
+                {/* Status Cell */}
+                <td className="px-6 py-4">
+                  <span
+                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium"
+                    style={{
+                      background: 'rgba(254, 243, 242, 1)',
+                      color: '#B42318'
+                    }}
+                  >
+                    <span
+                      className="w-1.5 h-1.5 rounded-full"
+                      style={{
+                        background: '#F04438'
+                      }}
+                    />
+                    {report.status}
+                  </span>
+                </td>
+
+                {/* Date Due Cell */}
+                <td className="px-6 py-4 text-sm text-gray-600">
+                  {report.dateDue}
+                </td>
+
+                {/* Actions Cell */}
+                <td className="px-6 py-4">
+                  <div className="flex items-center gap-2">
+                    {/* View Details Button */}
+                    <button
+                      onClick={() => handleViewDetails(report.id)}
+                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                      aria-label={`View details for report ${report.reportId}`}
+                      title="View Details"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path
+                          d="M10 12.5C11.3807 12.5 12.5 11.3807 12.5 10C12.5 8.61929 11.3807 7.5 10 7.5C8.61929 7.5 7.5 8.61929 7.5 10C7.5 11.3807 8.61929 12.5 10 12.5Z"
+                          stroke="#7F56D9"
+                          strokeWidth="1.66667"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                        <path
+                          d="M10 2.5C4.16667 2.5 1.66667 10 1.66667 10C1.66667 10 4.16667 17.5 10 17.5C15.8333 17.5 18.3333 10 18.3333 10C18.3333 10 15.8333 2.5 10 2.5Z"
+                          stroke="#7F56D9"
+                          strokeWidth="1.66667"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </button>
+
+                    {/* Delete Button */}
+                    <button
+                      onClick={() => handleDelete(report.id)}
+                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                      aria-label={`Delete report ${report.reportId}`}
+                    >
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path
+                          d="M13.3333 5V4.33333C13.3333 3.39991 13.3333 2.9332 13.1517 2.57668C12.9919 2.26308 12.7369 2.00811 12.4233 1.84832C12.0668 1.66667 11.6001 1.66667 10.6667 1.66667H9.33333C8.39991 1.66667 7.9332 1.66667 7.57668 1.84832C7.26308 2.00811 7.00811 2.26308 6.84832 2.57668C6.66667 2.9332 6.66667 3.39991 6.66667 4.33333V5M8.33333 9.58333V13.75M11.6667 9.58333V13.75M2.5 5H17.5M15.8333 5V14.3333C15.8333 15.7335 15.8333 16.4335 15.5608 16.9683C15.3212 17.4387 14.9387 17.8212 14.4683 18.0608C13.9335 18.3333 13.2335 18.3333 11.8333 18.3333H8.16667C6.76654 18.3333 6.06647 18.3333 5.53169 18.0608C5.06129 17.8212 4.67883 17.4387 4.43915 16.9683C4.16667 16.4335 4.16667 15.7335 4.16667 14.3333V5"
+                          stroke="#6B7280"
+                          strokeWidth="1.66667"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </button>
+
+                    {/* Edit Button */}
+                    <button
+                      onClick={() => handleEdit(report.id)}
+                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                      aria-label={`Edit report ${report.reportId}`}
+                    >
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path
+                          d="M14.1667 2.49993C14.3856 2.28106 14.6454 2.10744 14.9314 1.98899C15.2173 1.87054 15.5238 1.80957 15.8334 1.80957C16.1429 1.80957 16.4494 1.87054 16.7353 1.98899C17.0213 2.10744 17.2811 2.28106 17.5 2.49993C17.7189 2.7188 17.8925 2.97863 18.011 3.2646C18.1294 3.55057 18.1904 3.85706 18.1904 4.16659C18.1904 4.47612 18.1294 4.78262 18.011 5.06859C17.8925 5.35455 17.7189 5.61439 17.5 5.83326L6.25002 17.0833L1.66669 18.3333L2.91669 13.7499L14.1667 2.49993Z"
+                          stroke="#6B7280"
+                          strokeWidth="1.66667"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

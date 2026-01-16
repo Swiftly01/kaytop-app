@@ -7,14 +7,13 @@ interface ReportFilterProps {
 
 export default function ReportFilter({ isLoading }: ReportFilterProps) {
   return (
-    <Filter<ReportStatus>
+    <Filter
       isLoading={isLoading}
-      filterField= "status"
+      filterField="status"
       options={[
         { value: ReportStatus.PENDING, label: "Pending" },
-        { value:  ReportStatus.APPROVED, label: "Approved" },
-        { value:  ReportStatus.DECLINED, label: "Declined" },
-        
+        { value: ReportStatus.APPROVED, label: "Approved" },
+        { value: ReportStatus.DECLINED, label: "Declined" },
       ]}
     />
   );

@@ -1,11 +1,13 @@
 import apiClient from "@/lib/apiClient";
 import { apiBaseUrl } from "@/lib/config";
+import { unifiedUserService } from "@/lib/services/unifiedUser";
 import { AxiosError } from "axios";
 import {
   CreditOfficerListResponse,
   CreditOfficerLoanCollectionResponse,
   CreditOfficerLoanDisbursedResponse,
   CreditOfficerProfileResponse,
+  CreditOfficerProfile,
 } from "../types/creditOfficer";
 
 interface QueryParamsProps {
@@ -43,12 +45,11 @@ export class CreditService {
     officerId: number
   ): Promise<CreditOfficerProfileResponse> {
     try {
-      const response = await apiClient.get(
-        `${apiBaseUrl}/admin/users/${officerId}`
-      );
-      //  console.log(response);
+      // Use unifiedUserService which applies DataTransformers
+      const user = await unifiedUserService.getUserById(officerId.toString());
+      // Type assertion: The backend may return additional fields beyond the User type
       return {
-        data: response.data,
+        data: user as any as CreditOfficerProfile,
       };
     } catch (error: AxiosError | unknown) {
       const err = error as AxiosError;

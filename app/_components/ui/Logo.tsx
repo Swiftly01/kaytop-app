@@ -6,7 +6,7 @@ import { JSX } from 'react'
 export default function Logo(): JSX.Element {
   return (
          <Link href="/" className="flex items-center cursor-pointer">
-          <Image height="50" src={logo} alt="Kaytop logo" quality={75} />
+          <Image height="50" src={logo} alt="Kaytop logo" quality={75} loading="eager" priority />
           <span className="hidden text-xl font-semibold text-dark md:block">
             Kaytop Multipurpose Investment
           </span>

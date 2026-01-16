@@ -5,7 +5,7 @@ import { removeAuthCookies, setAuthCookies } from "@/lib/authCookies";
 
 
 interface AuthContextType {
-  session: { token: string } | null;
+  session: { token: string; role: string } | null;
   login: (token: string, role: string) => void;
   logOut: () => void;
   setCookie: (token: string, role: string) => void;
