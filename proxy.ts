@@ -16,7 +16,7 @@ export async function proxy(request: NextRequest) {
 
   if (!token) {
     if (currentPath.startsWith("/dashboard")) {
-      return NextResponse.redirect(new URL(ROUTES.Bm.Auth.LOGIN, request.url));
+      return NextResponse.redirect(new URL(ROUTES.Auth.LOGIN, request.url));
     }
 
     return NextResponse.next();

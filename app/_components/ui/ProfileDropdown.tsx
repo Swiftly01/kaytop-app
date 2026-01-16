@@ -31,7 +31,7 @@ export default function ProfileDropdown({ data }: ProfileProps) {
   const handleLogout = () => {
     logOut();
     toast.success("You have successfully logged out");
-    router.push(ROUTES.Bm.Auth.LOGIN);
+    router.push(ROUTES.Auth.LOGIN);
   };
 
   const src =

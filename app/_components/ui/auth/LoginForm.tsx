@@ -94,7 +94,7 @@ export default function LoginForm() {
           <label htmlFor="terms text-sm">Keep me signed in</label>
         </div>
         <Link
-          href={ROUTES.Bm.Auth.FORGOT_PASSWORD}
+          href={ROUTES.Auth.FORGOT_PASSWORD}
           className="text-sm text-accent"
         >
           Forgot password?

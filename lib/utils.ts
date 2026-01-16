@@ -22,13 +22,13 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export const ROUTES: Routes = {
+  Auth: {
+    LOGIN: "/auth/bm/login",
+    VERIFY_OTP: "/auth/bm/verify-otp",
+    FORGOT_PASSWORD: "/auth/bm/forgot-password",
+    RESET_PASSWORD: "/auth/bm/reset-password",
+  },
   Bm: {
-    Auth: {
-      LOGIN: "/auth/bm/login",
-      VERIFY_OTP: "/auth/bm/verify-otp",
-      FORGOT_PASSWORD: "/auth/bm/forgot-password",
-      RESET_PASSWORD: "/auth/bm/reset-password",
-    },
     DASHBOARD: "/dashboard/bm",
     CREDIT: "/dashboard/bm/credit",
     CUSTOMERS: "/dashboard/bm/customer",
@@ -250,7 +250,6 @@ export function getCustomerMetrics({
 export function getReportMetrics({
   data,
 }: DashboardReportMetrics): MetricProps[] {
-  
   return [
     {
       title: "Total Reports",
@@ -262,12 +261,12 @@ export function getReportMetrics({
       value: data?.reportStats.totalApproved.toString(),
       border: true,
     },
-     {
+    {
       title: "Total Pending",
       value: data?.reportStats.totalPending.toString(),
       border: true,
     },
-     {
+    {
       title: "Total Declined",
       value: data?.reportStats.totalDeclined.toString(),
       border: true,
