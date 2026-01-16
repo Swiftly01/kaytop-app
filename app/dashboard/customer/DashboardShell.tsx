@@ -82,7 +82,7 @@ const isActive = (href: string) => {
                 >
                   Dashboard
                 </Link>
-                <Link
+                {/* <Link
                   href="/dashboard/customer/customer"
                   className={`px-3 py-1 rounded-md transition
                     ${isActive("/dashboard/customer/customer")
@@ -101,7 +101,7 @@ const isActive = (href: string) => {
                 `}
                 >
                   Loans
-                </Link>
+                </Link> */}
               </nav>
             </div>
 
@@ -176,7 +176,7 @@ const isActive = (href: string) => {
     `}>
             Dashboard
           </Link>
-          <Link
+          {/* <Link
             href="/dashboard/customer/customer"
             className={`px-3 py-2 rounded transition
       ${isActive("/dashboard/customer/customer")
@@ -195,7 +195,7 @@ const isActive = (href: string) => {
     `}
           >
             Loans
-          </Link>
+          </Link> */}
         </nav>
       </aside>
 
