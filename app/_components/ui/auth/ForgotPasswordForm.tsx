@@ -43,7 +43,7 @@ export default function ForgotPasswordForm() {
       setEmail(data.email)
       toast.success(response.message);
       console.log(response);
-      router.push(ROUTES.Bm.Auth.VERIFY_OTP);
+      router.push(ROUTES.Auth.VERIFY_OTP);
     } catch (error: AxiosError | unknown) {
       const err = error as AxiosError;
       console.log(err);
@@ -74,7 +74,7 @@ export default function ForgotPasswordForm() {
         </Button>
         <Link
           className="flex justify-center px-5 py-2 my-2 font-medium transition-all duration-300 rounded-md cursor-pointer text-brand-purple hover:bg-brand-purple hover:text-white"
-          href={ROUTES.Bm.Auth.LOGIN}
+          href={ROUTES.Auth.LOGIN}
         >
           Cancel
         </Link>
