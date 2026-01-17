@@ -12,27 +12,24 @@ export const metadata: Metadata = {
   },
   description:
     "Kaytop is a modern multipurpose investment platform that enables users to invest confidently, access financing, and grow wealth with ease.",
-  // metadataBase: new URL('https://next-learn-dashboard.vercel.sh'),
   icons: {
     icon: "/logo.png",
   },
 };
 
-export default function RootLayout({
+export default function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <div lang="en" className="h-full">
-      <div
-        style={{ backgroundImage: `url(${patterns.src})` }}
-        className="flex items-center justify-center min-h-screen bg-no-repeat bg-bottom-right bg-neutral-100"
-      >
-        <AuthProvider>{children}</AuthProvider>
+    <div
+      style={{ backgroundImage: `url(${patterns.src})` }}
+      className="flex items-center justify-center min-h-screen bg-no-repeat bg-bottom-right bg-neutral-100"
+    >
+      <AuthProvider>{children}</AuthProvider>
 
-        <Toaster position="top-right" />
-      </div>
+      <Toaster position="top-right" />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { JSX, useState } from "react";
 import Logo from "../ui/Logo";
 import Button from "../ui/Button";
+import { ROUTES } from "@/lib/utils";
 
 export default function Navbar(): JSX.Element {
   const [isOpen, setIsOpen] = useState(false);
@@ -61,7 +62,17 @@ export default function Navbar(): JSX.Element {
             Contact
           </Link>
 
-          <Button>Get Started</Button>
+          <Link
+            href={ROUTES.User.Auth.LOGIN}
+            className="px-4 py-2 text-base font-medium bg-primary-300 text-primary hover:text-white relative  rounded-sm 
+                       overflow-hidden transition-all duration-300
+                       before:content-[''] before:absolute before:top-0 before:left-0
+                       before:w-0 before:h-full before:bg-white/30
+                       before:transition-all before:duration-300
+                       hover:before:w-full"
+          >
+            Get Started
+          </Link>
         </div>
       </div>
 
@@ -112,9 +123,7 @@ export default function Navbar(): JSX.Element {
               →
             </span>
           </Link>
-          <Button >
-            Get Started
-          </Button>
+          <Button>Get Started</Button>
         </div>
       </div>
 

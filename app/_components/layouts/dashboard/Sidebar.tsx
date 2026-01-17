@@ -1,25 +1,14 @@
 "use client";
-import React, { JSX } from "react";
-import Link from "next/link";
-import { getLinkClass, isActiveRoute, ROUTES } from "@/lib/utils";
-import { usePathname } from "next/navigation";
 import { MenuItem } from "@/app/types/routes";
+import { getLinkClass, isActiveRoute } from "@/lib/utils";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { JSX } from "react";
 
-const data: MenuItem[] = [
-  {
-    icon: "/dashboard.svg",
-    label: "Dashboard",
-    link: ROUTES.Bm.DASHBOARD,
-    exact: true,
-  },
-  { icon: "/credit.svg", label: "Credit Officers", link: ROUTES.Bm.CREDIT },
-  { icon: "/credit.svg", label: "Customers", link: ROUTES.Bm.CUSTOMERS },
-  { icon: "/loans.svg", label: "Loans", link: ROUTES.Bm.LOAN },
-  { icon: "/report.svg", label: "Reports", link: ROUTES.Bm.REPORT },
-  { icon: "/settings.svg", label: "Settings", link: ROUTES.Bm.SETTING },
-];
-
-export default function Sidebar(): JSX.Element {
+interface SidebarProps {
+  items: MenuItem[];
+}
+export default function Sidebar({ items }: SidebarProps): JSX.Element {
   const pathname = usePathname();
 
   return (
@@ -28,7 +17,7 @@ export default function Sidebar(): JSX.Element {
 
       <div className="w-64 min-h-full bg-white">
         <ul className="flex flex-col w-full gap-6 px-5 pt-20 lg:pt-4">
-          {data.map((item, i) => {
+          {items.map((item, i) => {
             const isActive = isActiveRoute(pathname, item);
 
             return (

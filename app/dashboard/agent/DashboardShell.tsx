@@ -57,15 +57,15 @@ const isActive = (href: string) => {
   const src =
     profile && profile.profilePicture !== null ? profile.profilePicture : "/avatar.svg";
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="flex flex-col min-h-screen bg-gray-50">
       {/* ================= HEADER ================= */}
       <header className="sticky top-0 z-50 bg-[#3b0f6b] text-white shadow-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="h-16 flex items-center justify-between">
+        <div className="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
             {/* LEFT */}
             <div className="flex items-center gap-4">
               <button
-                className="md:hidden p-2 rounded hover:bg-white/10 cursor-pointer"
+                className="p-2 rounded cursor-pointer md:hidden hover:bg-white/10"
                 onClick={() => setMobileOpen(true)}
               >
                 <Menu className="w-6 h-6" />
@@ -77,7 +77,7 @@ const isActive = (href: string) => {
               </div>
 
               {/* Desktop Nav */}
-              <nav className="hidden md:flex items-center gap-3 text-sm ml-6">
+              <nav className="items-center hidden gap-3 ml-6 text-sm md:flex">
                 <Link
                   href="/dashboard/agent"
                   className={`px-3 py-1 rounded-md transition
@@ -153,7 +153,7 @@ const isActive = (href: string) => {
       {/* ================= MOBILE OVERLAY ================= */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 bg-black/40 z-40"
+          className="fixed inset-0 z-40 bg-black/40"
           onClick={() => setMobileOpen(false)}
         />
       )}
@@ -163,7 +163,7 @@ const isActive = (href: string) => {
         className={`fixed top-0 left-0 h-full w-64 bg-white shadow-lg z-50 transform transition-transform
         ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
-        <div className="p-4 flex items-center justify-between border-b">
+        <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-2">
             <Image src={logo} alt="logo" height={32} />
             <span className="font-semibold text-[#3b0f6b]">Kaytop MI</span>
@@ -206,7 +206,7 @@ const isActive = (href: string) => {
       </aside>
 
       {/* ================= MAIN CONTENT ================= */}
-      <main className="flex-1 w-full max-w-7xl mx-auto p-6">
+      <main className="flex-1 w-full p-6 mx-auto max-w-7xl">
         <DashboardWrapper>
           <AddCustomerFlowProvider>
             {children}
@@ -216,7 +216,7 @@ const isActive = (href: string) => {
       </main>
 
       {/* ================= FOOTER ================= */}
-      <footer className="py-4 text-center text-sm text-gray-500">
+      <footer className="py-4 text-sm text-center text-gray-500">
         © 2025 Kaytop MI. All rights reserved.
       </footer>
     </div>

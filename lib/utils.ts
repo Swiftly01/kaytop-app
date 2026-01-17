@@ -23,10 +23,10 @@ export function cn(...inputs: ClassValue[]) {
 
 export const ROUTES: Routes = {
   Auth: {
-    LOGIN: "/auth/bm/login",
-    VERIFY_OTP: "/auth/bm/verify-otp",
-    FORGOT_PASSWORD: "/auth/bm/forgot-password",
-    RESET_PASSWORD: "/auth/bm/reset-password",
+    LOGIN: "/auth/login",
+    VERIFY_OTP: "/auth/verify-otp",
+    FORGOT_PASSWORD: "/auth/forgot-password",
+    RESET_PASSWORD: "/auth/reset-password",
   },
   Bm: {
     DASHBOARD: "/dashboard/bm",
