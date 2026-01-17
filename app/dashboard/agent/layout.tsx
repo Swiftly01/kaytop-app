@@ -1,6 +1,7 @@
 import DashboardShell from "./DashboardShell";
 import { ProfileResponse } from "@/app/types/settings";
 import { UserProfileService } from "@/app/services/userProfileService";
+import { AuthProvider } from "@/app/context/AuthContext";
 
 export default async function AgentDashboardLayout({
   children,
@@ -16,9 +17,11 @@ export default async function AgentDashboardLayout({
   }
 
   return (
+     <AuthProvider>
     <DashboardShell profile={profile}>
       {children}
     </DashboardShell>
+  </AuthProvider>
   );
 }
 

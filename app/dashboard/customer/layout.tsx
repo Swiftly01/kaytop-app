@@ -1,6 +1,7 @@
 import { ProfileResponse } from "@/app/types/settings";
 import { UserProfileService } from "@/app/services/userProfileService";
 import DashboardShell from "./DashboardShell";
+import { AuthProvider } from "@/app/context/AuthContext";
 
 export default async function CustomerDashboardLayout({
   children,
@@ -16,8 +17,10 @@ export default async function CustomerDashboardLayout({
   }
 
   return (
+    <AuthProvider>
     <DashboardShell profile={profile}>
       {children}
     </DashboardShell>
+    </AuthProvider>
   );
 }
