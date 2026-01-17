@@ -24,15 +24,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div lang="en" className="h-full">
-      <div
+    <html lang="en" className="h-full">
+      <body
         style={{ backgroundImage: `url(${patterns.src})` }}
         className="flex items-center justify-center min-h-screen bg-no-repeat bg-bottom-right bg-neutral-100"
       >
         <AuthProvider>{children}</AuthProvider>
 
         <Toaster position="top-right" />
-      </div>
-    </div>
+      </body>
+    </html>
   );
 }
