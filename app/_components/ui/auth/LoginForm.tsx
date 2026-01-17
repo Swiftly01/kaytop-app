@@ -66,8 +66,8 @@ export default function LoginForm() {
   };
   return (
     <form className="my-2" onSubmit={handleSubmit(onSubmit)}>
-      <div>
-        <label htmlFor="email">Email</label>
+      <div className="my-3">
+        <label htmlFor="email" >Email</label>
         <Input
           type="email"
           placeholder="Enter your email"
