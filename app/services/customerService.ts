@@ -2,6 +2,7 @@ import apiClient from "@/lib/apiClient";
 import { apiBaseUrl } from "@/lib/config";
 import { AxiosError } from "axios";
 import {
+  CustomerApiResponse,
   CustomerData,
   CustomerDataResponse,
   CustomerListResponse,
@@ -26,14 +27,26 @@ export class CustomerService {
     limit,
   }: QueryParamsProps): Promise<CustomerListResponse> {
     try {
-      const response = await apiClient.get(`${apiBaseUrl}/users/my-branch`, {
-        params: {
-          page,
-          limit,
+      const response = await apiClient.get<CustomerApiResponse>(
+        `${apiBaseUrl}/users/my-branch`,
+        {
+          params: {
+            page,
+            limit,
+          },
         },
-      });
-      // console.log(response);
-      return { data: response.data, meta: undefined };
+      );
+      const { total, users } = response.data;
+
+      return {
+        data: users,
+        meta: {
+          total,
+          limit,
+          page,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
     } catch (error: AxiosError | unknown) {
       const err = error as AxiosError;
       console.log("Error fetching all branch customer", err.response?.data);
@@ -42,15 +55,15 @@ export class CustomerService {
   }
 
   static async getBranchCustomerById(
-    customerId: number
+    customerId: number,
   ): Promise<CustomerData> {
     try {
       const response = await apiClient.get<CustomerData>(
-        `${apiBaseUrl}/admin/users/${customerId}`
+        `${apiBaseUrl}/admin/users/${customerId}`,
       );
       // console.log(response);
       // return { data: response.data };
-      return  response.data;
+      return response.data;
     } catch (error: AxiosError | unknown) {
       const err = error as AxiosError;
       console.log("Error fetching branch customer by id", err.response?.data);
@@ -59,11 +72,11 @@ export class CustomerService {
   }
 
   static async getBranchCustomerLoan(
-    customerId: number
+    customerId: number,
   ): Promise<ActiveLoanData[]> {
     try {
       const response = await apiClient.get(
-        `${apiBaseUrl}/loans/customer/${customerId}`
+        `${apiBaseUrl}/loans/customer/${customerId}`,
       );
       // console.log(response);
       return response.data;
@@ -88,7 +101,7 @@ export class CustomerService {
             page,
             limit,
           },
-        }
+        },
       );
       // console.log(response);
       return { data: response.data, meta: response.data.meta ?? null };
@@ -98,7 +111,6 @@ export class CustomerService {
       throw err;
     }
   }
- 
 
   static async getLoanPaymentsSchedule({
     loanId,
@@ -113,10 +125,10 @@ export class CustomerService {
             page,
             limit,
           },
-        }
+        },
       );
 
-    //  console.log(response);
+      //  console.log(response);
       return response.data;
     } catch (error: AxiosError | unknown) {
       const err = error as AxiosError;
@@ -125,14 +137,15 @@ export class CustomerService {
     }
   }
 
-    static async getCustomerSavingsProgress(customerId: number): Promise<SavingsProgressResponse> {
+  static async getCustomerSavingsProgress(
+    customerId: number,
+  ): Promise<SavingsProgressResponse> {
     try {
       const response = await apiClient.get(
         `${apiBaseUrl}/savings/customer/${customerId}/progress`,
-        
       );
 
-    // console.log(response);
+      // console.log(response);
       return response.data;
     } catch (error: AxiosError | unknown) {
       const err = error as AxiosError;
