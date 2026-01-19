@@ -1,0 +1,2278 @@
+'use client';
+
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { ToastContainer } from '@/app/_components/ui/ToastContainer';
+import { useToast } from '@/app/hooks/useToast';
+import { Checkbox } from '@/app/_components/ui/Checkbox';
+import EditRoleModal from '@/app/_components/ui/EditRoleModal';
+import CreateAdminModal from '@/app/_components/ui/CreateAdminModal';
+import GlobalSettingsModal from '@/app/_components/ui/GlobalSettingsModal';
+import AlertRulesModal from '@/app/_components/ui/AlertRulesModal';
+import ReportTemplateModal from '@/app/_components/ui/ReportTemplateModal';
+import FileUpload from '@/app/_components/ui/FileUpload';
+import {
+  useUserProfile,
+  useUpdateUserProfile,
+  useChangePassword,
+  useUpdateProfilePicture,
+  useSystemSettings,
+  useUpdateSystemSettings,
+  useActivityLogs,
+  useUsers,
+  useUpdateUser,
+  useUpdateUserRole,
+  useCreateStaff
+} from '@/app/dashboard/system-admin/queries/useSettingsQueries';
+import {
+  ActivityLog,
+  User,
+  SystemSettings
+} from '@/lib/api/types';
+import {
+  UpdateProfileData,
+  ChangePasswordData
+} from '@/lib/services/userProfile';
+import {
+  mapBackendToFrontendRole,
+  mapFrontendToBackendRole,
+  getPermissionsForRole,
+  UserRoleType
+} from '@/lib/roleConfig';
+
+type SettingsTab = 'account-information' | 'security-login' | 'activity-log' | 'permissions-users' | 'configuration';
+
+import { API_CONFIG } from '@/lib/api/config';
+
+interface SecuritySettings {
+  smsAuthentication: boolean;
+  emailAuthentication: boolean;
+}
+
+interface PasswordChangeData {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+interface ActivityLogEntry {
+  id: string;
+  fullName: string;
+  actionPerformed: string;
+  timeAndDate: string;
+  selected?: boolean;
+}
+
+interface RoleUserData {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRoleType;
+  permissions: string[];
+  avatar?: string;
+  status: 'active' | 'inactive';
+  lastActive?: string;
+}
+
+interface AlertRulesData {
+  missedPayments: boolean;
+  missedReports: boolean;
+  dailyEmailSummary: boolean;
+  customParameters: string[];
+}
+
+export default function SettingsPage() {
+  const { toasts, removeToast, success, error } = useToast();
+  const [activeTab, setActiveTab] = useState<SettingsTab>('account-information');
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Helper for profile picture URLs
+  const resolveImageUrl = useCallback((path: string | null | undefined) => {
+    if (!path) return undefined;
+    if (path.startsWith('http') || path.startsWith('data:')) {
+      return path;
+    }
+    return `${API_CONFIG.BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+  }, []);
+
+  // Prevent hydration mismatches by ensuring client-side rendering
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // React Query hooks for real backend data
+  const { data: userProfile, isLoading: profileLoading, error: profileError } = useUserProfile();
+  const { data: systemSettings, isLoading: settingsLoading, error: settingsError } = useSystemSettings();
+  const updateProfileMutation = useUpdateUserProfile();
+  const changePasswordMutation = useChangePassword();
+  const updateProfilePictureMutation = useUpdateProfilePicture();
+  const updateSystemSettingsMutation = useUpdateSystemSettings();
+  const updateUserMutation = useUpdateUser();
+  const updateUserRoleMutation = useUpdateUserRole();
+  const createStaffMutation = useCreateStaff();
+
+  // Users query for real backend data
+  const {
+    data: allUsersData,
+    isLoading: usersLoading,
+  } = useUsers({ page: 1, limit: 100 });
+
+  // Activity logs state and query
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectAll, setSelectAll] = useState(false);
+  const [selectedLogs, setSelectedLogs] = useState<string[]>([]);
+
+  const {
+    data: activityLogsData,
+    isLoading: activityLogsLoading,
+    error: activityLogsError
+  } = useActivityLogs({
+    search: searchQuery || undefined,
+    page: currentPage,
+    limit: 10,
+  });
+
+  // Transform API ActivityLog to ActivityLogEntry format
+  const transformActivityLog = useCallback((log: ActivityLog): ActivityLogEntry => ({
+    id: log.id,
+    fullName: log.userFullName,
+    actionPerformed: log.action,
+    timeAndDate: new Date(log.timestamp).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+      timeZone: 'UTC' // Ensure consistent timezone between server and client
+    }),
+    selected: selectedLogs.includes(log.id)
+  }), [selectedLogs]);
+
+  const activityLogs = (activityLogsData as any)?.data?.map(transformActivityLog) || [];
+  const totalActivityLogs = (activityLogsData as any)?.pagination?.total || 0;
+
+  // Security settings derived from system settings
+  const securitySettings: SecuritySettings = {
+    smsAuthentication: (systemSettings as any)?.security?.twoFactorAuth?.methods?.includes('sms') || false,
+    emailAuthentication: (systemSettings as any)?.security?.twoFactorAuth?.methods?.includes('email') || false,
+  };
+
+  // Password change modal state
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordData, setPasswordData] = useState<PasswordChangeData>({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false,
+  });
+
+  // Edit Role Modal state
+  const [showEditRoleModal, setShowEditRoleModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<RoleUserData | null>(null);
+
+  // Create Admin Modal state
+  const [showCreateAdminModal, setShowCreateAdminModal] = useState(false);
+
+  // Global Settings Modal state
+  const [showGlobalSettingsModal, setShowGlobalSettingsModal] = useState(false);
+
+  // Report Template Modal state
+  const [showReportTemplateModal, setShowReportTemplateModal] = useState(false);
+
+  // Alert Rules Modal state
+  const [showAlertRulesModal, setShowAlertRulesModal] = useState(false);
+
+  // Profile Picture Upload Modal state
+  const [showProfilePictureModal, setShowProfilePictureModal] = useState(false);
+
+  // Profile form state for editing
+  const [profileFormData, setProfileFormData] = useState<UpdateProfileData>({
+    firstName: '',
+    lastName: '',
+    email: '',
+    mobileNumber: '',
+  });
+
+  // Update form data when user profile loads
+  useEffect(() => {
+    if (userProfile) {
+      setProfileFormData({
+        firstName: (userProfile as any).firstName || '',
+        lastName: (userProfile as any).lastName || '',
+        email: (userProfile as any).email || '',
+        mobileNumber: (userProfile as any).mobileNumber || '',
+      });
+    }
+  }, [userProfile]);
+
+  // Transform API users to RoleUserData format (memoized)
+  const usersData = useMemo(() => {
+    if (!allUsersData?.data) return [];
+
+    return allUsersData.data.map((user: User) => {
+      const displayRole = mapBackendToFrontendRole(user.role);
+      const permissions = getPermissionsForRole(user.role);
+
+      return {
+        id: String(user.id),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: displayRole,
+        permissions: permissions,
+        avatar: resolveImageUrl((user as any).profilePicture),
+        status: (user.verificationStatus === 'verified' || (user as any).status === 'active') ? 'active' : 'inactive',
+        lastActive: user.updatedAt ? new Date(user.updatedAt).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          timeZone: 'UTC'
+        }) : 'Never'
+      } as RoleUserData;
+    });
+  }, [allUsersData, resolveImageUrl]);
+
+
+  const tabs = [
+    { id: 'account-information', label: 'Account Information' },
+    { id: 'security-login', label: 'Security & Login' },
+    { id: 'activity-log', label: 'Activity Log' },
+    { id: 'permissions-users', label: 'Permissions and users' },
+    { id: 'configuration', label: 'Configuration' },
+  ];
+
+  const handleTabChange = (tabId: SettingsTab) => {
+    setActiveTab(tabId);
+  };
+
+  const handleProfileUpdate = async () => {
+    if (!userProfile) return;
+
+    try {
+      await updateProfileMutation.mutateAsync(profileFormData);
+      success('Profile updated successfully!');
+    } catch (err) {
+      error('Failed to update profile. Please try again.');
+    }
+  };
+
+  const handleInputChange = (field: keyof UpdateProfileData, value: string) => {
+    setProfileFormData((prev: UpdateProfileData) => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleProfilePictureChange = () => {
+    setShowProfilePictureModal(true);
+  };
+
+  const handleProfilePictureUpload = async (files: File[]) => {
+    if (files.length > 0) {
+      try {
+        const file = files[0];
+        await updateProfilePictureMutation.mutateAsync(file);
+        success('Profile picture updated successfully!');
+        setShowProfilePictureModal(false);
+      } catch (err) {
+        error('Failed to upload profile picture. Please try again.');
+      }
+    }
+  };
+
+  const handleProfilePictureError = (errorMessage: string) => {
+    error(`Failed to upload profile picture: ${errorMessage}`);
+  };
+
+  const handleSecurityToggle = async (setting: keyof SecuritySettings) => {
+    if (!systemSettings) return;
+
+    try {
+      const currentMethods = (systemSettings as any).security.twoFactorAuth.methods || [];
+      let newMethods: ('sms' | 'email')[];
+
+      if (setting === 'smsAuthentication') {
+        newMethods = securitySettings.smsAuthentication
+          ? ((currentMethods as any[])).filter(m => m !== 'sms')
+          : [...currentMethods, 'sms'] as any;
+      } else {
+        newMethods = securitySettings.emailAuthentication
+          ? ((currentMethods as any[])).filter(m => m !== 'email')
+          : [...currentMethods, 'email'] as any;
+      }
+
+      const updatedSettings: Partial<SystemSettings> = {
+        security: {
+          ...(systemSettings as any).security,
+          twoFactorAuth: {
+            ...(systemSettings as any).security.twoFactorAuth,
+            methods: newMethods,
+          },
+        },
+      };
+
+      await updateSystemSettingsMutation.mutateAsync(updatedSettings);
+      success(`${setting === 'smsAuthentication' ? 'SMS' : 'Email'} authentication ${securitySettings[setting] ? 'disabled' : 'enabled'}`);
+    } catch (err) {
+      error('Failed to update security settings. Please try again.');
+    }
+  };
+
+  const handlePasswordChange = (field: keyof PasswordChangeData, value: string) => {
+    setPasswordData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const togglePasswordVisibility = (field: 'current' | 'new' | 'confirm') => {
+    setShowPasswords(prev => ({
+      ...prev,
+      [field]: !prev[field]
+    }));
+  };
+
+  const handleChangePassword = async () => {
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      error('New passwords do not match');
+      return;
+    }
+
+    if (passwordData.newPassword.length < 8) {
+      error('Password must be at least 8 characters long');
+      return;
+    }
+
+    try {
+      const changeData: ChangePasswordData = {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+        confirmNewPassword: passwordData.confirmPassword,
+      };
+
+      await changePasswordMutation.mutateAsync(changeData);
+      success('Password changed successfully!');
+      setShowPasswordModal(false);
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      });
+    } catch (err) {
+      error('Failed to change password. Please try again.');
+    }
+  };
+
+  const openPasswordModal = () => {
+    setShowPasswordModal(true);
+  };
+
+  const closePasswordModal = () => {
+    setShowPasswordModal(false);
+    setPasswordData({
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+    });
+    setShowPasswords({
+      current: false,
+      new: false,
+      confirm: false,
+    });
+  };
+
+  // Activity log handlers
+  const handleSelectAll = (checked: boolean) => {
+    setSelectAll(checked);
+    if (checked) {
+      setSelectedLogs(activityLogs.map((log: ActivityLogEntry) => log.id));
+    } else {
+      setSelectedLogs([]);
+    }
+  };
+
+  const handleSelectLog = (id: string) => {
+    setSelectedLogs(prev => {
+      const updated = prev.includes(id)
+        ? prev.filter(logId => logId !== id)
+        : [...prev, id];
+      setSelectAll(updated.length === activityLogs.length && activityLogs.length > 0);
+      return updated;
+    });
+  };
+
+  const handleCreateAdmin = () => {
+    setShowCreateAdminModal(true);
+  };
+
+  const handleCloseCreateAdminModal = () => {
+    setShowCreateAdminModal(false);
+  };
+
+  const handleSaveNewAdmin = async (adminData: any) => {
+    try {
+      const backendRole = mapFrontendToBackendRole(adminData.role);
+
+      const [firstName, ...lastNameParts] = adminData.name.split(' ');
+      const lastName = lastNameParts.join(' ') || '.';
+
+      const staffData = {
+        firstName,
+        lastName,
+        email: adminData.email,
+        mobileNumber: adminData.phoneNumber,
+        role: backendRole as any,
+        // Branch is often required for staff, default to a sensible value or empty
+        branch: adminData.branch || 'Head Office',
+        password: 'Password123!', // Backend usually requires a temporary password
+      };
+
+      await createStaffMutation.mutateAsync(staffData);
+      success('New admin created successfully!');
+      setShowCreateAdminModal(false);
+    } catch (err: any) {
+      console.error('Error creating admin:', err);
+      error(err?.message || 'Failed to create new admin');
+    }
+  };
+
+  // Global Settings handlers
+  const handleOpenGlobalSettings = useCallback(() => {
+    setShowGlobalSettingsModal(true);
+  }, []);
+
+  const handleCloseGlobalSettings = useCallback(() => {
+    setShowGlobalSettingsModal(false);
+  }, []);
+
+  const handleSaveGlobalSettings = useCallback(async (data: { interestRate: string; loanDuration: string }) => {
+    if (!systemSettings) return;
+
+    try {
+      const updatedSettings: Partial<SystemSettings> = {
+        globalDefaults: {
+          ...(systemSettings as unknown as SystemSettings).globalDefaults,
+          interestRate: parseFloat(data.interestRate),
+          loanDuration: parseInt(data.loanDuration),
+        },
+      };
+
+      await updateSystemSettingsMutation.mutateAsync(updatedSettings);
+      success('Global settings updated successfully!');
+    } catch (err) {
+      error('Failed to update global settings. Please try again.');
+    }
+  }, [systemSettings, updateSystemSettingsMutation, success, error]);
+
+  // Report Template handlers
+  const handleOpenReportTemplate = useCallback(() => {
+    setShowReportTemplateModal(true);
+  }, []);
+
+  const handleCloseReportTemplate = useCallback(() => {
+    setShowReportTemplateModal(false);
+  }, []);
+
+  const handleSaveReportTemplate = useCallback(async (data: { thingsToReport: { collections: boolean; savings: boolean; customers: boolean; missedPayments: boolean }; newParameter: string }) => {
+    if (!systemSettings) return;
+
+    try {
+      const requiredFields = Object.entries(data.thingsToReport)
+        .filter(([_, enabled]) => enabled)
+        .map(([field, _]) => field);
+
+      const customParameters = data.newParameter
+        ? [...((systemSettings as unknown as SystemSettings).reportTemplate.customParameters || []), data.newParameter]
+        : (systemSettings as unknown as SystemSettings).reportTemplate.customParameters;
+
+      const updatedSettings: Partial<SystemSettings> = {
+        reportTemplate: {
+          ...(systemSettings as unknown as SystemSettings).reportTemplate,
+          requiredFields,
+          customParameters,
+        },
+      };
+
+      await updateSystemSettingsMutation.mutateAsync(updatedSettings);
+      success('Report template updated successfully!');
+    } catch (err) {
+      error('Failed to update report template. Please try again.');
+    }
+  }, [systemSettings, updateSystemSettingsMutation, success, error]);
+
+  // Alert Rules handlers
+  const handleOpenAlertRules = useCallback(() => {
+    setShowAlertRulesModal(true);
+  }, []);
+
+  const handleCloseAlertRules = useCallback(() => {
+    setShowAlertRulesModal(false);
+  }, []);
+
+  const handleSaveAlertRules = useCallback(async (data: AlertRulesData) => {
+    if (!systemSettings) return;
+
+    try {
+      const updatedSettings: Partial<SystemSettings> = {
+        alertRules: {
+          ...(systemSettings as unknown as SystemSettings).alertRules,
+          missedPayments: data.missedPayments,
+          missedReports: data.missedReports,
+          dailyEmailSummary: data.dailyEmailSummary,
+          customAlerts: data.customParameters,
+        },
+      };
+
+      await updateSystemSettingsMutation.mutateAsync(updatedSettings);
+      success('Alert rules updated successfully!');
+    } catch (err) {
+      error('Failed to update alert rules. Please try again.');
+    }
+  }, [systemSettings, updateSystemSettingsMutation, success, error]);
+
+  const handleEditUser = (userId: string) => {
+    const user = usersData.find(u => u.id === userId);
+    if (user) {
+      setSelectedUser(user);
+      setShowEditRoleModal(true);
+    }
+  };
+
+  const handleCloseEditModal = () => {
+    setShowEditRoleModal(false);
+    setSelectedUser(null);
+  };
+
+  const handleSaveUser = async (updatedUserData: RoleUserData) => {
+    try {
+      const backendRole = mapFrontendToBackendRole(updatedUserData.role);
+
+      // Update role
+      await updateUserRoleMutation.mutateAsync({ id: updatedUserData.id, role: backendRole });
+
+      success('User role updated successfully!');
+      setShowEditRoleModal(false);
+      setSelectedUser(null);
+    } catch (err: any) {
+      console.error('Error updating user role:', err);
+      error(err?.message || 'Failed to update user role');
+    }
+  };
+
+  const itemsPerPage = 10;
+  const totalPages = Math.ceil(totalActivityLogs / itemsPerPage);
+
+  // Derived data from system settings (memoized to prevent re-renders)
+  const globalSettings = useMemo(() => {
+    return systemSettings ? {
+      interestRate: String((systemSettings as unknown as SystemSettings).globalDefaults.interestRate),
+      loanDuration: String((systemSettings as unknown as SystemSettings).globalDefaults.loanDuration),
+    } : undefined;
+  }, [(systemSettings as any)?.globalDefaults?.interestRate, (systemSettings as any)?.globalDefaults?.loanDuration]);
+
+  const reportTemplateSettings = useMemo(() => {
+    return systemSettings ? {
+      thingsToReport: {
+        collections: (systemSettings as unknown as SystemSettings).reportTemplate.requiredFields.includes('collections'),
+        savings: (systemSettings as unknown as SystemSettings).reportTemplate.requiredFields.includes('savings'),
+        customers: (systemSettings as unknown as SystemSettings).reportTemplate.requiredFields.includes('customers'),
+        missedPayments: (systemSettings as unknown as SystemSettings).reportTemplate.requiredFields.includes('missedPayments'),
+      },
+      newParameter: '',
+    } : undefined;
+  }, [(systemSettings as any)?.reportTemplate?.requiredFields?.join(',')]);  // Use join to create stable dependency
+
+  const alertRulesSettings = useMemo(() => {
+    return systemSettings ? {
+      missedPayments: (systemSettings as unknown as SystemSettings).alertRules.missedPayments,
+      missedReports: (systemSettings as unknown as SystemSettings).alertRules.missedReports,
+      dailyEmailSummary: (systemSettings as unknown as SystemSettings).alertRules.dailyEmailSummary,
+      customParameters: (systemSettings as unknown as SystemSettings).alertRules.customAlerts || [],
+    } : undefined;
+  }, [
+    (systemSettings as any)?.alertRules?.missedPayments,
+    (systemSettings as any)?.alertRules?.missedReports,
+    (systemSettings as any)?.alertRules?.dailyEmailSummary,
+    (systemSettings as any)?.alertRules?.customAlerts
+  ]);
+
+  // Loading states
+  const isLoading = profileLoading || settingsLoading || usersLoading || activityLogsLoading ||
+    updateProfileMutation.isPending || changePasswordMutation.isPending ||
+    updateProfilePictureMutation.isPending || updateSystemSettingsMutation.isPending ||
+    updateUserMutation.isPending || updateUserRoleMutation.isPending ||
+    createStaffMutation.isPending;
+
+  // Prevent hydration mismatch by not rendering until mounted
+  if (!isMounted) {
+    return (
+      <div className="drawer-content flex flex-col">
+        <main className="flex-1 px-4 sm:px-6 md:pl-[58px] md:pr-6" style={{ paddingTop: '40px' }}>
+          <div className="max-w-[1150px]">
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#7F56D9]"></div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="drawer-content flex flex-col">
+      <main className="flex-1 px-4 sm:px-6 md:pl-[58px] md:pr-6" style={{ paddingTop: '40px' }}>
+        <div className="max-w-[1150px]">
+          {/* Tab Navigation */}
+          <div className="mb-12">
+            <nav className="relative" role="tablist" aria-label="Settings tabs">
+              <div className="flex items-center gap-4">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => handleTabChange(tab.id as SettingsTab)}
+                    className={`
+                      relative font-medium transition-colors duration-200 whitespace-nowrap pb-3
+                      focus:outline-none
+                      ${activeTab === tab.id
+                        ? 'text-[#7A62EB]'
+                        : 'text-[#ABAFB3] hover:text-[#888F9B]'
+                      }
+                    `}
+                    style={{
+                      fontSize: '14px',
+                      fontWeight: 500,
+                      lineHeight: '16px',
+                      fontFamily: 'Open Sauce Sans, sans-serif',
+                    }}
+                    role="tab"
+                    aria-selected={activeTab === tab.id}
+                    aria-controls={`${tab.id}-panel`}
+                    id={`${tab.id}-tab`}
+                  >
+                    {tab.label}
+
+                    {/* Active Indicator - Bottom Underline */}
+                    {activeTab === tab.id && (
+                      <span
+                        className="absolute left-0 right-0 bottom-0 mx-auto"
+                        style={{
+                          width: '99px',
+                          height: '2px',
+                          backgroundColor: '#7A62EB',
+                          borderRadius: '20px',
+                          display: 'block',
+                        }}
+                        aria-hidden="true"
+                      />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </nav>
+          </div>
+
+          {/* Content Area */}
+          <div className="relative">
+            {/* Main Content Card */}
+            <div
+              className="bg-white rounded-[5px]"
+              style={{
+                width: '941px',
+                minHeight: '611px',
+              }}
+            >
+              {/* Account Information Tab Content */}
+              {activeTab === 'account-information' && (
+                <div className="p-8">
+                  {/* Header */}
+                  <h1
+                    className="font-bold mb-8"
+                    style={{
+                      fontSize: '24px',
+                      fontWeight: 700,
+                      lineHeight: '32px',
+                      letterSpacing: '0.011em',
+                      color: '#021C3E',
+                      fontFamily: 'Open Sauce Sans, sans-serif',
+                    }}
+                  >
+                    Account Information
+                  </h1>
+
+                  {/* Profile Picture Section */}
+                  <div className="mb-8">
+                    <div
+                      className="bg-gray-300 rounded-full mb-4"
+                      style={{
+                        width: '60px',
+                        height: '60px',
+                        backgroundImage: userProfile?.profilePicture ? `url(${userProfile.profilePicture})` : 'none',
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                      }}
+                    />
+                    {isMounted && (
+                      <button
+                        onClick={handleProfilePictureChange}
+                        className="text-[#7A62EB] hover:text-[#6941C6] transition-colors focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:ring-offset-2 rounded-md"
+                        style={{
+                          fontSize: '14px',
+                          fontWeight: 500,
+                          lineHeight: '16px',
+                          fontFamily: 'Open Sauce Sans, sans-serif',
+                        }}
+                      >
+                        Change Picture
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Form Fields */}
+                  <div className="space-y-8">
+                    {/* Name Field */}
+                    <div>
+                      <label
+                        className="block mb-2"
+                        style={{
+                          fontSize: '14px',
+                          fontWeight: 500,
+                          lineHeight: '16px',
+                          color: '#01112C',
+                          fontFamily: 'Open Sauce Sans, sans-serif',
+                        }}
+                      >
+                        Name
+                      </label>
+                      <div className="flex items-center justify-between">
+                        <input
+                          type="text"
+                          value={`${profileFormData.firstName} ${profileFormData.lastName}`}
+                          onChange={(e) => {
+                            const [firstName, ...lastNameParts] = e.target.value.split(' ');
+                            handleInputChange('firstName', firstName || '');
+                            handleInputChange('lastName', lastNameParts.join(' ') || '');
+                          }}
+                          className="flex-1 bg-transparent border-none outline-none"
+                          style={{
+                            fontSize: '16px',
+                            fontWeight: 400,
+                            lineHeight: '16px',
+                            color: '#767D94',
+                            fontFamily: 'Open Sauce Sans, sans-serif',
+                          }}
+                        />
+                        <button
+                          className="ml-4 opacity-80 hover:opacity-100 transition-opacity"
+                          aria-label="Edit name"
+                        >
+                          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <path
+                              d="M7.5 12.5L12.5 7.5M12.5 7.5L10 5L15 10L12.5 12.5M12.5 7.5L10 10"
+                              stroke="#000000"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                      <div
+                        className="mt-4 opacity-10"
+                        style={{
+                          width: '100%',
+                          height: '0.8px',
+                          backgroundColor: '#000000',
+                        }}
+                      />
+                    </div>
+
+                    {/* Phone Number Field */}
+                    <div>
+                      <label
+                        className="block mb-2"
+                        style={{
+                          fontSize: '14px',
+                          fontWeight: 500,
+                          lineHeight: '16px',
+                          color: '#01112C',
+                          fontFamily: 'Open Sauce Sans, sans-serif',
+                        }}
+                      >
+                        Phone Number
+                      </label>
+                      <input
+                        type="tel"
+                        value={profileFormData.mobileNumber}
+                        onChange={(e) => handleInputChange('mobileNumber', e.target.value)}
+                        className="w-full bg-transparent border-none outline-none"
+                        style={{
+                          fontSize: '16px',
+                          fontWeight: 400,
+                          lineHeight: '16px',
+                          color: '#767D94',
+                          fontFamily: 'Open Sauce Sans, sans-serif',
+                        }}
+                      />
+                      <div
+                        className="mt-4 opacity-10"
+                        style={{
+                          width: '100%',
+                          height: '0.8px',
+                          backgroundColor: '#000000',
+                        }}
+                      />
+                    </div>
+
+                    {/* Email Field */}
+                    <div>
+                      <label
+                        className="block mb-2"
+                        style={{
+                          fontSize: '14px',
+                          fontWeight: 500,
+                          lineHeight: '16px',
+                          color: '#01112C',
+                          fontFamily: 'Open Sauce Sans, sans-serif',
+                        }}
+                      >
+                        Email
+                      </label>
+                      <input
+                        type="email"
+                        value={profileFormData.email}
+                        onChange={(e) => handleInputChange('email', e.target.value)}
+                        className="w-full bg-transparent border-none outline-none"
+                        style={{
+                          fontSize: '16px',
+                          fontWeight: 400,
+                          lineHeight: '16px',
+                          color: '#767D94',
+                          fontFamily: 'Open Sauce Sans, sans-serif',
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Update Button */}
+                  <div className="mt-16">
+                    <button
+                      onClick={handleProfileUpdate}
+                      disabled={isLoading}
+                      className="w-full bg-[#7F56D9] hover:bg-[#6941C6] disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:ring-offset-2 shadow-sm"
+                      style={{
+                        height: '44px',
+                        fontSize: '16px',
+                        fontWeight: 600,
+                        lineHeight: '24px',
+                        fontFamily: 'Open Sauce Sans, sans-serif',
+                        border: '1px solid #7F56D9',
+                        boxShadow: '0px 1px 2px rgba(16, 24, 40, 0.05)',
+                      }}
+                    >
+                      {isLoading ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          Updating...
+                        </div>
+                      ) : (
+                        'Update'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Security & Login Tab Content */}
+              {activeTab === 'security-login' && (
+                <div className="p-8">
+                  {/* Header */}
+                  <h1
+                    className="font-bold mb-8"
+                    style={{
+                      fontSize: '24px',
+                      fontWeight: 700,
+                      lineHeight: '32px',
+                      letterSpacing: '0.011em',
+                      color: '#021C3E',
+                      fontFamily: 'Open Sauce Sans, sans-serif',
+                    }}
+                  >
+                    Security
+                  </h1>
+
+                  {/* Change Password Section - Always Available */}
+                  <div className="mb-8">
+                    <button
+                      onClick={openPasswordModal}
+                      className="flex items-center justify-between w-full group hover:bg-gray-50 transition-colors rounded-md p-2 -m-2"
+                    >
+                      <div>
+                        <h3
+                          className="text-left mb-2"
+                          style={{
+                            fontSize: '14px',
+                            fontWeight: 500,
+                            lineHeight: '16px',
+                            color: '#01112C',
+                            fontFamily: 'Open Sauce Sans, sans-serif',
+                          }}
+                        >
+                          Change password
+                        </h3>
+                        <p
+                          className="text-left"
+                          style={{
+                            fontSize: '16px',
+                            fontWeight: 400,
+                            lineHeight: '16px',
+                            color: '#767D94',
+                            fontFamily: 'Open Sauce Sans, sans-serif',
+                          }}
+                        >
+                          Is your password compromised, change it here
+                        </p>
+                      </div>
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 20 20"
+                        fill="none"
+                        className="opacity-80 group-hover:opacity-100 transition-opacity"
+                      >
+                        <path
+                          d="M7.5 15L12.5 10L7.5 5"
+                          stroke="#000000"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </button>
+
+                    {/* Divider */}
+                    <div
+                      className="mt-6 opacity-10"
+                      style={{
+                        width: '100%',
+                        height: '0.8px',
+                        backgroundColor: '#000000',
+                      }}
+                    />
+                  </div>
+
+                  {/* Two Factor Authentication Section - Conditional on System Settings */}
+                  {settingsError ? (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                      <div className="flex items-center mb-2">
+                        <div className="text-yellow-600 mr-2">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z" />
+                          </svg>
+                        </div>
+                        <div className="text-yellow-800 font-medium text-sm">Two-Factor Authentication Unavailable</div>
+                      </div>
+                      <div className="text-yellow-700 text-sm">
+                        Security settings could not be loaded. Two-factor authentication options are temporarily unavailable.
+                      </div>
+                    </div>
+                  ) : settingsLoading ? (
+                    <div>
+                      <h3
+                        className="mb-6"
+                        style={{
+                          fontSize: '16px',
+                          fontWeight: 400,
+                          lineHeight: '16px',
+                          color: '#01112C',
+                          fontFamily: 'Open Sauce Sans, sans-serif',
+                        }}
+                      >
+                        Two Factor Authentication
+                      </h3>
+                      <div className="flex items-center justify-center py-4">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#7F56D9]"></div>
+                        <span className="ml-2 text-sm text-gray-600">Loading security settings...</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="flex items-center justify-between mb-4">
+                        <h3
+                          style={{
+                            fontSize: '16px',
+                            fontWeight: 400,
+                            lineHeight: '16px',
+                            color: '#01112C',
+                            fontFamily: 'Open Sauce Sans, sans-serif',
+                          }}
+                        >
+                          Two Factor Authentication
+                        </h3>
+                        <span
+                          style={{
+                            fontSize: '12px',
+                            fontWeight: 500,
+                            color: '#F04438',
+                            backgroundColor: '#FEE4E2',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            fontFamily: 'Open Sauce Sans, sans-serif',
+                          }}
+                        >
+                          Coming Soon
+                        </span>
+                      </div>
+                      <p
+                        style={{
+                          fontSize: '12px',
+                          color: '#767D94',
+                          marginBottom: '20px',
+                          marginTop: '-8px',
+                          fontFamily: 'Open Sauce Sans, sans-serif',
+                        }}
+                      >
+                        Note: This feature has not been implemented on the backend yet.
+                      </p>
+
+                      {/* SMS Authentication */}
+                      <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-4">
+                          {/* SMS Icon */}
+                          <div className="w-8 h-8 flex items-center justify-center">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                              <rect x="5" y="4" width="14" height="16" rx="2" stroke="#767D94" strokeWidth="2" />
+                              <path d="M9 9h6M9 13h6" stroke="#767D94" strokeWidth="2" strokeLinecap="round" />
+                            </svg>
+                          </div>
+                          <span
+                            style={{
+                              fontSize: '18px',
+                              fontWeight: 700,
+                              lineHeight: '22px',
+                              color: '#767D94',
+                              fontFamily: 'Open Sauce Sans, sans-serif',
+                            }}
+                          >
+                            SMS Authentication
+                          </span>
+                        </div>
+
+                        {/* Toggle Switch */}
+                        <button
+                          disabled
+                          className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none cursor-not-allowed bg-[#DDDFE1] opacity-60"
+                          aria-label="SMS Authentication (Not yet implemented)"
+                        >
+                          <span
+                            className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-1"
+                          />
+                        </button>
+                      </div>
+
+                      {/* Email Authentication */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          {/* Email Icon */}
+                          <div className="w-8 h-8 flex items-center justify-center">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="#767D94" strokeWidth="2" />
+                              <polyline points="22,6 12,13 2,6" stroke="#767D94" strokeWidth="2" />
+                            </svg>
+                          </div>
+                          <span
+                            style={{
+                              fontSize: '18px',
+                              fontWeight: 700,
+                              lineHeight: '22px',
+                              color: '#767D94',
+                              fontFamily: 'Open Sauce Sans, sans-serif',
+                            }}
+                          >
+                            Email Authentication
+                          </span>
+                        </div>
+
+                        {/* Toggle Switch */}
+                        <button
+                          disabled
+                          className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none cursor-not-allowed bg-[#DDDFE1] opacity-60"
+                          aria-label="Email Authentication (Not yet implemented)"
+                        >
+                          <span
+                            className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-1"
+                          />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Activity Log Tab Content */}
+              {activeTab === 'activity-log' && (
+                <div className="p-8">
+                  {/* Header */}
+                  <h1
+                    className="font-bold mb-8"
+                    style={{
+                      fontSize: '24px',
+                      fontWeight: 700,
+                      lineHeight: '32px',
+                      letterSpacing: '0.011em',
+                      color: '#021C3E',
+                      fontFamily: 'Open Sauce Sans, sans-serif',
+                    }}
+                  >
+                    Activity log
+                  </h1>
+
+                  {/* Search Bar */}
+                  <div className="mb-6 relative">
+                    <div className="flex items-center">
+                      <svg
+                        width="17"
+                        height="17"
+                        viewBox="0 0 17 17"
+                        fill="none"
+                        className="absolute left-3 top-1/2 transform -translate-y-1/2"
+                      >
+                        <path
+                          d="M7.5 13.5C10.8137 13.5 13.5 10.8137 13.5 7.5C13.5 4.18629 10.8137 1.5 7.5 1.5C4.18629 1.5 1.5 4.18629 1.5 7.5C1.5 10.8137 4.18629 13.5 7.5 13.5Z"
+                          stroke="#464A53"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                        <path
+                          d="M13.5 13.5L15.5 15.5"
+                          stroke="#464A53"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      <input
+                        type="text"
+                        placeholder="Search"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-10 pr-4 py-2 w-64 bg-transparent border-none outline-none"
+                        style={{
+                          fontSize: '14px',
+                          fontWeight: 500,
+                          lineHeight: '16px',
+                          color: '#464A53',
+                          fontFamily: 'Open Sauce Sans, sans-serif',
+                        }}
+                      />
+                    </div>
+                    <div
+                      className="w-64 h-px mt-2"
+                      style={{
+                        backgroundColor: 'rgba(221, 223, 225, 0.5)',
+                      }}
+                    />
+                  </div>
+
+                  {/* Table */}
+                  <div className="border border-[#DDDFE1] rounded-sm">
+                    {/* Table Header */}
+                    <div
+                      className="flex items-center px-5 py-3 border-b border-[#DDDFE1]"
+                      style={{
+                        backgroundColor: 'rgba(106, 112, 126, 0.0001)',
+                      }}
+                    >
+                      <div className="flex items-center w-8">
+                        <Checkbox
+                          checked={selectAll}
+                          onCheckedChange={handleSelectAll}
+                        />
+                      </div>
+                      <div className="w-56 ml-4">
+                        <span
+                          style={{
+                            fontSize: '14.4px',
+                            fontWeight: 500,
+                            lineHeight: '43px',
+                            color: '#464A53',
+                            fontFamily: 'Open Sauce Sans, sans-serif',
+                          }}
+                        >
+                          Full Name
+                        </span>
+                      </div>
+                      <div className="flex-1 px-4">
+                        <span
+                          style={{
+                            fontSize: '14.4px',
+                            fontWeight: 500,
+                            lineHeight: '43px',
+                            color: '#464A53',
+                            fontFamily: 'Open Sauce Sans, sans-serif',
+                          }}
+                        >
+                          Action Performed
+                        </span>
+                      </div>
+                      <div className="w-64">
+                        <span
+                          style={{
+                            fontSize: '14.4px',
+                            fontWeight: 500,
+                            lineHeight: '43px',
+                            color: '#464A53',
+                            fontFamily: 'Open Sauce Sans, sans-serif',
+                          }}
+                        >
+                          Time & Date
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Table Body */}
+                    <div>
+                      {activityLogsLoading ? (
+                        <div className="flex items-center justify-center py-8">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#7F56D9]"></div>
+                        </div>
+                      ) : activityLogsError ? (
+                        <div className="flex flex-col items-center justify-center py-8">
+                          <div className="text-red-500 mb-2">
+                            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </div>
+                          <span
+                            style={{
+                              fontSize: '14px',
+                              fontWeight: 500,
+                              color: '#DC2626',
+                              fontFamily: 'Open Sauce Sans, sans-serif',
+                            }}
+                          >
+                            Failed to load activity logs
+                          </span>
+                          <span
+                            style={{
+                              fontSize: '12px',
+                              fontWeight: 400,
+                              color: '#6A707E',
+                              fontFamily: 'Open Sauce Sans, sans-serif',
+                              marginTop: '4px'
+                            }}
+                          >
+                            {activityLogsError?.message || 'Please try again later'}
+                          </span>
+                        </div>
+                      ) : activityLogs.length === 0 ? (
+                        <div className="flex items-center justify-center py-8">
+                          <span
+                            style={{
+                              fontSize: '14px',
+                              fontWeight: 500,
+                              color: '#6A707E',
+                              fontFamily: 'Open Sauce Sans, sans-serif',
+                            }}
+                          >
+                            No activity logs found
+                          </span>
+                        </div>
+                      ) : (
+                        activityLogs.map((log: ActivityLogEntry, index: number) => (
+                          <div key={log.id}>
+                            <div className="flex items-center px-5 py-3">
+                              <div className="flex items-center w-8">
+                                <Checkbox
+                                  checked={log.selected || false}
+                                  onCheckedChange={() => handleSelectLog(log.id)}
+                                />
+                              </div>
+                              <div className="w-56 ml-4">
+                                <span
+                                  style={{
+                                    fontSize: '12.8px',
+                                    fontWeight: 700,
+                                    lineHeight: '19px',
+                                    color: '#6A707E',
+                                    fontFamily: 'Open Sauce Sans, sans-serif',
+                                  }}
+                                >
+                                  {log.fullName}
+                                </span>
+                              </div>
+                              <div className="flex-1 px-4">
+                                <span
+                                  style={{
+                                    fontSize: '12.8px',
+                                    fontWeight: 500,
+                                    lineHeight: '19px',
+                                    color: '#6A707E',
+                                    fontFamily: 'Open Sauce Sans, sans-serif',
+                                  }}
+                                >
+                                  {log.actionPerformed}
+                                </span>
+                              </div>
+                              <div className="w-64">
+                                <span
+                                  style={{
+                                    fontSize: '12.8px',
+                                    fontWeight: 500,
+                                    lineHeight: '19px',
+                                    color: '#ABAFB3',
+                                    fontFamily: 'Open Sauce Sans, sans-serif',
+                                  }}
+                                  suppressHydrationWarning={true}
+                                >
+                                  {log.timeAndDate}
+                                </span>
+                              </div>
+                            </div>
+                            {index < activityLogs.length - 1 && (
+                              <div
+                                className="h-px mx-5"
+                                style={{ backgroundColor: '#DDDFE1' }}
+                              />
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Pagination */}
+                  <div className="flex justify-center mt-8">
+                    <div className="flex items-center border border-[#D0D5DD] rounded-lg shadow-sm">
+                      {/* Previous Button */}
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                        className="flex items-center gap-2 px-4 py-2 bg-white border-r border-[#D0D5DD] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+                        style={{
+                          fontSize: '14px',
+                          fontWeight: 600,
+                          lineHeight: '20px',
+                          color: '#344054',
+                          fontFamily: 'Open Sauce Sans, sans-serif',
+                        }}
+                      >
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                          <path d="M12.5 15L7.5 10L12.5 5" stroke="#344054" strokeWidth="1.67" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        Previous
+                      </button>
+
+                      {/* Page Numbers */}
+                      {Array.from({ length: Math.min(totalPages, 8) }, (_, i) => {
+                        const pageNum = i + 1;
+                        const isActive = pageNum === currentPage;
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => setCurrentPage(pageNum)}
+                            className={`px-3 py-2 border-r border-[#D0D5DD] transition-colors ${isActive
+                              ? 'bg-[#F9FAFB] text-[#1D2939]'
+                              : 'bg-white text-[#344054] hover:bg-gray-50'
+                              }`}
+                            style={{
+                              fontSize: '14px',
+                              fontWeight: 600,
+                              lineHeight: '20px',
+                              fontFamily: 'Open Sauce Sans, sans-serif',
+                            }}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+
+                      {/* Next Button */}
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages}
+                        className="flex items-center gap-2 px-4 py-2 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+                        style={{
+                          fontSize: '14px',
+                          fontWeight: 600,
+                          lineHeight: '20px',
+                          color: '#344054',
+                          fontFamily: 'Open Sauce Sans, sans-serif',
+                        }}
+                      >
+                        Next
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                          <path d="M7.5 15L12.5 10L7.5 5" stroke="#344054" strokeWidth="1.67" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Other Tab Contents - Placeholder */}
+
+              {activeTab === 'permissions-users' && (
+                <div
+                  style={{
+                    padding: '32px',
+                    width: '941px',
+                    minHeight: '611px',
+                  }}
+                >
+                  {/* Header Section */}
+                  <div
+                    className="flex items-center justify-between"
+                    style={{ marginBottom: '48px' }}
+                  >
+                    <div>
+                      <h1
+                        style={{
+                          fontSize: '24px',
+                          fontWeight: 700,
+                          lineHeight: '32px',
+                          letterSpacing: '0.011em',
+                          color: '#021C3E',
+                          fontFamily: 'Open Sauce Sans, sans-serif',
+                          marginBottom: '8px',
+                        }}
+                      >
+                        Roles & Permission
+                      </h1>
+                      <p
+                        style={{
+                          fontSize: '16px',
+                          fontWeight: 400,
+                          lineHeight: '20px',
+                          color: '#767D94',
+                          fontFamily: 'Open Sauce Sans, sans-serif',
+                          width: '382px',
+                          height: '40px',
+                        }}
+                      >
+                        These are the accounts with access to LAAS admin and their roles as provided by the super admin
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleCreateAdmin}
+                      className="hover:bg-[#6941C6] transition-colors focus:outline-none focus:ring-2 focus:ring-[#7A62EB] focus:ring-offset-2"
+                      style={{
+                        width: '120.45px',
+                        height: '34px',
+                        background: '#7A62EB',
+                        border: '0.5px solid #7A62EB',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        fontWeight: 500,
+                        lineHeight: '16px',
+                        fontFamily: 'Open Sauce Sans, sans-serif',
+                        color: '#FFFFFF',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      Create Admin
+                    </button>
+                  </div>
+
+                  {/* Users List */}
+                  <div>
+                    {/* Initial Divider Line */}
+                    <div
+                      style={{
+                        width: '588px',
+                        height: '0px',
+                        opacity: 0.1,
+                        border: '0.8px solid #000000',
+                      }}
+                    />
+
+                    {usersLoading ? (
+                      <div className="flex items-center justify-center py-12">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#7A62EB]"></div>
+                      </div>
+                    ) : usersData.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-center">
+                        <p
+                          style={{
+                            fontSize: '16px',
+                            fontWeight: 500,
+                            color: '#767D94',
+                            fontFamily: 'Open Sauce Sans, sans-serif',
+                          }}
+                        >
+                          No users found
+                        </p>
+                      </div>
+                    ) : (
+                      usersData.map((user, index) => (
+                        <div key={user.id}>
+                          <div
+                            className="flex items-center justify-between"
+                            style={{ paddingTop: '32px', paddingBottom: '32px' }}
+                          >
+                            <div className="flex items-center" style={{ gap: '16px' }}>
+                              <div
+                                style={{
+                                  width: '40px',
+                                  height: '40px',
+                                  borderRadius: '50%',
+                                  backgroundColor: user.avatar ? 'transparent' : '#237385',
+                                  backgroundImage: user.avatar ? `url(${user.avatar})` : 'none',
+                                  backgroundSize: 'cover',
+                                  backgroundPosition: 'center',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '15px',
+                                  fontWeight: 500,
+                                  lineHeight: '16px',
+                                  letterSpacing: '0.03em',
+                                  fontFamily: 'Open Sauce Sans, sans-serif',
+                                  color: '#FFFFFF',
+                                }}
+                              >
+                                {!user.avatar && user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                              </div>
+                              <div>
+                                <div className="flex items-center" style={{ gap: '8px', marginBottom: '3px' }}>
+                                  <span
+                                    style={{
+                                      fontSize: '16px',
+                                      fontWeight: 500,
+                                      lineHeight: '16px',
+                                      color: '#000000',
+                                      opacity: 0.9,
+                                      fontFamily: 'Open Sauce Sans, sans-serif',
+                                    }}
+                                  >
+                                    {user.name}
+                                  </span>
+                                  <div
+                                    style={{
+                                      padding: '3px 6px',
+                                      background:
+                                        user.role === 'HQ' ? '#FBEFF8' :
+                                          user.role === 'AM' ? '#ECF0D9' :
+                                            user.role === 'CO' ? '#DEDAF3' :
+                                              '#FBEFF8',
+                                      borderRadius: '3px',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        fontSize: '10px',
+                                        fontWeight: 400,
+                                        lineHeight: '10px',
+                                        fontFamily: 'Open Sauce Sans, sans-serif',
+                                        color:
+                                          user.role === 'HQ' ? '#AB659C' :
+                                            user.role === 'AM' ? '#4C5F00' :
+                                              user.role === 'CO' ? '#462ACD' :
+                                                '#AB659C',
+                                      }}
+                                    >
+                                      {user.role}
+                                    </span>
+                                  </div>
+                                </div>
+                                <p
+                                  style={{
+                                    fontSize: '14px',
+                                    fontWeight: 400,
+                                    lineHeight: '16px',
+                                    color: '#767D94',
+                                    fontFamily: 'Open Sauce Sans, sans-serif',
+                                    marginBottom: '7px',
+                                  }}
+                                >
+                                  {user.email}
+                                </p>
+                                <p
+                                  style={{
+                                    fontSize: '14px',
+                                    fontWeight: 500,
+                                    lineHeight: '17px',
+                                    color: '#767D94',
+                                    fontFamily: 'Open Sauce Sans, sans-serif',
+                                    marginBottom: '8px',
+                                  }}
+                                >
+                                  {user.permissions.join(', ')}
+                                </p>
+                                <p
+                                  style={{
+                                    fontSize: '12px',
+                                    fontWeight: 400,
+                                    lineHeight: '15px',
+                                    color: user.status === 'active' ? '#00BE63' : '#F04438',
+                                    fontFamily: 'Open Sauce Sans, sans-serif',
+                                  }}
+                                >
+                                  {user.status === 'active' ? 'Active Now' : `Last Active on ${user.lastActive || 'N/A'}`}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleEditUser(user.id)}
+                              className="hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-[#7A62EB] focus:ring-offset-2"
+                              style={{
+                                width: '78px',
+                                height: '38px',
+                                border: '1px solid rgba(124, 134, 161, 0.4)',
+                                borderRadius: '4px',
+                                fontSize: '14px',
+                                fontWeight: 400,
+                                lineHeight: '16px',
+                                fontFamily: 'Open Sauce Sans, sans-serif',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: '#000000',
+                                opacity: 0.7,
+                                background: 'transparent',
+                              }}
+                            >
+                              Edit
+                            </button>
+                          </div>
+                          {index < usersData.length - 1 && (
+                            <div
+                              style={{
+                                width: '588px',
+                                height: '0px',
+                                opacity: 0.1,
+                                border: '0.8px solid #000000',
+                              }}
+                            />
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'configuration' && (
+                <div
+                  style={{
+                    padding: '32px',
+                    width: '941px',
+                    minHeight: '611px',
+                  }}
+                >
+                  {/* Header */}
+                  <h1
+                    style={{
+                      fontSize: '24px',
+                      fontWeight: 700,
+                      lineHeight: '32px',
+                      letterSpacing: '0.011em',
+                      color: '#021C3E',
+                      fontFamily: 'Open Sauce Sans, sans-serif',
+                      marginBottom: '48px',
+                    }}
+                  >
+                    Configurations
+                  </h1>
+
+                  {/* System Settings Error Handling */}
+                  {settingsError ? (
+                    <div className="flex flex-col items-center justify-center py-8">
+                      <div className="text-red-500 mb-2">
+                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <span
+                        style={{
+                          fontSize: '16px',
+                          fontWeight: 500,
+                          lineHeight: '24px',
+                          color: '#DC2626',
+                          fontFamily: 'Open Sauce Sans, sans-serif',
+                          marginBottom: '8px',
+                        }}
+                      >
+                        Configuration Settings Unavailable
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '14px',
+                          fontWeight: 400,
+                          lineHeight: '20px',
+                          color: '#6B7280',
+                          fontFamily: 'Open Sauce Sans, sans-serif',
+                          textAlign: 'center',
+                          marginBottom: '4px',
+                        }}
+                      >
+                        {settingsError?.message || 'Failed to load configuration settings'}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '12px',
+                          fontWeight: 400,
+                          lineHeight: '16px',
+                          color: '#9CA3AF',
+                          fontFamily: 'Open Sauce Sans, sans-serif',
+                          textAlign: 'center',
+                        }}
+                      >
+                        {(settingsError as any)?.status === 404
+                          ? 'The system settings endpoint is not available. Please contact your system administrator.'
+                          : 'Please try again later or contact support if the problem persists.'
+                        }
+                      </span>
+                    </div>
+                  ) : settingsLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#7F56D9]"></div>
+                    </div>
+                  ) : (
+                    /* Configuration Sections */
+                    <div>
+                      {/* Set Global Defaults Section */}
+                      <div
+                        className="flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors rounded-md p-2 -m-2"
+                        onClick={handleOpenGlobalSettings}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleOpenGlobalSettings();
+                          }
+                        }}
+                        tabIndex={0}
+                        role="button"
+                        aria-label="Open global settings configuration"
+                        style={{ paddingTop: '32px', paddingBottom: '32px' }}
+                      >
+                        <div className="flex-1 max-w-[244px]">
+                          <h3
+                            style={{
+                              fontSize: '14px',
+                              fontWeight: 500,
+                              lineHeight: '16px',
+                              color: '#01112C',
+                              fontFamily: 'Open Sauce Sans, sans-serif',
+                              marginBottom: '8px',
+                            }}
+                          >
+                            Set Global Defaults
+                          </h3>
+                          <p
+                            style={{
+                              fontSize: '16px',
+                              fontWeight: 400,
+                              lineHeight: '16px',
+                              color: '#767D94',
+                              fontFamily: 'Open Sauce Sans, sans-serif',
+                            }}
+                          >
+                            Set interest rate and loan terms
+                          </p>
+                        </div>
+                        <svg
+                          width="20"
+                          height="20"
+                          viewBox="0 0 20 20"
+                          fill="none"
+                          style={{ opacity: 0.8 }}
+                        >
+                          <path
+                            d="M7.5 15L12.5 10L7.5 5"
+                            stroke="#000000"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </div>
+
+                      {/* Divider Line */}
+                      <div
+                        style={{
+                          width: '469px',
+                          height: '0px',
+                          opacity: 0.1,
+                          border: '0.8px solid #000000',
+                        }}
+                      />
+
+                      {/* Report Template Section */}
+                      <div
+                        className="flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors rounded-md p-2 -m-2"
+                        onClick={handleOpenReportTemplate}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleOpenReportTemplate();
+                          }
+                        }}
+                        tabIndex={0}
+                        role="button"
+                        aria-label="Open report template configuration"
+                        style={{ paddingTop: '32px', paddingBottom: '32px' }}
+                      >
+                        <div className="flex-1 max-w-[244px]">
+                          <h3
+                            style={{
+                              fontSize: '14px',
+                              fontWeight: 500,
+                              lineHeight: '16px',
+                              color: '#01112C',
+                              fontFamily: 'Open Sauce Sans, sans-serif',
+                              marginBottom: '8px',
+                            }}
+                          >
+                            Report Template
+                          </h3>
+                          <p
+                            style={{
+                              fontSize: '16px',
+                              fontWeight: 400,
+                              lineHeight: '16px',
+                              color: '#767D94',
+                              fontFamily: 'Open Sauce Sans, sans-serif',
+                            }}
+                          >
+                            Set interest rate and loan terms
+                          </p>
+                        </div>
+                        <svg
+                          width="20"
+                          height="20"
+                          viewBox="0 0 20 20"
+                          fill="none"
+                          style={{ opacity: 0.8 }}
+                        >
+                          <path
+                            d="M7.5 15L12.5 10L7.5 5"
+                            stroke="#000000"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </div>
+
+                      {/* Divider Line */}
+                      <div
+                        style={{
+                          width: '469px',
+                          height: '0px',
+                          opacity: 0.1,
+                          border: '0.8px solid #000000',
+                        }}
+                      />
+
+                      {/* Alert Rules Section */}
+                      <div
+                        className="flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors rounded-md p-2 -m-2"
+                        onClick={handleOpenAlertRules}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleOpenAlertRules();
+                          }
+                        }}
+                        tabIndex={0}
+                        role="button"
+                        aria-label="Open alert rules configuration"
+                        style={{ paddingTop: '32px', paddingBottom: '32px' }}
+                      >
+                        <div className="flex-1 max-w-[244px]">
+                          <h3
+                            style={{
+                              fontSize: '14px',
+                              fontWeight: 500,
+                              lineHeight: '16px',
+                              color: '#01112C',
+                              fontFamily: 'Open Sauce Sans, sans-serif',
+                              marginBottom: '8px',
+                            }}
+                          >
+                            Alert rules
+                          </h3>
+                          <p
+                            style={{
+                              fontSize: '16px',
+                              fontWeight: 400,
+                              lineHeight: '16px',
+                              color: '#767D94',
+                              fontFamily: 'Open Sauce Sans, sans-serif',
+                            }}
+                          >
+                            Set interest rate and loan terms
+                          </p>
+                        </div>
+                        <svg
+                          width="20"
+                          height="20"
+                          viewBox="0 0 20 20"
+                          fill="none"
+                          style={{ opacity: 0.8 }}
+                        >
+                          <path
+                            d="M7.5 15L12.5 10L7.5 5"
+                            stroke="#000000"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* Password Change Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-[rgba(52,64,84,0.7)] backdrop-blur-[16px] flex items-center justify-center z-50">
+          <div
+            className="bg-white rounded-lg shadow-lg"
+            style={{
+              width: '480px',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+            }}
+          >
+            {/* Modal Header */}
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <button
+                  onClick={closePasswordModal}
+                  className="flex items-center gap-2 text-[#858D96] hover:text-[#6B7280] transition-colors"
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M10 12L6 8L10 4" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span
+                    style={{
+                      fontSize: '14px',
+                      fontWeight: 500,
+                      lineHeight: '17px',
+                      fontFamily: 'Open Sauce Sans, sans-serif',
+                    }}
+                  >
+                    Back
+                  </span>
+                </button>
+              </div>
+
+              <h2
+                className="mb-2"
+                style={{
+                  fontSize: '20px',
+                  fontWeight: 500,
+                  lineHeight: '32px',
+                  color: '#021C3E',
+                  fontFamily: 'Open Sauce Sans, sans-serif',
+                }}
+              >
+                Password Information
+              </h2>
+              <p
+                style={{
+                  fontSize: '16px',
+                  fontWeight: 400,
+                  lineHeight: '24px',
+                  color: '#021C3E',
+                  opacity: 0.5,
+                  fontFamily: 'Open Sauce Sans, sans-serif',
+                }}
+              >
+                Change your password below
+              </p>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6">
+              <div className="space-y-6">
+                {/* Current Password */}
+                <div>
+                  <label
+                    className="block mb-2"
+                    style={{
+                      fontSize: '14px',
+                      fontWeight: 400,
+                      lineHeight: '22px',
+                      color: '#01112C',
+                      opacity: 0.5,
+                      fontFamily: 'Open Sauce Sans, sans-serif',
+                    }}
+                  >
+                    Current password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPasswords.current ? 'text' : 'password'}
+                      value={passwordData.currentPassword}
+                      onChange={(e) => handlePasswordChange('currentPassword', e.target.value)}
+                      className="w-full px-4 py-4 bg-[#F9FAFC] border border-[#BCC7D3] rounded-md focus:outline-none focus:ring-2 focus:ring-[#7A62EB] focus:border-transparent"
+                      style={{
+                        fontSize: '16px',
+                        fontWeight: 400,
+                        lineHeight: '16px',
+                        fontFamily: 'Open Sauce Sans, sans-serif',
+                      }}
+                      placeholder="••••••••••••••"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => togglePasswordVisibility('current')}
+                      className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#9097A5] hover:text-[#6B7280] transition-colors"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z" stroke="currentColor" strokeWidth="1.5" />
+                        <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.5" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                {/* New Password */}
+                <div>
+                  <label
+                    className="block mb-2"
+                    style={{
+                      fontSize: '14px',
+                      fontWeight: 400,
+                      lineHeight: '22px',
+                      color: '#01112C',
+                      opacity: 0.5,
+                      fontFamily: 'Open Sauce Sans, sans-serif',
+                    }}
+                  >
+                    New password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPasswords.new ? 'text' : 'password'}
+                      value={passwordData.newPassword}
+                      onChange={(e) => handlePasswordChange('newPassword', e.target.value)}
+                      className="w-full px-4 py-4 bg-[#F9FAFC] border border-[#BCC7D3] rounded-md focus:outline-none focus:ring-2 focus:ring-[#7A62EB] focus:border-transparent"
+                      style={{
+                        fontSize: '16px',
+                        fontWeight: 400,
+                        lineHeight: '16px',
+                        fontFamily: 'Open Sauce Sans, sans-serif',
+                      }}
+                      placeholder="Enter new password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => togglePasswordVisibility('new')}
+                      className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#9097A5] hover:text-[#6B7280] transition-colors"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z" stroke="currentColor" strokeWidth="1.5" />
+                        <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.5" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Confirm New Password */}
+                <div>
+                  <label
+                    className="block mb-2"
+                    style={{
+                      fontSize: '14px',
+                      fontWeight: 400,
+                      lineHeight: '22px',
+                      color: '#01112C',
+                      opacity: 0.5,
+                      fontFamily: 'Open Sauce Sans, sans-serif',
+                    }}
+                  >
+                    Confirm New password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPasswords.confirm ? 'text' : 'password'}
+                      value={passwordData.confirmPassword}
+                      onChange={(e) => handlePasswordChange('confirmPassword', e.target.value)}
+                      className="w-full px-4 py-4 bg-[#F9FAFC] border border-[#BCC7D3] rounded-md focus:outline-none focus:ring-2 focus:ring-[#7A62EB] focus:border-transparent"
+                      style={{
+                        fontSize: '16px',
+                        fontWeight: 400,
+                        lineHeight: '16px',
+                        fontFamily: 'Open Sauce Sans, sans-serif',
+                      }}
+                      placeholder="Confirm new password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => togglePasswordVisibility('confirm')}
+                      className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#9097A5] hover:text-[#6B7280] transition-colors"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z" stroke="currentColor" strokeWidth="1.5" />
+                        <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.5" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="flex items-center justify-between mt-8">
+                <button
+                  onClick={closePasswordModal}
+                  className="text-[#7A62EB] hover:text-[#6941C6] transition-colors focus:outline-none"
+                  style={{
+                    fontSize: '14px',
+                    fontWeight: 400,
+                    lineHeight: '17px',
+                    fontFamily: 'Open Sauce Sans, sans-serif',
+                  }}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  onClick={handleChangePassword}
+                  disabled={isLoading || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
+                  className="bg-[#7F56D9] hover:bg-[#6941C6] disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:ring-offset-2 shadow-sm px-6 py-3"
+                  style={{
+                    fontSize: '16px',
+                    fontWeight: 600,
+                    lineHeight: '24px',
+                    fontFamily: 'Open Sauce Sans, sans-serif',
+                    border: '1px solid #7F56D9',
+                    boxShadow: '0px 1px 2px rgba(16, 24, 40, 0.05)',
+                  }}
+                >
+                  {isLoading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Changing Password...
+                    </div>
+                  ) : (
+                    'Change Password'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Role Modal */}
+      {selectedUser && (
+        <EditRoleModal
+          isOpen={showEditRoleModal}
+          onClose={handleCloseEditModal}
+          onSave={handleSaveUser}
+          userData={selectedUser}
+        />
+      )}
+
+      {/* Create Admin Modal */}
+      <CreateAdminModal
+        isOpen={showCreateAdminModal}
+        onClose={handleCloseCreateAdminModal}
+        onSave={handleSaveNewAdmin}
+      />
+
+      {/* Global Settings Modal */}
+      <GlobalSettingsModal
+        isOpen={showGlobalSettingsModal}
+        onClose={handleCloseGlobalSettings}
+        onSave={handleSaveGlobalSettings}
+        initialData={globalSettings}
+      />
+
+      {/* Report Template Modal */}
+      <ReportTemplateModal
+        isOpen={showReportTemplateModal}
+        onClose={handleCloseReportTemplate}
+        onSave={handleSaveReportTemplate}
+        initialData={reportTemplateSettings}
+      />
+
+      {/* Alert Rules Modal */}
+      <AlertRulesModal
+        isOpen={showAlertRulesModal}
+        onClose={handleCloseAlertRules}
+        onSave={handleSaveAlertRules}
+        alertData={alertRulesSettings || {
+          missedPayments: false,
+          missedReports: false,
+          dailyEmailSummary: false,
+          customParameters: [],
+        }}
+      />
+
+      {/* Profile Picture Upload Modal */}
+      {showProfilePictureModal && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50"
+          style={{
+            backgroundColor: 'rgba(52, 64, 84, 0.7)',
+            backdropFilter: 'blur(16px)'
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowProfilePictureModal(false);
+            }
+          }}
+        >
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-[#021C3E]">
+                Upload Profile Picture
+              </h3>
+              <button
+                onClick={() => setShowProfilePictureModal(false)}
+                className="text-[#667085] hover:text-[#344054] transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <FileUpload
+              accept="image/*"
+              maxSize={5 * 1024 * 1024} // 5MB
+              maxFiles={1}
+              onFileSelect={handleProfilePictureUpload}
+              onError={handleProfilePictureError}
+              showPreview={true}
+              placeholder="Click to upload or drag and drop your profile picture"
+              className="mb-4"
+            />
+
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowProfilePictureModal(false)}
+                className="px-4 py-2 text-[#344054] border border-[#D0D5DD] rounded-lg hover:bg-[#F9FAFB] transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} onClose={removeToast} />
+    </div>
+  );
+}
