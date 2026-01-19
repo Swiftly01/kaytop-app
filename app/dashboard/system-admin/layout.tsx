@@ -3,6 +3,7 @@ import React from "react";
 import Sidebar from "@/app/_components/layouts/dashboard/Sidebar";
 import Navbar from "@/app/_components/layouts/dashboard/Navbar";
 import QueryProvider from "@/app/_components/ui/QueryProvider";
+import { SystemAdminGuard } from "@/app/components/AuthGuard";
 import { MenuItem } from "@/app/types/routes";
 
 export const metadata: Metadata = {
@@ -62,20 +63,22 @@ export default function SystemAdminLayout({
 }) {
   return (
     <div className="bg-[#F4F6FA] min-h-screen">
-      <QueryProvider>
-        <Navbar />
-        <div className="drawer lg:drawer-open" style={{ paddingTop: '70px' }}>
-          <input
-            id="my-drawer-4"
-            type="checkbox"
-            className="drawer-toggle lg:hidden"
-            aria-label="Toggle navigation drawer"
-            suppressHydrationWarning
-          />
-          <Sidebar items={systemAdminMenuItems} />
-          {children}
-        </div>
-      </QueryProvider>
+      <SystemAdminGuard>
+        <QueryProvider>
+          <Navbar />
+          <div className="drawer lg:drawer-open" style={{ paddingTop: '70px' }}>
+            <input
+              id="my-drawer-4"
+              type="checkbox"
+              className="drawer-toggle lg:hidden"
+              aria-label="Toggle navigation drawer"
+              suppressHydrationWarning
+            />
+            <Sidebar items={systemAdminMenuItems} />
+            {children}
+          </div>
+        </QueryProvider>
+      </SystemAdminGuard>
     </div>
   );
 }
