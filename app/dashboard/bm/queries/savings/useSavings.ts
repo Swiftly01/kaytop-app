@@ -1,6 +1,6 @@
 import { useUrlPagination } from "@/app/hooks/useUrlPagination";
 import { DashboardService } from "@/app/services/dashboardService";
-import { PaginationKey, SavingsApiResponse } from "@/app/types/dashboard";
+import { PaginationKey, savingsResponse } from "@/app/types/dashboard";
 import { useQuery } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 
@@ -12,7 +12,7 @@ export function useSavings() {
   const { page, limit } = useUrlPagination(PaginationKey.savings_page);
 
   const { isLoading, error, data } = useQuery<
-    SavingsApiResponse,
+    savingsResponse,
     AxiosError<SavingsErrorResponse>
   >({
     queryKey: ["savings", page, limit],
