@@ -3,6 +3,7 @@ import "../styles/globals.css";
 import patterns from "@/public/patterns.png";
 import { Metadata } from "next";
 import { Toaster } from "react-hot-toast";
+import { AuthProvider } from "../context/AuthContext";
 
 export const metadata: Metadata = {
   title: {
@@ -11,12 +12,13 @@ export const metadata: Metadata = {
   },
   description:
     "Kaytop is a modern multipurpose investment platform that enables users to invest confidently, access financing, and grow wealth with ease.",
+  // metadataBase: new URL('https://next-learn-dashboard.vercel.sh'),
   icons: {
     icon: "/logo.png",
   },
 };
 
-export default function AuthLayout({
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -25,8 +27,9 @@ export default function AuthLayout({
     <div
       style={{ backgroundImage: `url(${patterns.src})` }}
       className="flex items-center justify-center min-h-screen bg-no-repeat bg-bottom-right bg-neutral-100"
+      suppressHydrationWarning
     >
-      {children}
+      <AuthProvider>{children}</AuthProvider>
       <Toaster position="top-right" />
     </div>
   );

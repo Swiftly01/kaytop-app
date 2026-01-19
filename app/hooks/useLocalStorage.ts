@@ -2,26 +2,41 @@
 import { useEffect, useState } from "react";
 
 export function useLocalStorageState<T>(initialState: T, key: string) {
-  const [value, setValue] = useState(function () {
-    if (typeof window === "undefined") return initialState;
-    const storedValue = localStorage.getItem(key);
+  const [value, setValue] = useState<T>(initialState);
+  const [isClient, setIsClient] = useState(false);
 
-    return storedValue ? JSON.parse(storedValue) : initialState;
-  });
+  // Set isClient to true after component mounts
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
-  useEffect(
-    function () {
-      if (value === null || value === undefined) {
-        return localStorage.removeItem(key);
+  // Load from localStorage only after client-side hydration
+  useEffect(() => {
+    if (isClient) {
+      const storedValue = localStorage.getItem(key);
+      if (storedValue) {
+        try {
+          setValue(JSON.parse(storedValue));
+        } catch (error) {
+          console.error(`Error parsing localStorage value for key "${key}":`, error);
+        }
       }
-      localStorage.setItem(key, JSON.stringify(value));
-    },
-    [value, key]
-  );
+    }
+  }, [isClient, key]);
+
+  useEffect(() => {
+    if (isClient) {
+      if (value === null || value === undefined) {
+        localStorage.removeItem(key);
+      } else {
+        localStorage.setItem(key, JSON.stringify(value));
+      }
+    }
+  }, [value, key, isClient]);
 
   const remove = () => {
-    setValue(null);
-  }
+    setValue(initialState);
+  };
 
   return [value, setValue, remove] as const;
 }

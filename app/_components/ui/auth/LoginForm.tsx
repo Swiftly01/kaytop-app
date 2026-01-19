@@ -2,7 +2,6 @@
 import Button from "@/app/_components/ui/Button";
 import { Checkbox } from "@/app/_components/ui/Checkbox";
 import Input from "@/app/_components/ui/Input";
-import { convertRoleForMiddleware } from "@/lib/authCookies";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
@@ -51,35 +50,10 @@ export default function LoginForm() {
 
       const accessToken = response.access_token;
       const role = response.role;
-
-      // Update AuthContext
       auth(accessToken, role);
-
-      // Set cookies with proper role conversion
       setCookie(accessToken, role);
-
-      toast.success("You have logged in successfully");
-
-      // Role-based routing after login
-      // Role-based routing after login
-      // Use the centralized helper to ensure consistency with middleware
-      const middlewareRole = convertRoleForMiddleware(role);
-
-      const roleDashboardRoutes: Record<string, string> = {
-        BRANCH_MANAGER: ROUTES.Bm.DASHBOARD,
-        ADMIN: "/dashboard/system-admin",
-        ACCOUNT_MANAGER: "/dashboard/am",
-        CREDIT_OFFICER: "/dashboard/co",
-        USER: "/dashboard/customer",
-      };
-
-      const targetDashboard = roleDashboardRoutes[middlewareRole] || ROUTES.Bm.DASHBOARD;
-
-      console.log('🔍 LoginForm - API Role:', role);
-      console.log('🔍 LoginForm - Middleware Role:', middlewareRole);
-      console.log('🔍 LoginForm - Target Dashboard:', targetDashboard);
-
-      router.push(targetDashboard);
+      toast.success("You have logged in successfuly");
+      router.push(ROUTES.Bm.DASHBOARD);
     } catch (error: AxiosError | unknown) {
       const err = error as AxiosError;
 

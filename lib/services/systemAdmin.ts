@@ -69,7 +69,15 @@ class SystemAdminAPIService implements SystemAdminService {
         `${API_ENDPOINTS.LOANS.DISBURSED}?page=${page}&limit=${limit}`
       );
 
-      // Handle various response formats
+      // Backend now handles pagination, expect response with data and pagination
+      if (response?.data?.data && response?.data?.pagination) {
+        return {
+          data: response.data.data.map((item: any) => this.transformDisbursementRecord(item)),
+          pagination: response.data.pagination
+        };
+      }
+
+      // Handle various response formats (legacy support)
       let dataArray: any[] = [];
       
       // Check if response is wrapped with success field
@@ -119,7 +127,15 @@ class SystemAdminAPIService implements SystemAdminService {
         `${API_ENDPOINTS.LOANS.RECOLLECTIONS}?page=${page}&limit=${limit}`
       );
 
-      // Handle various response formats
+      // Backend now handles pagination, expect response with data and pagination
+      if (response?.data?.data && response?.data?.pagination) {
+        return {
+          data: response.data.data.map((item: any) => this.transformRecollectionRecord(item)),
+          pagination: response.data.pagination
+        };
+      }
+
+      // Handle various response formats (legacy support)
       let dataArray: any[] = [];
       
       // Check if response is wrapped with success field
@@ -177,7 +193,15 @@ class SystemAdminAPIService implements SystemAdminService {
 
       console.log('🔍 getSavings - Response received:', response);
 
-      // Handle various response formats
+      // Backend now handles pagination, expect response with data and pagination
+      if (response?.data?.data && response?.data?.pagination) {
+        return {
+          data: response.data.data.map((item: any) => this.transformSavingsRecord(item)),
+          pagination: response.data.pagination
+        };
+      }
+
+      // Handle various response formats (legacy support)
       let dataArray: any[] = [];
       
       // Check if response is wrapped with success field
@@ -227,7 +251,15 @@ class SystemAdminAPIService implements SystemAdminService {
         `${API_ENDPOINTS.LOANS.MISSED}?page=${page}&limit=${limit}`
       );
 
-      // Handle various response formats
+      // Backend now handles pagination, expect response with data and pagination
+      if (response?.data?.data && response?.data?.pagination) {
+        return {
+          data: response.data.data.map((item: any) => this.transformMissedPaymentRecord(item)),
+          pagination: response.data.pagination
+        };
+      }
+
+      // Handle various response formats (legacy support)
       let dataArray: any[] = [];
       
       // Check if response is wrapped with success field
