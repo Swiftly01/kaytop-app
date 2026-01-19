@@ -1,104 +1,118 @@
 /**
  * PieChart Component
- * Simple pie chart component using Recharts
+ * SVG-based pie chart for visualizing data distributions
+ * Styled to match DonutChart design consistency
  */
 
-import React from 'react';
-import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
-
-interface PieChartData {
-  name?: string;
-  value: number;
-  color?: string;
-}
-
 interface PieChartProps {
-  data: PieChartData[];
-  width?: number;
-  height?: number;
-  size?: number; // Shorthand for both width and height
-  innerRadius?: number;
-  outerRadius?: number;
-  showTooltip?: boolean;
-  showLegend?: boolean;
-  colors?: string[];
+  data: { value: number; color: string }[];
+  size?: number;
   backgroundColor?: string;
-  className?: string;
 }
 
-const DEFAULT_COLORS = [
-  '#7F56D9',
-  '#06AED4', 
-  '#F79009',
-  '#F04438',
-  '#12B76A',
-  '#6941C6',
-  '#84CAFF',
-  '#FDB022',
-  '#F97066',
-  '#32D583'
-];
+/**
+ * Convert polar coordinates to cartesian coordinates
+ */
+function polarToCartesian(
+  centerX: number,
+  centerY: number,
+  radius: number,
+  angleInDegrees: number
+): { x: number; y: number } {
+  const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0;
+  return {
+    x: centerX + radius * Math.cos(angleInRadians),
+    y: centerY + radius * Math.sin(angleInRadians)
+  };
+}
+
+/**
+ * Generate SVG path for an arc segment
+ */
+function describeArc(
+  x: number,
+  y: number,
+  radius: number,
+  startAngle: number,
+  endAngle: number
+): string {
+  const start = polarToCartesian(x, y, radius, endAngle);
+  const end = polarToCartesian(x, y, radius, startAngle);
+  const largeArcFlag = endAngle - startAngle <= 180 ? '0' : '1';
+
+  return [
+    'M',
+    start.x,
+    start.y,
+    'A',
+    radius,
+    radius,
+    0,
+    largeArcFlag,
+    0,
+    end.x,
+    end.y,
+    'L',
+    x,
+    y,
+    'Z'
+  ].join(' ');
+}
 
 export default function PieChart({
   data,
-  width,
-  height,
-  size,
-  innerRadius = 0,
-  outerRadius = 80,
-  showTooltip = true,
-  showLegend = false,
-  colors = DEFAULT_COLORS,
-  backgroundColor,
-  className = '',
+  size = 120,
+  backgroundColor = '#F2F4F7'
 }: PieChartProps) {
-  // Use size for both width and height if provided
-  const chartWidth = size || width || 300;
-  const chartHeight = size || height || 300;
-  // Ensure data has colors and names
-  const chartData = data.map((item, index) => ({
-    ...item,
-    name: item.name || `Item ${index + 1}`,
-    color: item.color || colors[index % colors.length],
-  }));
+  // Calculate total value
+  const total = data.reduce((sum, item) => sum + item.value, 0);
+
+  // Generate segments with consistent sizing (matching DonutChart)
+  const center = size / 2;
+  const radius = size / 2; // Full radius for pie segments
+  
+  let currentAngle = 0;
+  const segments = data.map((item, index) => {
+    const angle = (item.value / total) * 360;
+    const path = describeArc(
+      center,
+      center,
+      radius,
+      currentAngle,
+      currentAngle + angle
+    );
+    currentAngle += angle;
+
+    return {
+      path,
+      color: item.color,
+      key: `segment-${index}`
+    };
+  });
 
   return (
-    <div 
-      className={`pie-chart ${className}`}
-      style={{ backgroundColor }}
+    <svg
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      className="flex-shrink-0"
     >
-      <ResponsiveContainer width={chartWidth} height={chartHeight}>
-        <RechartsPieChart>
-          <Pie
-            data={chartData}
-            cx="50%"
-            cy="50%"
-            innerRadius={innerRadius}
-            outerRadius={outerRadius}
-            paddingAngle={2}
-            dataKey="value"
-          >
-            {chartData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.color} />
-            ))}
-          </Pie>
-          {showTooltip && (
-            <Tooltip
-              formatter={(value: number, name: string) => [
-                `${value.toLocaleString()}`,
-                name
-              ]}
-              contentStyle={{
-                backgroundColor: '#fff',
-                border: '1px solid #e5e7eb',
-                borderRadius: '8px',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-              }}
-            />
-          )}
-          {showLegend && <Legend />}
-        </RechartsPieChart>
-      </ResponsiveContainer>
-    </div>
+      {/* Background circle - full size to match DonutChart */}
+      <circle
+        cx={center}
+        cy={center}
+        r={size / 2}
+        fill={backgroundColor}
+      />
+
+      {/* Segments */}
+      {segments.map((segment) => (
+        <path
+          key={segment.key}
+          d={segment.path}
+          fill={segment.color}
+        />
+      ))}
+    </svg>
   );
 }

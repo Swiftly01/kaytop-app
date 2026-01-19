@@ -12,6 +12,21 @@ interface TableProps {
   item?: Items[];
   meta?: Meta;
   onPageChange?: (page: number) => void;
+  renderExtraColumn?: (item: Items) => React.ReactNode;
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const base = "inline-flex items-center px-2 py-1 text-xs font-medium rounded-full";
+  if (status === "Paid") return <span className={base + " text-emerald-700 bg-emerald-100"}>Paid</span>;
+  if (status === "Missed") return <span className={base + " text-red-700 bg-red-100"}>Missed</span>;
+  if (status === "Upcoming") return <span className={base + " text-slate-700 bg-slate-100"}>Upcoming</span>;
+  return <span className={base + " text-gray-700 bg-gray-100"}>{status}</span>;
+}
+
+function mapScheduleStatus(status: string) {
+  if (status === "PAID") return "Paid";
+  if (status === "MISSED") return "Missed";
+  return "Upcoming";
 }
 
 export default function PaymentScheduleTable({
@@ -20,6 +35,7 @@ export default function PaymentScheduleTable({
   item,
   meta,
   onPageChange,
+  renderExtraColumn,
 }: TableProps) {
  
 
@@ -34,6 +50,8 @@ export default function PaymentScheduleTable({
             <th>Balance</th>
             <th>Status</th>
             <th>Date</th>
+            {renderExtraColumn && <th></th>}
+            
             
           </tr>
         </thead>
@@ -42,7 +60,7 @@ export default function PaymentScheduleTable({
             isLoading={isLoading}
             error={error}
             isEmpty={!isLoading && item?.length === 0}
-            colSpan={6}
+            colSpan={renderExtraColumn ? 7 : 6}
             emptyMessage="No payment schedule data available yet!!"
           />
 
@@ -55,8 +73,9 @@ export default function PaymentScheduleTable({
                 <td>{formatCurrency(schedule.paidAmount)}</td>
                 <td>{formatCurrency(schedule.dueAmount)}</td>
                 <td>{formatCurrency(schedule.remainingBalance)}</td>
-                <td>{schedule.status}</td>
+                 <td><StatusBadge status={mapScheduleStatus(schedule.status)} /></td>
                 <td>{formatDate(schedule.dueDate)}</td>
+                {renderExtraColumn && <td>{renderExtraColumn(schedule)}</td>}
                
               </tr>
             );
@@ -65,7 +84,7 @@ export default function PaymentScheduleTable({
       </table>
       {meta && onPageChange && (
         <Pagination
-          currentPage={meta.page}
+          page={meta.page}
           totalPages={meta.totalPages}
           onPageChange={onPageChange}
         />

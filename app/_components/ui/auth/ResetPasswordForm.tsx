@@ -1,7 +1,7 @@
 "use client";
 import React, { JSX, useEffect, useState } from "react";
 import Button from "../Button";
-import Input from "../Input";
+// import Input from "../Input";
 import { useForm } from "react-hook-form";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,6 +16,7 @@ import Link from "next/link";
 import { ROUTES } from "@/lib/utils";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
+import { Input } from "@/components/ui/input";
 
 const schema = z.object({
   email: z.email(),
@@ -68,7 +69,7 @@ export default function ResetPasswordForm(): JSX.Element {
       removeEmail();
       removeOtp();
 
-      router.push(ROUTES.Bm.Auth.LOGIN);
+      router.push(ROUTES.Auth.LOGIN);
     } catch (error: AxiosError | unknown) {
       const err = error as AxiosError<ApiErrorResponse>;
       handleAxiosError(err);
@@ -124,7 +125,7 @@ export default function ResetPasswordForm(): JSX.Element {
       ) : (
         <Link
           className="flex justify-center px-5 py-2 my-2 font-medium transition-all duration-300 rounded-md cursor-pointer text-brand-purple hover:bg-brand-purple hover:text-white"
-          href={ROUTES.Bm.Auth.FORGOT_PASSWORD}
+          href={ROUTES.Auth.FORGOT_PASSWORD}
         >
           Forgot password
         </Link>

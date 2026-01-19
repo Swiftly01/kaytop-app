@@ -1,8 +1,7 @@
 "use client";
 import Button from "@/app/_components/ui/Button";
 import { Checkbox } from "@/app/_components/ui/Checkbox";
-import Input from "@/app/_components/ui/Input";
-import { convertRoleForMiddleware } from "@/lib/authCookies";
+// import Input from "@/app/_components/ui/Input";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
@@ -17,6 +16,7 @@ import { ROUTES } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import Spinner from "../Spinner";
 import toast from "react-hot-toast";
+import { Input } from "@/components/ui/input";
 
 const schema = z.object({
   email: z.email("Invalid email format"),
@@ -51,35 +51,11 @@ export default function LoginForm() {
 
       const accessToken = response.access_token;
       const role = response.role;
-
-      // Update AuthContext
+      console.log("role",role);
       auth(accessToken, role);
-
-      // Set cookies with proper role conversion
       setCookie(accessToken, role);
-
-      toast.success("You have logged in successfully");
-
-      // Role-based routing after login
-      // Role-based routing after login
-      // Use the centralized helper to ensure consistency with middleware
-      const middlewareRole = convertRoleForMiddleware(role);
-
-      const roleDashboardRoutes: Record<string, string> = {
-        BRANCH_MANAGER: ROUTES.Bm.DASHBOARD,
-        ADMIN: "/dashboard/system-admin",
-        ACCOUNT_MANAGER: "/dashboard/am",
-        CREDIT_OFFICER: "/dashboard/co",
-        USER: "/dashboard/customer",
-      };
-
-      const targetDashboard = roleDashboardRoutes[middlewareRole] || ROUTES.Bm.DASHBOARD;
-
-      console.log('🔍 LoginForm - API Role:', role);
-      console.log('🔍 LoginForm - Middleware Role:', middlewareRole);
-      console.log('🔍 LoginForm - Target Dashboard:', targetDashboard);
-
-      router.push(targetDashboard);
+      toast.success("You have logged in successfuly");
+      router.push(ROUTES.Bm.DASHBOARD);
     } catch (error: AxiosError | unknown) {
       const err = error as AxiosError;
 
@@ -90,8 +66,8 @@ export default function LoginForm() {
   };
   return (
     <form className="my-2" onSubmit={handleSubmit(onSubmit)}>
-      <div>
-        <label htmlFor="email">Email</label>
+      <div className="my-3">
+        <label htmlFor="email" >Email</label>
         <Input
           type="email"
           placeholder="Enter your email"
@@ -120,7 +96,7 @@ export default function LoginForm() {
           <label htmlFor="terms text-sm">Keep me signed in</label>
         </div>
         <Link
-          href={ROUTES.Bm.Auth.FORGOT_PASSWORD}
+          href={ROUTES.Auth.FORGOT_PASSWORD}
           className="text-sm text-accent"
         >
           Forgot password?

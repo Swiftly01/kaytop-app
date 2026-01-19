@@ -1,21 +1,22 @@
 import { CustomerService } from "@/app/services/customerService";
 import { ApiResponseError } from "@/app/types/auth";
-import { CustomerDataResponse } from "@/app/types/customer";
+import { CustomerData, CustomerDataResponse } from "@/app/types/customer";
 import { useQuery } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 import { useParams } from "next/navigation";
 
 export function useBranchCustomerById() {
   const params = useParams();
-  const customerId = Number(params.customerId);
+  // const customerId = Number(params.customerId);
+  const { customerId } = useParams<{ customerId: string }>();
 
   const { isLoading, error, data } = useQuery<
-    CustomerDataResponse,
+    CustomerData,
     AxiosError<ApiResponseError>
   >({
     queryKey: ["customerId", customerId],
     queryFn: () => {
-      return CustomerService.getBranchCustomerById(customerId);
+      return CustomerService.getBranchCustomerById(Number(customerId));
     },
     enabled: !!customerId,
   });

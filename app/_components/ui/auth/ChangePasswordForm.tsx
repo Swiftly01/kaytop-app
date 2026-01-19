@@ -6,9 +6,10 @@ import { useForm } from "react-hook-form";
 import z from "zod";
 import Button from "../Button";
 import Error from "../Error";
-import Input from "../Input";
+// import Input from "../Input";
 
 import Spinner from "../Spinner";
+import { Input } from "@/components/ui/input";
 
 const schema = z
   .object({

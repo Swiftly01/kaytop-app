@@ -54,7 +54,7 @@ export function useOtpVerification(){
       const response = await AuthService.verifyOtp(payload);
       toast.success(response.message);
       setOtp(pin);
-      router.push(ROUTES.Bm.Auth.RESET_PASSWORD)
+      router.push(ROUTES.Auth.RESET_PASSWORD)
     } catch (error: AxiosError | unknown) {
       const err = error as AxiosError<ApiErrorResponse>;
       handleAxiosError(err);

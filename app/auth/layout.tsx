@@ -3,6 +3,7 @@ import "../styles/globals.css";
 import patterns from "@/public/patterns.png";
 import { Metadata } from "next";
 import { Toaster } from "react-hot-toast";
+import { AuthProvider } from "../context/AuthContext";
 
 export const metadata: Metadata = {
   title: {
@@ -26,7 +27,8 @@ export default function AuthLayout({
       style={{ backgroundImage: `url(${patterns.src})` }}
       className="flex items-center justify-center min-h-screen bg-no-repeat bg-bottom-right bg-neutral-100"
     >
-      {children}
+      <AuthProvider>{children}</AuthProvider>
+
       <Toaster position="top-right" />
     </div>
   );

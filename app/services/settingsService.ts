@@ -1,7 +1,8 @@
 import apiClient from "@/lib/apiClient";
 import { apiBaseUrl } from "@/lib/config";
 import { CustomerData } from "../types/customer";
-import { UpdateProfileData, UploadAvatarResponse } from "../types/settings";
+import { ProfileResponse, UpdateProfileData, UploadAvatarResponse } from "../types/settings";
+import { AxiosError } from "axios";
 
 export class SettingsService {
    static async updateProfile(data: UpdateProfileData): Promise<CustomerData> {
@@ -24,6 +25,15 @@ export class SettingsService {
       }
     );
     return response.data;
+  }
+
+  static async getMyProfile(): Promise<ProfileResponse> {
+    try {
+      const response = await apiClient.get(`${apiBaseUrl}/users/profile`);
+      return response.data;
+    } catch (error) {
+      throw error as AxiosError;
+    }
   }
 
 

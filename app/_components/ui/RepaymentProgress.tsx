@@ -31,7 +31,7 @@ export default function RepaymentProgress({
       </div>
       <div>
         <progress
-          className="w-56 w-full progress custom-progress"
+          className="w-full progress custom-progress"
           value={percentage}
           max="100"
         ></progress>

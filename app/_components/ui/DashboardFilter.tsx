@@ -4,9 +4,14 @@ interface DashboardFilterProps {
   isLoading: boolean;
 }
 
+type DashboardRange =
+  | "custom"
+  | "last_30_days"
+  | "last_7_days"
+  | "last_24_hours";
 export default function DashboardFilter({ isLoading }: DashboardFilterProps) {
   return (
-    <Filter
+    <Filter<DashboardRange>
       isLoading={isLoading}
       filterField="last"
       options={[
