@@ -1,9 +1,9 @@
 import { Metadata } from "next";
 import React from "react";
-
-import SystemAdminSidebar from "@/app/_components/layouts/dashboard/SystemAdminSidebar";
+import Sidebar from "@/app/_components/layouts/dashboard/Sidebar";
 import Navbar from "@/app/_components/layouts/dashboard/Navbar";
 import QueryProvider from "@/app/_components/ui/QueryProvider";
+import { MenuItem } from "@/app/types/routes";
 
 export const metadata: Metadata = {
   title: {
@@ -16,6 +16,44 @@ export const metadata: Metadata = {
     icon: "/logo.png",
   },
 };
+
+const systemAdminMenuItems: MenuItem[] = [
+  {
+    label: "Dashboard",
+    icon: "/dashboard.svg",
+    link: "/dashboard/system-admin",
+  },
+  {
+    label: "Branches",
+    icon: "/branches.svg",
+    link: "/dashboard/system-admin/branches",
+  },
+  {
+    label: "Credit Officers",
+    icon: "/credit.svg",
+    link: "/dashboard/system-admin/credit-officers",
+  },
+  {
+    label: "Customers",
+    icon: "/customer.svg",
+    link: "/dashboard/system-admin/customers",
+  },
+  {
+    label: "Loans",
+    icon: "/loans.svg",
+    link: "/dashboard/system-admin/loans",
+  },
+  {
+    label: "Reports",
+    icon: "/report.svg",
+    link: "/dashboard/system-admin/reports",
+  },
+  {
+    label: "Settings",
+    icon: "/settings.svg",
+    link: "/dashboard/system-admin/settings",
+  },
+];
 
 export default function SystemAdminLayout({
   children,
@@ -34,7 +72,7 @@ export default function SystemAdminLayout({
             aria-label="Toggle navigation drawer"
             suppressHydrationWarning
           />
-          <SystemAdminSidebar />
+          <Sidebar items={systemAdminMenuItems} />
           {children}
         </div>
       </QueryProvider>
