@@ -8,6 +8,7 @@ import {
   LoanRecollectionResponse,
   MissedPaymentResponse,
   SavingsApiResponse,
+  savingsResponse,
 } from "../types/dashboard";
 
 interface DashboardProps {
@@ -81,7 +82,7 @@ export class DashboardService {
             page,
             limit,
           },
-        }
+        },
       );
       // console.log(response);
       return response.data;
@@ -95,16 +96,30 @@ export class DashboardService {
   static async getSavings({
     page,
     limit,
-  }: LoanDisbursedProps): Promise<SavingsApiResponse> {
+  }: LoanDisbursedProps): Promise<savingsResponse> {
     try {
-      const response = await apiClient.get(`${apiBaseUrl}/savings/all`, {
-        params: {
+      const response = await apiClient.get<SavingsApiResponse>(
+        `${apiBaseUrl}/savings/all`,
+        {
+          params: {
+            page,
+            limit,
+          },
+        },
+      );
+
+      const {data: savings,  total} = response.data;
+
+      return {
+        data: savings,
+        meta: {
           page,
           limit,
-        },
-      });
-      //console.log(response);
-      return response.data;
+          total,
+          totalPages: Math.ceil(total / limit),
+        }
+    
+      };
     } catch (error: AxiosError | unknown) {
       const err = error as AxiosError;
       //   console.log("Error fetching disbursed volume", err.response?.data);
@@ -135,7 +150,7 @@ export class DashboardService {
   static async getDisbursedVolume(): Promise<LoanDisbursedVolumeResponse[]> {
     try {
       const response = await apiClient.get(
-        `${apiBaseUrl}/loans/disbursed/volume`
+        `${apiBaseUrl}/loans/disbursed/volume`,
       );
       //  console.log(response);
       return response.data;

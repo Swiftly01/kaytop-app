@@ -7,7 +7,7 @@ export interface MetricProps {
   change?: string;
   changeColor?: "green" | "red";
   border: boolean;
-  sparkline?: number[]; 
+  sparkline?: number[];
 }
 
 export interface SummaryProps {
@@ -165,9 +165,16 @@ export interface MissedPayment {
   status: Status;
 }
 
-export interface SavingsApiResponse {
+export interface savingsResponse {
   data: Savings[];
   meta?: Meta;
+}
+
+export interface SavingsApiResponse {
+  data: Savings[];
+  limit: number;
+  page: number;
+  total: number;
 }
 
 export interface MissedPaymentResponse {

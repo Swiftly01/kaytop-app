@@ -38,6 +38,14 @@ export interface CustomerDataResponse {
   data: CustomerData;
 }
 
+export interface CustomerApiResponse {
+    limit: number;
+    page: number;
+    total: number;
+    users: CustomerData[];
+
+}
+
 export interface CustomerListResponse {
   data: CustomerData[];
   meta?: Meta;
