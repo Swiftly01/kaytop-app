@@ -114,7 +114,7 @@ export default function Navbar(): JSX.Element {
           </Link>
 
           <Link
-            href="/contact"
+            href="/"
             className="flex items-center justify-between text-lg transition-all duprimaryration-300 group hover:text-"
             onClick={() => setIsOpen(false)}
           >
