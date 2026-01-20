@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 
 export function useLocalStorageState<T>(initialState: T, key: string) {
-  const [value, setValue] = useState<T>(initialState);
+  const [value, setValue] = useState<T | null>(initialState);
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {

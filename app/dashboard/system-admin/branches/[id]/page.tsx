@@ -727,7 +727,7 @@ export default function BranchDetailsPage({ params }: { params: Promise<{ id: st
                 
                 <Pagination 
                   totalPages={10}
-                  currentPage={currentPage}
+                  page={currentPage}
                   onPageChange={handlePageChange}
                 />
               </div>
@@ -749,7 +749,7 @@ export default function BranchDetailsPage({ params }: { params: Promise<{ id: st
                 
                 <Pagination 
                   totalPages={10}
-                  currentPage={currentPage}
+                  page={currentPage}
                   onPageChange={handlePageChange}
                 />
               </div>
@@ -769,7 +769,7 @@ export default function BranchDetailsPage({ params }: { params: Promise<{ id: st
                 
                 <Pagination 
                   totalPages={10}
-                  currentPage={currentPage}
+                  page={currentPage}
                   onPageChange={handlePageChange}
                 />
               </div>

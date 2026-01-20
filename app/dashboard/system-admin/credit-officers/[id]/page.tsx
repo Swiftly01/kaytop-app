@@ -430,7 +430,7 @@ export default function CreditOfficerDetailsPage({ params }: { params: Promise<{
                   <div className="mt-4">
                     <Pagination
                       totalPages={totalPages}
-                      currentPage={currentPage}
+                      page={currentPage}
                       onPageChange={handlePageChange}
                     />
                   </div>
@@ -448,7 +448,7 @@ export default function CreditOfficerDetailsPage({ params }: { params: Promise<{
                   <div className="mt-4">
                     <Pagination
                       totalPages={totalPages}
-                      currentPage={currentPage}
+                      page={currentPage}
                       onPageChange={handlePageChange}
                     />
                   </div>

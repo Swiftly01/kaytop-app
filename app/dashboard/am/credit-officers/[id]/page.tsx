@@ -337,7 +337,7 @@ export default function AMCreditOfficerDetailsPage({ params }: { params: Promise
             <div className="flex justify-center">
               <Pagination
                 totalPages={totalPages}
-                currentPage={currentPage}
+                page={currentPage}
                 onPageChange={handlePageChange}
               />
             </div>

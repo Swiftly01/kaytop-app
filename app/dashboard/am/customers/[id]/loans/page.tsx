@@ -438,7 +438,7 @@ export default function AMCustomerLoansPage({ params }: PageProps) {
                   {totalPages > 1 && (
                     <Pagination
                       totalPages={totalPages}
-                      currentPage={currentPage}
+                      page={currentPage}
                       onPageChange={handlePageChange}
                     />
                   )}
