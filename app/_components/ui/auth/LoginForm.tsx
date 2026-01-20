@@ -51,11 +51,33 @@ export default function LoginForm() {
 
       const accessToken = response.access_token;
       const role = response.role;
-      console.log("role",role);
+      console.log("role", role);
       auth(accessToken, role);
       setCookie(accessToken, role);
-      toast.success("You have logged in successfuly");
-      router.push(ROUTES.Bm.DASHBOARD);
+      toast.success("You have logged in successfully");
+      
+      // Redirect based on user role
+      switch (role) {
+        case 'system_admin':
+          router.push('/dashboard/system-admin');
+          break;
+        case 'account_manager':
+          router.push('/dashboard/am');
+          break;
+        case 'branch_manager':
+          router.push(ROUTES.Bm.DASHBOARD);
+          break;
+        case 'credit_officer':
+          router.push('/dashboard/agent');
+          break;
+        case 'customer':
+          router.push('/dashboard/customer');
+          break;
+        default:
+          // Fallback to BM dashboard for unknown roles
+          router.push(ROUTES.Bm.DASHBOARD);
+          break;
+      }
     } catch (error: AxiosError | unknown) {
       const err = error as AxiosError;
 

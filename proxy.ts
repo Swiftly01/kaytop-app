@@ -3,6 +3,8 @@ import { ROUTES } from "./lib/utils";
 
 const roleDashboardRoutes: Record<string, string> = {
   BRANCH_MANAGER: ROUTES.Bm.DASHBOARD,
+  SYSTEM_ADMIN: "/dashboard/system-admin",
+  ACCOUNT_MANAGER: "/dashboard/am",
   ADMIN: "/dashboard/admin",
   USER: "/dashboard/customer",
   CREDIT_OFFICER: "/dashboard/agent",
