@@ -103,7 +103,7 @@ export default function Navbar(): JSX.Element {
           </button>
 
           <Link
-            href="/"
+            href="#about"
             className="flex items-center justify-between text-lg transition-all duprimaryration-300 group hover:text-"
             onClick={() => setIsOpen(false)}
           >
@@ -114,11 +114,11 @@ export default function Navbar(): JSX.Element {
           </Link>
 
           <Link
-            href="/"
+            href="#services"
             className="flex items-center justify-between text-lg transition-all duprimaryration-300 group hover:text-"
             onClick={() => setIsOpen(false)}
           >
-            <span>Contact</span>
+            <span>Services</span>
             <span className="inline-block transition-transform duration-300 group-hover:translate-x-1">
               →
             </span>
