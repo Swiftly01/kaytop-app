@@ -43,7 +43,7 @@ export default function Navbar(): JSX.Element {
 
         <div className="items-center hidden gap-6 text-lg font-semibold md:flex text-primary">
           <Link
-            href="/"
+            href="#about"
             className="relative hover:text-accent transition-colors duration-300
                        after:content-[''] after:absolute after:left-0 after:bottom-0
                        after:w-0 after:h-[2px] after:bg-primary-300
@@ -52,14 +52,14 @@ export default function Navbar(): JSX.Element {
             About
           </Link>
 
-          <Link
-            href="/contact"
+          <Link 
+            href="#services"
             className="relative hover:text-primary-300 transition-colors duration-300
                        after:content-[''] after:absolute after:left-0 after:bottom-0
                        after:w-0 after:h-[2px] after:bg-primary-300
                        after:transition-all after:duration-300 hover:after:w-full"
           >
-            Contact
+            Services
           </Link>
 
           <Link
