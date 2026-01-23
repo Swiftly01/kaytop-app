@@ -13,6 +13,16 @@ import type {
   LoanCoverageData,
 } from '../api/types';
 
+interface ApiResponse<T = unknown> {
+  success: boolean;
+  data: T;
+}
+
+interface TransactionResponse {
+  success?: boolean;
+  data?: unknown;
+}
+
 export interface SavingsService {
   recordDeposit(customerId: string, data: DepositData): Promise<Transaction>;
   recordWithdrawal(customerId: string, data: WithdrawalData): Promise<Transaction>;
@@ -24,6 +34,17 @@ export interface SavingsService {
 }
 
 class SavingsAPIService implements SavingsService {
+  // Type guard for transaction-like objects
+  private isTransactionLike(obj: unknown): obj is Record<string, unknown> & { id?: unknown; transactionId?: unknown; amount?: unknown } {
+    return typeof obj === 'object' && obj !== null && 
+           ('id' in obj || 'transactionId' in obj || 'amount' in obj);
+  }
+
+  // Type guard for savings account-like objects
+  private isSavingsAccountLike(obj: unknown): obj is Record<string, unknown> & { balance?: unknown; accountNumber?: unknown } {
+    return typeof obj === 'object' && obj !== null && 
+           ('balance' in obj || 'accountNumber' in obj);
+  }
   async recordDeposit(customerId: string, data: DepositData): Promise<Transaction> {
     try {
       const response = await apiClient.post<Transaction>(
@@ -33,12 +54,13 @@ class SavingsAPIService implements SavingsService {
 
       // Backend returns direct data format, not wrapped in success/data
       if (response && typeof response === 'object') {
+        const transactionResponse = response as TransactionResponse;
         // Check if it's wrapped in success/data format
-        if ((response as any).success && (response as any).data) {
-          return (response as any).data;
+        if (transactionResponse.success && transactionResponse.data) {
+          return transactionResponse.data as Transaction;
         }
         // Check if it's direct data format (has transaction fields)
-        else if ((response as any).id || (response as any).transactionId || (response as any).amount) {
+        else if (this.isTransactionLike(response)) {
           return response as unknown as Transaction;
         }
       }
@@ -59,12 +81,13 @@ class SavingsAPIService implements SavingsService {
 
       // Backend returns direct data format, not wrapped in success/data
       if (response && typeof response === 'object') {
+        const transactionResponse = response as TransactionResponse;
         // Check if it's wrapped in success/data format
-        if ((response as any).success && (response as any).data) {
-          return (response as any).data;
+        if (transactionResponse.success && transactionResponse.data) {
+          return transactionResponse.data as Transaction;
         }
         // Check if it's direct data format (has transaction fields)
-        else if ((response as any).id || (response as any).transactionId || (response as any).amount) {
+        else if (this.isTransactionLike(response)) {
           return response as unknown as Transaction;
         }
       }
@@ -85,12 +108,13 @@ class SavingsAPIService implements SavingsService {
 
       // Backend returns direct data format, not wrapped in success/data
       if (response && typeof response === 'object') {
+        const transactionResponse = response as TransactionResponse;
         // Check if it's wrapped in success/data format
-        if ((response as any).success && (response as any).data) {
-          return (response as any).data;
+        if (transactionResponse.success && transactionResponse.data) {
+          return transactionResponse.data as Transaction;
         }
         // Check if it's direct data format (has transaction fields)
-        else if ((response as any).id || (response as any).transactionId || (response as any).amount) {
+        else if (this.isTransactionLike(response)) {
           return response as unknown as Transaction;
         }
       }
@@ -112,12 +136,13 @@ class SavingsAPIService implements SavingsService {
 
       // Backend returns direct data format, not wrapped in success/data
       if (response && typeof response === 'object') {
+        const transactionResponse = response as TransactionResponse;
         // Check if it's wrapped in success/data format
-        if ((response as any).success && (response as any).data) {
-          return (response as any).data;
+        if (transactionResponse.success && transactionResponse.data) {
+          return transactionResponse.data as Transaction;
         }
         // Check if it's direct data format (has transaction fields)
-        else if ((response as any).id || (response as any).transactionId || (response as any).amount) {
+        else if (this.isTransactionLike(response)) {
           return response as unknown as Transaction;
         }
       }
@@ -137,12 +162,13 @@ class SavingsAPIService implements SavingsService {
 
       // Backend returns direct data format, not wrapped in success/data
       if (response && typeof response === 'object') {
+        const transactionResponse = response as TransactionResponse;
         // Check if it's wrapped in success/data format
-        if ((response as any).success && (response as any).data) {
-          return (response as any).data;
+        if (transactionResponse.success && transactionResponse.data) {
+          return transactionResponse.data as SavingsAccount;
         }
         // Check if it's direct data format (has savings fields)
-        else if ((response as any).id || (response as any).customerId || (response as any).balance !== undefined) {
+        else if (this.isSavingsAccountLike(response)) {
           return response as unknown as SavingsAccount;
         }
       }
