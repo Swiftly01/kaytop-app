@@ -17,7 +17,7 @@ import { isSuccessResponse } from '../utils/responseHelpers';
 export interface LoanService {
   createLoan(customerId: string, data: CreateLoanData): Promise<Loan>;
   disburseLoan(loanId: string, proof: File): Promise<Loan>;
-  recordRepayment(loanId: string, data: RepaymentData): Promise<any>;
+  recordRepayment(loanId: string, data: RepaymentData): Promise<Loan>;
   getLoanSummary(customerId: string): Promise<LoanSummary>;
   getDisbursementSummary(customerId: string): Promise<DisbursementSummary>;
   getCustomerLoans(customerId: string): Promise<Loan[]>;
@@ -25,6 +25,29 @@ export interface LoanService {
 }
 
 class LoanAPIService implements LoanService {
+  // Type guard for loan-like objects
+  private isLoanLike(obj: unknown): obj is Record<string, unknown> & { id?: unknown; loanId?: unknown; customerId?: unknown } {
+    return typeof obj === 'object' && obj !== null && 
+           ('id' in obj || 'loanId' in obj || 'customerId' in obj);
+  }
+
+  // Type guard for repayment-like objects
+  private isRepaymentLike(obj: unknown): obj is Record<string, unknown> & { id?: unknown; amount?: unknown; loanId?: unknown } {
+    return typeof obj === 'object' && obj !== null && 
+           ('id' in obj || 'amount' in obj || 'loanId' in obj);
+  }
+
+  // Type guard for loan summary-like objects
+  private isLoanSummaryLike(obj: unknown): obj is Record<string, unknown> & { totalLoans?: unknown; activeLoans?: unknown } {
+    return typeof obj === 'object' && obj !== null && 
+           ('totalLoans' in obj || 'activeLoans' in obj);
+  }
+
+  // Type guard for disbursement summary-like objects
+  private isDisbursementSummaryLike(obj: unknown): obj is Record<string, unknown> & { totalDisbursed?: unknown; pendingDisbursements?: unknown } {
+    return typeof obj === 'object' && obj !== null && 
+           ('totalDisbursed' in obj || 'pendingDisbursements' in obj);
+  }
   async createLoan(customerId: string, data: CreateLoanData): Promise<Loan> {
     try {
       const response = await apiClient.post<Loan>(
@@ -39,7 +62,7 @@ class LoanAPIService implements LoanService {
           return response.data;
         }
         // Check if it's direct data format (has loan fields)
-        else if ((response as any).id || (response as any).loanId || (response as any).customerId) {
+        else if (this.isLoanLike(response)) {
           return response as unknown as Loan;
         }
       }
@@ -73,7 +96,7 @@ class LoanAPIService implements LoanService {
           return response.data;
         }
         // Check if it's direct data format (has loan fields)
-        else if ((response as any).id || (response as any).loanId || (response as any).customerId) {
+        else if (this.isLoanLike(response)) {
           return response as unknown as Loan;
         }
       }
@@ -109,8 +132,8 @@ class LoanAPIService implements LoanService {
           return response.data;
         }
         // Check if it's direct data format (has repayment fields)
-        else if ((response as any).id || (response as any).amount || (response as any).loanId) {
-          return response as any;
+        else if (this.isRepaymentLike(response)) {
+          return response as unknown as Loan;
         }
       }
 
