@@ -43,7 +43,7 @@ export default function Navbar(): JSX.Element {
 
         <div className="items-center hidden gap-6 text-lg font-semibold md:flex text-primary">
           <Link
-            href="/"
+            href="#about"
             className="relative hover:text-accent transition-colors duration-300
                        after:content-[''] after:absolute after:left-0 after:bottom-0
                        after:w-0 after:h-[2px] after:bg-primary-300
@@ -52,14 +52,14 @@ export default function Navbar(): JSX.Element {
             About
           </Link>
 
-          <Link
-            href="/contact"
+          <Link 
+            href="#services"
             className="relative hover:text-primary-300 transition-colors duration-300
                        after:content-[''] after:absolute after:left-0 after:bottom-0
                        after:w-0 after:h-[2px] after:bg-primary-300
                        after:transition-all after:duration-300 hover:after:w-full"
           >
-            Contact
+            Services
           </Link>
 
           <Link
@@ -103,7 +103,7 @@ export default function Navbar(): JSX.Element {
           </button>
 
           <Link
-            href="/"
+            href="#about"
             className="flex items-center justify-between text-lg transition-all duprimaryration-300 group hover:text-"
             onClick={() => setIsOpen(false)}
           >
@@ -114,16 +114,26 @@ export default function Navbar(): JSX.Element {
           </Link>
 
           <Link
-            href="/contact"
+            href="#services"
             className="flex items-center justify-between text-lg transition-all duprimaryration-300 group hover:text-"
             onClick={() => setIsOpen(false)}
           >
-            <span>Contact</span>
+            <span>Services</span>
             <span className="inline-block transition-transform duration-300 group-hover:translate-x-1">
               →
             </span>
           </Link>
-          <Button>Get Started</Button>
+           <Link
+            href={ROUTES.User.Auth.LOGIN}
+            className="px-4 py-2 text-base font-medium bg-primary-300 text-primary hover:text-white relative  rounded-sm 
+                       overflow-hidden transition-all duration-300
+                       before:content-[''] before:absolute before:top-0 before:left-0
+                       before:w-0 before:h-full before:bg-white/30
+                       before:transition-all before:duration-300
+                       hover:before:w-full"
+          >
+            Get Started
+          </Link>
         </div>
       </div>
 

@@ -5,6 +5,8 @@ import { TypeAnimation } from "react-type-animation";
 import doubleiphone from "@/public/doubleiphone.svg";
 import Image from "next/image";
 import Button from "./Button";
+import Link from "next/link";
+import { ROUTES } from "@/lib/utils";
 
 export default function Clients(): JSX.Element {
   return (
@@ -68,8 +70,20 @@ export default function Clients(): JSX.Element {
               to start your financial journey!
             </p>
           </div>
+          <div>
+            <Link
+              href={ROUTES.User.Auth.LOGIN}
+              className="px-4 py-2 text-base font-medium bg-primary-300 text-primary hover:text-white relative  rounded-sm 
+                       overflow-hidden transition-all duration-300
+                       before:content-[''] before:absolute before:top-0 before:left-0
+                       before:w-0 before:h-full before:bg-white/30
+                       before:transition-all before:duration-300
+                       hover:before:w-full w-92 flex flex-col text-center"
+            >
+              Get Started
+            </Link>
+          </div>
 
-          <Button className="w-92">Get Started</Button>
         </div>
         <div>
           <motion.div

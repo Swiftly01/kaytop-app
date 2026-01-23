@@ -6,7 +6,7 @@ import React, { JSX } from "react";
 
 export default function Service(): JSX.Element {
   return (
-    <div className="px-5 text-white rounded-[25px] bg-primary-700">
+    <div id="services" className="px-5 text-white rounded-[25px] bg-primary-700">
       <div className="flex flex-col items-center justify-between md:flex-row">
         <div>
           <h1 className="px-8 pt-5 text-lg font-medium text-center md:text-3xl md:text-left">

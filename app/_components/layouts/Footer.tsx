@@ -35,18 +35,18 @@ export default function Footer(): JSX.Element {
 
           <div className="flex flex-col gap-3">
             <h3 className="mb-2 text-lg font-semibold">Quick Links</h3>
-            <a href="#" className="transition opacity-80 hover:opacity-100">
+            <a href="#mission" className="transition opacity-80 hover:opacity-100">
               About Us
             </a>
-            <a href="#" className="transition opacity-80 hover:opacity-100">
-              Loan Calculator
+            <a href="#services" className="transition opacity-80 hover:opacity-100">
+              Services
             </a>
-            <a href="#" className="transition opacity-80 hover:opacity-100">
+            {/* <a href="#" className="transition opacity-80 hover:opacity-100">
               FAQs
-            </a>
-            <a href="#" className="transition opacity-80 hover:opacity-100">
+            </a> */}
+            {/* <a href="#" className="transition opacity-80 hover:opacity-100">
               Support
-            </a>
+            </a> */}
           </div>
 
           <div>

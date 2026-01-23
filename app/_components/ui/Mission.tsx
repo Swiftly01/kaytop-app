@@ -2,7 +2,7 @@ import React, { JSX } from "react";
 
 export default function Mission(): JSX.Element {
   return (
-    <div className="px-5 my-5">
+    <div id="mission" className="px-5 my-5">
       <h1 className="hidden text-lg font-medium text-primary-300 md:text-left md:block">
         Vision and Mission
       </h1>
