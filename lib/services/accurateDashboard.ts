@@ -18,7 +18,7 @@ interface CacheEntry<T> {
 }
 
 // Request deduplication map
-const pendingRequests = new Map<string, Promise<any>>();
+const pendingRequests = new Map<string, Promise<unknown>>();
 
 export interface AccurateDashboardService {
   getAccurateKPIs(params?: DashboardParams): Promise<DashboardKPIs>;
@@ -27,7 +27,7 @@ export interface AccurateDashboardService {
 
 class AccurateDashboardAPIService implements AccurateDashboardService {
   // In-memory cache with 5-minute TTL
-  private cache = new Map<string, CacheEntry<any>>();
+  private cache = new Map<string, CacheEntry<unknown>>();
   private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
   /**
@@ -147,7 +147,7 @@ class AccurateDashboardAPIService implements AccurateDashboardService {
   /**
    * Fetch KPI data from backend
    */
-  private async fetchKPIData(params?: DashboardParams): Promise<any> {
+  private async fetchKPIData(params?: DashboardParams): Promise<Record<string, unknown>> {
     try {
       const queryParams = new URLSearchParams();
       
@@ -157,9 +157,9 @@ class AccurateDashboardAPIService implements AccurateDashboardService {
       if (params?.branch) queryParams.append('branch', params.branch);
 
       const endpoint = `/dashboard/kpi${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-      const response = await apiClient.get<any>(endpoint);
+      const response = await apiClient.get<unknown>(endpoint);
       
-      return response.data || response;
+      return (response.data as Record<string, unknown>) || {};
     } catch (error) {
       console.error('KPI data fetch error:', error);
       return {};
@@ -169,7 +169,7 @@ class AccurateDashboardAPIService implements AccurateDashboardService {
   /**
    * Fetch users data with role-based filtering to reduce payload
    */
-  private async fetchUsersData(): Promise<any[]> {
+  private async fetchUsersData(): Promise<Record<string, unknown>[]> {
     try {
       
       // Use the unified user service to get all users (it already uses /admin/staff/my-staff)
@@ -183,7 +183,7 @@ class AccurateDashboardAPIService implements AccurateDashboardService {
       // Log role distribution for debugging
       const roleDistribution: Record<string, number> = {};
       allUsers.forEach(user => {
-        const role = user.role || 'undefined';
+        const role = (user.role as string) || 'undefined';
         roleDistribution[role] = (roleDistribution[role] || 0) + 1;
       });
       console.log('🎭 Dashboard users role distribution:', roleDistribution);
@@ -216,7 +216,7 @@ class AccurateDashboardAPIService implements AccurateDashboardService {
   /**
    * Fetch loans data with pagination for better performance
    */
-  private async fetchLoansData(params?: DashboardParams): Promise<any[]> {
+  private async fetchLoansData(params?: DashboardParams): Promise<Record<string, unknown>[]> {
     try {
       const queryParams = new URLSearchParams();
       
@@ -230,18 +230,18 @@ class AccurateDashboardAPIService implements AccurateDashboardService {
       
       const endpoint = `/loans/all${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
       
-      const response = await apiClient.get<any>(endpoint);
+      const response = await apiClient.get<unknown>(endpoint);
       
-      let loansArray: any[] = [];
+      let loansArray: Record<string, unknown>[] = [];
       
-      if (response.data && Array.isArray(response.data.data)) {
-        loansArray = response.data.data;
+      if (response.data && Array.isArray((response.data as any).data)) {
+        loansArray = (response.data as any).data as Record<string, unknown>[];
         console.log(`✅ Extracted ${loansArray.length} loans from response.data.data`);
       } else if (Array.isArray(response.data)) {
-        loansArray = response.data;
+        loansArray = response.data as Record<string, unknown>[];
         console.log(`✅ Extracted ${loansArray.length} loans from response.data`);
       } else if (Array.isArray(response)) {
-        loansArray = response;
+        loansArray = response as Record<string, unknown>[];
         console.log(`✅ Extracted ${loansArray.length} loans from response`);
       } else {
         console.warn('⚠️ Unexpected loans response structure:', response);
@@ -258,16 +258,16 @@ class AccurateDashboardAPIService implements AccurateDashboardService {
    * Calculate accurate statistics from fetched data
    */
   private async calculateAccurateStatistics(
-    kpiData: any,
-    usersData: any[],
+    kpiData: Record<string, unknown>,
+    usersData: Record<string, unknown>[],
     branchesData: string[],
-    loansData: any[],
+    loansData: Record<string, unknown>[],
     params?: DashboardParams
   ): Promise<DashboardKPIs> {
     
     // Calculate accurate counts from real data
     const creditOfficers = usersData.filter(user => {
-      const userRole = user.role?.toLowerCase() || '';
+      const userRole = (user.role as string)?.toLowerCase() || '';
       return userRole === 'credit_officer' || 
              userRole === 'creditofficer' || 
              userRole === 'credit officer' ||
@@ -279,7 +279,7 @@ class AccurateDashboardAPIService implements AccurateDashboardService {
     console.log(`📊 Total users to filter: ${usersData.length}`);
     
     // Debug: Show all unique roles in the dataset
-    const uniqueRoles = [...new Set(usersData.map(user => user.role))];
+    const uniqueRoles = [...new Set(usersData.map(user => user.role as string))];
     console.log('🎭 Available roles in dataset:', uniqueRoles);
     
     // Debug: Show sample users for each role
@@ -294,7 +294,7 @@ class AccurateDashboardAPIService implements AccurateDashboardService {
     });
     
     const customers = usersData.filter(user => {
-      const isCustomer = user.role === 'customer';
+      const isCustomer = (user.role as string) === 'customer';
       if (isCustomer) {
         console.log('✅ Found customer:', user);
       }
@@ -311,7 +311,7 @@ class AccurateDashboardAPIService implements AccurateDashboardService {
     }
     
     const activeLoans = loansData.filter(loan => 
-      loan.status === 'active' || loan.status === 'disbursed'
+      (loan.status as string) === 'active' || (loan.status as string) === 'disbursed'
     );
     
     console.log('💰 Calculating total loan amount from loans data...');
@@ -327,8 +327,8 @@ class AccurateDashboardAPIService implements AccurateDashboardService {
     const totalLoanAmount = loansData.reduce((sum, loan) => {
       // Handle both number and string amounts
       const amount = typeof loan.amount === 'string' 
-        ? parseFloat(loan.amount.replace(/[^0-9.-]/g, '')) 
-        : (loan.amount || 0);
+        ? parseFloat((loan.amount as string).replace(/[^0-9.-]/g, '')) 
+        : ((loan.amount as number) || 0);
       
       if (isNaN(amount)) {
         console.warn('⚠️ Invalid loan amount:', loan.amount, 'for loan:', loan.id);
@@ -341,7 +341,7 @@ class AccurateDashboardAPIService implements AccurateDashboardService {
     console.log(`💰 Total loan amount calculated: ${totalLoanAmount}`);
     
     const missedPayments = loansData.filter(loan => 
-      loan.status === 'defaulted' || loan.status === 'overdue'
+      (loan.status as string) === 'defaulted' || (loan.status as string) === 'overdue'
     );
 
     // Calculate real growth rates by comparing with previous period
@@ -362,7 +362,7 @@ class AccurateDashboardAPIService implements AccurateDashboardService {
     const getGrowthRate = (field: string, calculatedGrowth: number): number => {
       // Try to get growth from backend first
       if (kpiData[`${field}Growth`] !== undefined && kpiData[`${field}Growth`] !== null) {
-        return kpiData[`${field}Growth`];
+        return kpiData[`${field}Growth`] as number;
       }
       
       // Use calculated growth if backend doesn't provide it
@@ -414,32 +414,32 @@ class AccurateDashboardAPIService implements AccurateDashboardService {
       
       // Keep the calculated branch performance from the existing service
       bestPerformingBranches: this.transformBranchPerformance(
-        kpiData.topPerformers || kpiData.officerPerformance || []
+        (kpiData.topPerformers as unknown[]) || (kpiData.officerPerformance as unknown[]) || []
       ),
       
       worstPerformingBranches: this.transformBranchPerformance(
-        (kpiData.topPerformers || kpiData.officerPerformance || []).slice().reverse().slice(0, 3)
+        ((kpiData.topPerformers as unknown[]) || (kpiData.officerPerformance as unknown[]) || []).slice().reverse().slice(0, 3)
       ),
       
       // Report statistics KPIs (using mock data since backend doesn't provide these yet)
       totalReports: this.createStatisticValue(
-        kpiData.totalReports || 0,
-        getGrowthRate('totalReports', growthData.totalReportsGrowth || 0),
+        (kpiData.totalReports as number) || 0,
+        getGrowthRate('totalReports', (growthData.totalReportsGrowth as number) || 0),
         false
       ),
       pendingReports: this.createStatisticValue(
-        kpiData.pendingReports || 0,
-        getGrowthRate('pendingReports', growthData.pendingReportsGrowth || 0),
+        (kpiData.pendingReports as number) || 0,
+        getGrowthRate('pendingReports', (growthData.pendingReportsGrowth as number) || 0),
         false
       ),
       approvedReports: this.createStatisticValue(
-        kpiData.approvedReports || 0,
-        getGrowthRate('approvedReports', growthData.approvedReportsGrowth || 0),
+        (kpiData.approvedReports as number) || 0,
+        getGrowthRate('approvedReports', (growthData.approvedReportsGrowth as number) || 0),
         false
       ),
       missedReports: this.createStatisticValue(
-        kpiData.missedReports || 0,
-        getGrowthRate('missedReports', growthData.missedReportsGrowth || 0),
+        (kpiData.missedReports as number) || 0,
+        getGrowthRate('missedReports', (growthData.missedReportsGrowth as number) || 0),
         false
       ),
     };
@@ -474,16 +474,19 @@ class AccurateDashboardAPIService implements AccurateDashboardService {
   /**
    * Transform branch performance data
    */
-  private transformBranchPerformance(branches: any[]): any[] {
+  private transformBranchPerformance(branches: unknown[]): unknown[] {
     if (!Array.isArray(branches)) {
       return [];
     }
 
-    return branches.map(branch => ({
-      name: branch.name || branch.branchName || 'Unknown Branch',
-      activeLoans: branch.activeLoans || branch.loans || 0,
-      amount: branch.amount || branch.totalAmount || branch.loanAmount || 0,
-    }));
+    return branches.map(branch => {
+      const branchObj = branch as Record<string, unknown>;
+      return {
+        name: (branchObj.name as string) || (branchObj.branchName as string) || 'Unknown Branch',
+        activeLoans: (branchObj.activeLoans as number) || (branchObj.loans as number) || 0,
+        amount: (branchObj.amount as number) || (branchObj.totalAmount as number) || (branchObj.loanAmount as number) || 0,
+      };
+    });
   }
 }
 

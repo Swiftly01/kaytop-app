@@ -147,7 +147,7 @@ class DashboardAPIService implements DashboardService {
         return response.data;
       }
 
-      throw new Error((response.data as any).message || 'Failed to fetch loan statistics');
+      throw new Error((response.data as { message?: string }).message || 'Failed to fetch loan statistics');
     } catch (error) {
       console.error('Loan statistics fetch error:', error);
       throw error;
@@ -180,7 +180,7 @@ class DashboardAPIService implements DashboardService {
       const url = `${API_ENDPOINTS.REPORTS.DASHBOARD_STATS}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
       console.log('🌐 Fetching report statistics from dedicated endpoint:', url);
       
-      const response = await apiClient.get<any>(url);
+      const response = await apiClient.get<Record<string, unknown>>(url);
       
       console.log('🔍 Raw reports dashboard stats response:', JSON.stringify(response, null, 2));
       
@@ -286,70 +286,70 @@ class DashboardAPIService implements DashboardService {
   /**
    * Transform backend dashboard data to frontend format
    */
-  private transformDashboardData(backendData: any): DashboardKPIs {
+  private transformDashboardData(backendData: Record<string, unknown>): DashboardKPIs {
     return {
       branches: this.transformStatisticValue(
-        backendData.totalBranches || backendData.branches,
-        backendData.branchesGrowth || 0,
+        (backendData.totalBranches as number) || (backendData.branches as number),
+        (backendData.branchesGrowth as number) || 0,
         'branches'
       ),
       creditOfficers: this.transformStatisticValue(
-        backendData.totalCreditOfficers || backendData.creditOfficers,
-        backendData.creditOfficersGrowth || 0,
+        (backendData.totalCreditOfficers as number) || (backendData.creditOfficers as number),
+        (backendData.creditOfficersGrowth as number) || 0,
         'credit officers'
       ),
       customers: this.transformStatisticValue(
-        backendData.totalCustomers || backendData.customers,
-        backendData.customersGrowth || 0,
+        (backendData.totalCustomers as number) || (backendData.customers as number),
+        (backendData.customersGrowth as number) || 0,
         'customers'
       ),
       loansProcessed: this.transformStatisticValue(
-        backendData.loansProcessed || backendData.totalLoans,
-        backendData.loansProcessedGrowth || backendData.loansGrowth || 0,
+        (backendData.loansProcessed as number) || (backendData.totalLoans as number),
+        (backendData.loansProcessedGrowth as number) || (backendData.loansGrowth as number) || 0,
         'loans processed'
       ),
       loanAmounts: this.transformStatisticValue(
-        backendData.totalLoanAmount || backendData.loanAmounts,
-        backendData.loanAmountGrowth || backendData.loanAmountsGrowth || 0,
+        (backendData.totalLoanAmount as number) || (backendData.loanAmounts as number),
+        (backendData.loanAmountGrowth as number) || (backendData.loanAmountsGrowth as number) || 0,
         'loan amount',
         true // isCurrency
       ),
       activeLoans: this.transformStatisticValue(
-        backendData.activeLoans,
-        backendData.activeLoansGrowth || 0,
+        backendData.activeLoans as number,
+        (backendData.activeLoansGrowth as number) || 0,
         'active loans'
       ),
       missedPayments: this.transformStatisticValue(
-        backendData.missedPayments,
-        backendData.missedPaymentsGrowth || 0,
+        backendData.missedPayments as number,
+        (backendData.missedPaymentsGrowth as number) || 0,
         'missed payments'
       ),
       bestPerformingBranches: this.transformBranchPerformance(
-        backendData.bestPerformingBranches || backendData.topBranches || []
+        (backendData.bestPerformingBranches as unknown[]) || (backendData.topBranches as unknown[]) || []
       ),
       worstPerformingBranches: this.transformBranchPerformance(
-        backendData.worstPerformingBranches || backendData.bottomBranches || []
+        (backendData.worstPerformingBranches as unknown[]) || (backendData.bottomBranches as unknown[]) || []
       ),
       
       // Report statistics KPIs (using mock data since backend doesn't provide these yet)
       totalReports: this.transformStatisticValue(
-        backendData.totalReports || 0,
-        backendData.totalReportsGrowth || 0,
+        (backendData.totalReports as number) || 0,
+        (backendData.totalReportsGrowth as number) || 0,
         'total reports'
       ),
       pendingReports: this.transformStatisticValue(
-        backendData.pendingReports || 0,
-        backendData.pendingReportsGrowth || 0,
+        (backendData.pendingReports as number) || 0,
+        (backendData.pendingReportsGrowth as number) || 0,
         'pending reports'
       ),
       approvedReports: this.transformStatisticValue(
-        backendData.approvedReports || 0,
-        backendData.approvedReportsGrowth || 0,
+        (backendData.approvedReports as number) || 0,
+        (backendData.approvedReportsGrowth as number) || 0,
         'approved reports'
       ),
       missedReports: this.transformStatisticValue(
-        backendData.missedReports || 0,
-        backendData.missedReportsGrowth || 0,
+        (backendData.missedReports as number) || 0,
+        (backendData.missedReportsGrowth as number) || 0,
         'missed reports'
       ),
     };
@@ -388,16 +388,19 @@ class DashboardAPIService implements DashboardService {
   /**
    * Transform branch performance data
    */
-  private transformBranchPerformance(branches: any[]): BranchPerformance[] {
+  private transformBranchPerformance(branches: unknown[]): BranchPerformance[] {
     if (!Array.isArray(branches)) {
       return [];
     }
 
-    return branches.map(branch => ({
-      name: branch.name || branch.branchName || 'Unknown Branch',
-      activeLoans: branch.activeLoans || branch.loans || 0,
-      amount: branch.amount || branch.totalAmount || branch.loanAmount || 0,
-    }));
+    return branches.map(branch => {
+      const branchObj = branch as Record<string, unknown>;
+      return {
+        name: (branchObj.name as string) || (branchObj.branchName as string) || 'Unknown Branch',
+        activeLoans: (branchObj.activeLoans as number) || (branchObj.loans as number) || 0,
+        amount: (branchObj.amount as number) || (branchObj.totalAmount as number) || (branchObj.loanAmount as number) || 0,
+      };
+    });
   }
 }
 

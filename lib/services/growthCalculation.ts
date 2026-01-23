@@ -40,7 +40,7 @@ class GrowthCalculationAPIService implements GrowthCalculationService {
   /**
    * Calculate growth for all metrics at once
    */
-  async calculateGrowthForAllMetrics(currentMetrics: any, params?: DashboardParams): Promise<any> {
+  async calculateGrowthForAllMetrics(currentMetrics: Record<string, number>, params?: DashboardParams): Promise<Record<string, number>> {
     try {
       // Calculate growth for each metric in parallel
       const [

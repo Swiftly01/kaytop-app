@@ -13,10 +13,13 @@ import type {
   CreateStaffData,
 } from '../api/types';
 
-export interface CreateUserRequest extends CreateStaffData {}
+export interface CreateUserRequest extends CreateStaffData {
+  // Inherits all properties from CreateStaffData
+  // This interface can be extended with additional user creation fields if needed
+}
 
 // Request deduplication map
-const pendingUserRequests = new Map<string, Promise<any>>();
+const pendingUserRequests = new Map<string, Promise<unknown>>();
 
 // Simple cache for user requests (5 minute TTL)
 interface UserCacheEntry {
@@ -197,8 +200,8 @@ class UnifiedUserAPIService implements UnifiedUserService {
         
         // Log role distribution
         const roleDistribution: Record<string, number> = {};
-        users.forEach((user: any) => {
-          const role = user.role || 'undefined';
+        users.forEach((user: Record<string, unknown>) => {
+          const role = (user.role as string) || 'undefined';
           roleDistribution[role] = (roleDistribution[role] || 0) + 1;
         });
         console.log(`🎭 [UnifiedUserService] Role distribution:`, roleDistribution);
@@ -209,7 +212,7 @@ class UnifiedUserAPIService implements UnifiedUserService {
           const requestedRole = params.role.toLowerCase();
           
           filteredUsers = users.filter(user => {
-            const userRole = user.role?.toLowerCase() || '';
+            const userRole = (user.role as string)?.toLowerCase() || '';
             
             // Exact match first
             if (userRole === requestedRole) return true;
@@ -264,7 +267,7 @@ class UnifiedUserAPIService implements UnifiedUserService {
         // Show sample users with their roles
         if (users.length > 0) {
           console.log(`👥 [UnifiedUserService] Sample users:`, 
-            users.slice(0, 3).map((u: any) => ({
+            users.slice(0, 3).map((u: Record<string, unknown>) => ({
               id: u.id,
               name: `${u.firstName} ${u.lastName}`,
               email: u.email,
@@ -275,7 +278,7 @@ class UnifiedUserAPIService implements UnifiedUserService {
         }
 
         // Transform users through DataTransformers
-        const transformedUsers = filteredUsers.map((user: any) => DataTransformers.transformUser(user));
+        const transformedUsers = filteredUsers.map((user: Record<string, unknown>) => DataTransformers.transformUser(user));
 
         // Recalculate pagination based on filtered results
         const filteredTotal = transformedUsers.length;
@@ -350,8 +353,8 @@ class UnifiedUserAPIService implements UnifiedUserService {
         
         // Log role distribution
         const roleDistribution: Record<string, number> = {};
-        staffData.forEach((user: any) => {
-          const role = user.role || 'undefined';
+        staffData.forEach((user: Record<string, unknown>) => {
+          const role = (user.role as string) || 'undefined';
           roleDistribution[role] = (roleDistribution[role] || 0) + 1;
         });
         console.log(`🎭 [UnifiedUserService] Role distribution:`, roleDistribution);
@@ -359,7 +362,7 @@ class UnifiedUserAPIService implements UnifiedUserService {
         // Show sample users with their roles
         if (staffData.length > 0) {
           console.log(`👥 [UnifiedUserService] Sample users:`, 
-            staffData.slice(0, 3).map((u: any) => ({
+            staffData.slice(0, 3).map((u: Record<string, unknown>) => ({
               id: u.id,
               name: `${u.firstName} ${u.lastName}`,
               email: u.email,
@@ -370,8 +373,8 @@ class UnifiedUserAPIService implements UnifiedUserService {
         }
 
         // Debug: Show which users would be filtered as credit officers
-        const potentialCreditOfficers = staffData.filter((user: any) => {
-          const userRole = user.role?.toLowerCase() || '';
+        const potentialCreditOfficers = staffData.filter((user: Record<string, unknown>) => {
+          const userRole = (user.role as string)?.toLowerCase() || '';
           return userRole === 'credit_officer' || 
                  userRole === 'creditofficer' || 
                  userRole === 'credit officer' ||
@@ -382,7 +385,7 @@ class UnifiedUserAPIService implements UnifiedUserService {
         console.log(`💼 [UnifiedUserService] Users that match credit officer filter: ${potentialCreditOfficers.length}`);
         if (potentialCreditOfficers.length > 0) {
           console.log(`👔 [UnifiedUserService] Credit officers found:`, 
-            potentialCreditOfficers.map((u: any) => ({
+            potentialCreditOfficers.map((u: Record<string, unknown>) => ({
               id: u.id,
               name: `${u.firstName} ${u.lastName}`,
               role: u.role,
@@ -397,7 +400,7 @@ class UnifiedUserAPIService implements UnifiedUserService {
           const requestedRole = params.role.toLowerCase();
           
           filteredUsers = allUsers.filter(user => {
-            const userRole = user.role?.toLowerCase() || '';
+            const userRole = (user.role as string)?.toLowerCase() || '';
             
             // Exact match first
             if (userRole === requestedRole) return true;
@@ -448,7 +451,7 @@ class UnifiedUserAPIService implements UnifiedUserService {
         if (params?.branch) {
           const originalCount = filteredUsers.length;
           filteredUsers = filteredUsers.filter(user => 
-            user.branch?.toLowerCase().includes(params.branch!.toLowerCase())
+            (user.branch as string)?.toLowerCase().includes(params.branch!.toLowerCase())
           );
           console.log(`🏢 [UnifiedUserService] Filtered by branch "${params.branch}": ${filteredUsers.length}/${originalCount} users`);
         }
@@ -456,13 +459,13 @@ class UnifiedUserAPIService implements UnifiedUserService {
         if (params?.state) {
           const originalCount = filteredUsers.length;
           filteredUsers = filteredUsers.filter(user => 
-            user.state?.toLowerCase().includes(params.state!.toLowerCase())
+            (user.state as string)?.toLowerCase().includes(params.state!.toLowerCase())
           );
           console.log(`🗺️ [UnifiedUserService] Filtered by state "${params.state}": ${filteredUsers.length}/${originalCount} users`);
         }
 
         // Transform users through DataTransformers (though they should already have proper roles)
-        const transformedUsers = filteredUsers.map((user: any) => DataTransformers.transformUser(user));
+        const transformedUsers = filteredUsers.map((user: Record<string, unknown>) => DataTransformers.transformUser(user));
         
         // Apply pagination
         const page = parseInt(params?.page?.toString() || '1');
@@ -515,7 +518,7 @@ class UnifiedUserAPIService implements UnifiedUserService {
     const approaches = [
       // Approach 1: Standard admin update with all field variations
       async () => {
-        const updateData: any = {
+        const updateData: Record<string, unknown> = {
           firstName: data.firstName,
           lastName: data.lastName,
           email: data.email,
@@ -543,7 +546,7 @@ class UnifiedUserAPIService implements UnifiedUserService {
 
       // Approach 2: Minimal update with only changed fields
       async () => {
-        const updateData: any = {};
+        const updateData: Record<string, unknown> = {};
         
         if (data.firstName) updateData.firstName = data.firstName;
         if (data.lastName) updateData.lastName = data.lastName;
@@ -556,7 +559,7 @@ class UnifiedUserAPIService implements UnifiedUserService {
 
       // Approach 3: Try with phone field instead of mobileNumber
       async () => {
-        const updateData: any = {
+        const updateData: Record<string, unknown> = {
           firstName: data.firstName,
           lastName: data.lastName,
           email: data.email,
@@ -571,7 +574,7 @@ class UnifiedUserAPIService implements UnifiedUserService {
       }
     ];
 
-    let lastError: any = null;
+    let lastError: unknown = null;
 
     // Try each approach
     for (let i = 0; i < approaches.length; i++) {
@@ -610,7 +613,7 @@ class UnifiedUserAPIService implements UnifiedUserService {
         
         // If it's an Axios error, log the response details
         if (error && typeof error === 'object' && 'response' in error) {
-          const axiosError = error as any;
+          const axiosError = error as { response?: { status?: number; data?: unknown } };
           console.error(`HTTP Status: ${axiosError.response?.status}`);
           console.error(`Response data:`, axiosError.response?.data);
           
@@ -629,7 +632,19 @@ class UnifiedUserAPIService implements UnifiedUserService {
     console.error(`❌ [UnifiedUserService] All update approaches failed for user ${id}`);
     
     if (lastError && typeof lastError === 'object' && 'response' in lastError) {
-      const axiosError = lastError as any;
+      const axiosError = lastError as {
+        response?: {
+          status?: number;
+          data?: { message?: string; error?: string };
+          headers?: unknown;
+        };
+        config?: {
+          url?: string;
+          method?: string;
+          data?: unknown;
+          headers?: unknown;
+        };
+      };
       console.error(`Final error - HTTP Status: ${axiosError.response?.status}`);
       console.error(`Final error - Response data:`, axiosError.response?.data);
       console.error(`Final error - Response headers:`, axiosError.response?.headers);

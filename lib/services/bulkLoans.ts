@@ -34,47 +34,50 @@ class BulkLoansAPIService implements BulkLoansService {
       console.log(`Found ${customers.length} customers to fetch loans for`);
       
       // Step 2: Fetch loans for each customer
-      const allLoans: unknown[] = [];
+      const allLoans: Record<string, unknown>[] = [];
       
       for (const customer of customers) {
         try {
           // Use the customer loans endpoint
-          const customerLoansResponse = await apiClient.get<any>(
+          const customerLoansResponse = await apiClient.get<unknown>(
             API_ENDPOINTS.LOANS.CUSTOMER_LOANS(String(customer.id))
-          ) as any; // Cast to any since backend returns direct data, not wrapped ApiResponse
+          ) as unknown; // Cast to unknown since backend returns direct data, not wrapped ApiResponse
           
           // Handle direct response format (backend returns direct data, not wrapped)
-          let customerLoans: any[] = [];
+          let customerLoans: Record<string, unknown>[] = [];
           if (Array.isArray(customerLoansResponse)) {
             customerLoans = customerLoansResponse;
           } else if (customerLoansResponse && typeof customerLoansResponse === 'object') {
+            const responseObj = customerLoansResponse as Record<string, unknown>;
             // Check for various possible response structures
-            if (customerLoansResponse.loans && Array.isArray(customerLoansResponse.loans)) {
-              customerLoans = customerLoansResponse.loans;
-            } else if (customerLoansResponse.data && Array.isArray(customerLoansResponse.data)) {
-              customerLoans = customerLoansResponse.data;
-            } else if (isSuccessResponse(customerLoansResponse) && customerLoansResponse.data.data && Array.isArray(customerLoansResponse.data.data)) {
-              customerLoans = customerLoansResponse.data.data;
+            if (responseObj.loans && Array.isArray(responseObj.loans)) {
+              customerLoans = responseObj.loans as Record<string, unknown>[];
+            } else if (responseObj.data && Array.isArray(responseObj.data)) {
+              customerLoans = responseObj.data as Record<string, unknown>[];
+            } else if (isSuccessResponse(customerLoansResponse) && 
+                      (customerLoansResponse as any).data.data && 
+                      Array.isArray((customerLoansResponse as any).data.data)) {
+              customerLoans = (customerLoansResponse as any).data.data as Record<string, unknown>[];
             }
           }
           
           // Transform and add customer info to loans
           for (const loan of customerLoans) {
             const transformedLoan = {
-              id: String(loan.id || loan.loanId || Math.random().toString(36).substr(2, 9)),
-              loanId: String(loan.id || loan.loanId || '').slice(-5).toUpperCase() || 'L' + Math.random().toString(36).substr(2, 4).toUpperCase(),
+              id: String((loan.id as string) || (loan.loanId as string) || Math.random().toString(36).substr(2, 9)),
+              loanId: String((loan.id as string) || (loan.loanId as string) || '').slice(-5).toUpperCase() || 'L' + Math.random().toString(36).substr(2, 4).toUpperCase(),
               customerId: String(customer.id),
               customerName: `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || customer.email || 'Unknown Customer',
-              amount: parseFloat(loan.amount || loan.loanAmount || 0),
-              interestRate: parseFloat(loan.interestRate || loan.rate || 0),
-              status: loan.status || 'active',
-              disbursementDate: loan.disbursementDate || loan.createdAt || new Date().toISOString(),
-              nextRepaymentDate: loan.nextRepaymentDate || loan.dueDate || new Date().toISOString(),
-              repaymentPeriod: loan.repaymentPeriod || loan.duration || 30,
-              totalRepaid: parseFloat(loan.totalRepaid || loan.amountPaid || 0),
-              remainingBalance: parseFloat(loan.remainingBalance || loan.outstandingAmount || loan.amount || 0),
-              createdAt: loan.createdAt || new Date().toISOString(),
-              updatedAt: loan.updatedAt || new Date().toISOString(),
+              amount: parseFloat((loan.amount as string) || (loan.loanAmount as string) || '0'),
+              interestRate: parseFloat((loan.interestRate as string) || (loan.rate as string) || '0'),
+              status: (loan.status as string) || 'active',
+              disbursementDate: (loan.disbursementDate as string) || (loan.createdAt as string) || new Date().toISOString(),
+              nextRepaymentDate: (loan.nextRepaymentDate as string) || (loan.dueDate as string) || new Date().toISOString(),
+              repaymentPeriod: (loan.repaymentPeriod as number) || (loan.duration as number) || 30,
+              totalRepaid: parseFloat((loan.totalRepaid as string) || (loan.amountPaid as string) || '0'),
+              remainingBalance: parseFloat((loan.remainingBalance as string) || (loan.outstandingAmount as string) || (loan.amount as string) || '0'),
+              createdAt: (loan.createdAt as string) || new Date().toISOString(),
+              updatedAt: (loan.updatedAt as string) || new Date().toISOString(),
             };
             
             allLoans.push(transformedLoan);
@@ -98,30 +101,30 @@ class BulkLoansAPIService implements BulkLoansService {
       if (filters.status && filters.status.length > 0) {
         filteredLoans = filteredLoans.filter(loan => 
           filters.status!.some(status => 
-            loan.status.toLowerCase().includes(status.toLowerCase())
+            (loan.status as string).toLowerCase().includes(status.toLowerCase())
           )
         );
       }
       
       if (filters.amountMin !== undefined) {
-        filteredLoans = filteredLoans.filter(loan => loan.amount >= filters.amountMin!);
+        filteredLoans = filteredLoans.filter(loan => (loan.amount as number) >= filters.amountMin!);
       }
       
       if (filters.amountMax !== undefined) {
-        filteredLoans = filteredLoans.filter(loan => loan.amount <= filters.amountMax!);
+        filteredLoans = filteredLoans.filter(loan => (loan.amount as number) <= filters.amountMax!);
       }
       
       if (filters.dateFrom) {
         const fromDate = new Date(filters.dateFrom);
         filteredLoans = filteredLoans.filter(loan => 
-          new Date(loan.disbursementDate) >= fromDate
+          new Date(loan.disbursementDate as string) >= fromDate
         );
       }
       
       if (filters.dateTo) {
         const toDate = new Date(filters.dateTo);
         filteredLoans = filteredLoans.filter(loan => 
-          new Date(loan.disbursementDate) <= toDate
+          new Date(loan.disbursementDate as string) <= toDate
         );
       }
       
@@ -136,14 +139,14 @@ class BulkLoansAPIService implements BulkLoansService {
       const statistics = {
         totalLoans: filteredLoans.length,
         activeLoans: filteredLoans.filter(loan => 
-          loan.status === 'active' || loan.status === 'disbursed'
+          (loan.status as string) === 'active' || (loan.status as string) === 'disbursed'
         ).length,
         completedLoans: filteredLoans.filter(loan => 
-          loan.status === 'completed' || loan.status === 'paid'
+          (loan.status as string) === 'completed' || (loan.status as string) === 'paid'
         ).length,
-        totalValue: filteredLoans.reduce((sum, loan) => sum + loan.amount, 0),
+        totalValue: filteredLoans.reduce((sum, loan) => sum + (loan.amount as number), 0),
         averageAmount: filteredLoans.length > 0 
-          ? filteredLoans.reduce((sum, loan) => sum + loan.amount, 0) / filteredLoans.length 
+          ? filteredLoans.reduce((sum, loan) => sum + (loan.amount as number), 0) / filteredLoans.length 
           : 0,
       };
       
@@ -198,20 +201,20 @@ class BulkLoansAPIService implements BulkLoansService {
       
       // Calculate statistics from actual loan data
       const activeLoans = allLoans.filter(loan => 
-        loan.status === 'active' || loan.status === 'disbursed'
+        (loan.status as string) === 'active' || (loan.status as string) === 'disbursed'
       );
       
       const completedLoans = allLoans.filter(loan => 
-        loan.status === 'completed'
+        (loan.status as string) === 'completed'
       );
       
       const overdueLoans = allLoans.filter(loan => 
-        loan.status === 'defaulted'
+        (loan.status as string) === 'defaulted'
       );
       
-      const totalValue = allLoans.reduce((sum, loan) => sum + loan.amount, 0);
-      const activeValue = activeLoans.reduce((sum, loan) => sum + loan.amount, 0);
-      const completedValue = completedLoans.reduce((sum, loan) => sum + loan.amount, 0);
+      const totalValue = allLoans.reduce((sum, loan) => sum + (loan.amount as number), 0);
+      const activeValue = activeLoans.reduce((sum, loan) => sum + (loan.amount as number), 0);
+      const completedValue = completedLoans.reduce((sum, loan) => sum + (loan.amount as number), 0);
       
       const loanStats: LoanStatistics = {
         totalLoans: { 
@@ -231,7 +234,7 @@ class BulkLoansAPIService implements BulkLoansService {
         },
         overdueLoans: { 
           count: overdueLoans.length, 
-          value: overdueLoans.reduce((sum, loan) => sum + loan.amount, 0), 
+          value: overdueLoans.reduce((sum, loan) => sum + (loan.amount as number), 0), 
           growth: 0 
         },
         disbursedThisMonth: { 
@@ -250,7 +253,7 @@ class BulkLoansAPIService implements BulkLoansService {
         },
         averageRepaymentPeriod: { 
           value: allLoans.length > 0 
-            ? Math.floor(allLoans.reduce((sum, loan) => sum + (loan.term || 30), 0) / allLoans.length)
+            ? Math.floor(allLoans.reduce((sum, loan) => sum + ((loan.term as number) || 30), 0) / allLoans.length)
             : 30, 
           growth: 0 
         }

@@ -124,12 +124,24 @@ class UnifiedDashboardAPIService implements UnifiedDashboardService {
   /**
    * Transform backend chart data to frontend format
    */
-  private transformChartData(backendData: any): ChartData {
+  private transformChartData(backendData: unknown): ChartData {
     // Handle different backend response formats
     if (Array.isArray(backendData)) {
       // Format: [{ month: 'Jan', amount: 1000000 }, ...]
-      const labels = backendData.map(item => item.month || item.label || item.name || '');
-      const data = backendData.map(item => item.amount || item.value || item.total || 0);
+      const labels = backendData.map(item => {
+        if (typeof item === 'object' && item !== null) {
+          const obj = item as Record<string, unknown>;
+          return (obj.month || obj.label || obj.name || '') as string;
+        }
+        return '';
+      });
+      const data = backendData.map(item => {
+        if (typeof item === 'object' && item !== null) {
+          const obj = item as Record<string, unknown>;
+          return Number(obj.amount || obj.value || obj.total || 0);
+        }
+        return 0;
+      });
       
       return {
         labels,
@@ -142,8 +154,9 @@ class UnifiedDashboardAPIService implements UnifiedDashboardService {
       };
     } else if (backendData && typeof backendData === 'object') {
       // Format: { labels: [], data: [] } or { months: [], amounts: [] }
-      const labels = backendData.labels || backendData.months || [];
-      const data = backendData.data || backendData.amounts || backendData.values || [];
+      const obj = backendData as Record<string, unknown>;
+      const labels = (obj.labels || obj.months || []) as string[];
+      const data = (obj.data || obj.amounts || obj.values || []) as number[];
       
       return {
         labels,
