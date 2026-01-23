@@ -20,6 +20,11 @@ export interface ProfileService {
 }
 
 class ProfileManagementService implements ProfileService {
+  // Type guard for profile-like objects
+  private isProfileLike(obj: unknown): obj is Record<string, unknown> & { id?: unknown; email?: unknown; firstName?: unknown } {
+    return typeof obj === 'object' && obj !== null && 
+           ('id' in obj || 'email' in obj || 'firstName' in obj);
+  }
   async getProfile(): Promise<AdminProfile> {
     try {
       // Use the working admin profile endpoint
@@ -34,7 +39,7 @@ class ProfileManagementService implements ProfileService {
           return response.data;
         }
         // Check if it's direct data format (has profile fields)
-        else if ((response as any).id || (response as any).email || (response as any).firstName) {
+        else if (this.isProfileLike(response)) {
           return response as unknown as AdminProfile;
         }
       }
@@ -60,7 +65,7 @@ class ProfileManagementService implements ProfileService {
           return response.data;
         }
         // Check if it's direct data format (has profile fields)
-        else if ((response as any).id || (response as any).email || (response as any).firstName) {
+        else if (this.isProfileLike(response)) {
           return response as unknown as AdminProfile;
         }
       }
@@ -95,7 +100,7 @@ class ProfileManagementService implements ProfileService {
           return response.data;
         }
         // Check if it's direct data format (has profile fields)
-        else if ((response as any).id || (response as any).email || (response as any).firstName) {
+        else if (this.isProfileLike(response)) {
           return response as unknown as AdminProfile;
         }
       }
@@ -118,7 +123,8 @@ class ProfileManagementService implements ProfileService {
       if (response && typeof response === 'object') {
         // Check if it's wrapped format with success field
         if (isFailureResponse(response)) {
-          throw new Error((response.data as any).message || 'Failed to change password');
+          const errorData = response.data as { message?: string };
+          throw new Error(errorData.message || 'Failed to change password');
         }
         // If response exists and no explicit failure, consider it successful
         return;
