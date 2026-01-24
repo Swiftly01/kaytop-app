@@ -322,8 +322,11 @@ export default function ReportsPage() {
 
         const approvalData = {
           status: 'approved' as const,
-          approvedBy: session?.role || 'system-admin', // Use actual user info when available
+          approvedBy: session?.firstName && session?.lastName 
+            ? `${session.firstName} ${session.lastName}` 
+            : session?.role || 'HQ Manager',
           approvedAt: new Date().toISOString(),
+          comments: 'Report approved via system admin dashboard'
         };
 
         const updatedReport = await reportsService.approveReport(
@@ -362,9 +365,11 @@ export default function ReportsPage() {
 
         const declineData = {
           status: 'declined' as const,
-          approvedBy: session?.role || 'system-admin', // Use actual user info when available
+          approvedBy: session?.firstName && session?.lastName 
+            ? `${session.firstName} ${session.lastName}` 
+            : session?.role || 'HQ Manager',
           approvedAt: new Date().toISOString(),
-          comments: 'Report declined by system administrator',
+          comments: 'Report declined via system admin dashboard',
         };
 
         const updatedReport = await reportsService.declineReport(

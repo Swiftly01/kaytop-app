@@ -5,7 +5,7 @@
  */
 
 import apiClient from '@/lib/apiClient';
-import { API_ENDPOINTS } from '../api/config';
+import { API_ENDPOINTS, API_CONFIG } from '../api/config';
 import { UnifiedAPIErrorHandler } from '../api/errorHandler';
 import { userProfileService } from './userProfile';
 import { cacheManager, CacheKeys, CacheTTL } from '../utils/cache';
@@ -163,15 +163,55 @@ class ReportsAPIService implements ReportsService {
   /**
    * Get report by ID
    * Uses unified API client with automatic retry and error handling
+   * Transforms API response to match expected Report interface
    */
   async getReportById(id: string): Promise<Report> {
     try {
-      const response: ApiResponse<Report> = await apiClient.get(
+      const response: ApiResponse<any> = await apiClient.get(
         API_ENDPOINTS.REPORTS.BY_ID(id)
       );
 
-      // The unified API client handles transformation automatically
-      return response.data;
+      console.log('🔍 Raw API response for getReportById:', response.data);
+
+      // Transform API response to match expected Report interface
+      // The API returns different field names than what the frontend expects
+      const rawReport = response.data;
+      
+      const transformedReport: Report = {
+        id: rawReport.id?.toString() || '',
+        reportId: rawReport.title || `Report #${rawReport.id}`,
+        creditOfficer: rawReport.submittedBy ? `${rawReport.submittedBy.firstName} ${rawReport.submittedBy.lastName}` : 'Unknown',
+        creditOfficerId: rawReport.submittedBy?.id?.toString() || '',
+        branch: rawReport.branch || 'Unknown Branch',
+        branchId: rawReport.branch || '',
+        email: rawReport.submittedBy?.email || '',
+        dateSent: rawReport.reportDate || rawReport.submittedAt?.split('T')[0] || '',
+        timeSent: rawReport.submittedAt?.split('T')[1]?.split('.')[0] || '',
+        reportType: (rawReport.type === 'quarterly' || rawReport.type === 'annual' || rawReport.type === 'custom' ? 'monthly' : rawReport.type) as 'daily' | 'weekly' | 'monthly',
+        status: rawReport.status?.toLowerCase() as 'submitted' | 'pending' | 'approved' | 'declined',
+        isApproved: rawReport.status?.toLowerCase() === 'approved',
+        loansDispursed: rawReport.totalLoansProcessed || 0,
+        loansValueDispursed: rawReport.totalLoansDisbursed || '0',
+        savingsCollected: rawReport.totalSavingsProcessed || '0',
+        repaymentsCollected: parseFloat(rawReport.totalRecollections || '0'),
+        createdAt: rawReport.createdAt || '',
+        updatedAt: rawReport.updatedAt || '',
+        approvedBy: rawReport.reviewedBy ? `${rawReport.reviewedBy.firstName} ${rawReport.reviewedBy.lastName}` : undefined,
+        declineReason: rawReport.declineReason || undefined,
+      };
+
+      console.log('✅ Transformed report for details modal:', transformedReport);
+      console.log('🔍 Key fields check:', {
+        reportId: transformedReport.reportId,
+        creditOfficer: transformedReport.creditOfficer,
+        branch: transformedReport.branch,
+        email: transformedReport.email,
+        dateSent: transformedReport.dateSent,
+        timeSent: transformedReport.timeSent,
+        status: transformedReport.status
+      });
+
+      return transformedReport;
     } catch (error) {
       const errorMessage = UnifiedAPIErrorHandler.handleApiError(error, {
         logError: true,
@@ -265,18 +305,104 @@ class ReportsAPIService implements ReportsService {
 
   /**
    * Approve a report
+   * Uses the HQ review endpoint - only available to HQ Managers
    * Uses unified API client with automatic retry and error handling
    */
   async approveReport(id: string, data: ReportApprovalData): Promise<Report> {
     try {
-      const response: ApiResponse<Report> = await apiClient.post(
-        API_ENDPOINTS.REPORTS.APPROVE(id),
-        data
+      // Validate report ID
+      if (!id || id.trim() === '') {
+        throw new Error('Report ID is required');
+      }
+
+      // Get the current report to check its status
+      console.log('🔍 Fetching current report status before approval...');
+      const currentReport = await this.getReportById(id);
+      console.log('🔍 Current report status:', currentReport.status);
+      console.log('🔍 Current report data:', {
+        id: currentReport.id,
+        reportId: currentReport.reportId,
+        status: currentReport.status,
+        creditOfficer: currentReport.creditOfficer,
+        branch: currentReport.branch
+      });
+
+      // Check if report can be approved
+      if (currentReport.status === 'approved') {
+        throw new Error('Report is already approved');
+      }
+      if (currentReport.status === 'declined') {
+        throw new Error('Cannot approve a declined report');
+      }
+      if (currentReport.status === 'draft') {
+        throw new Error('Cannot approve a draft report. The report must be forwarded by the Branch Manager first.');
+      }
+      if (currentReport.status !== 'forwarded' && currentReport.status !== 'pending' && currentReport.status !== 'submitted') {
+        throw new Error(`Cannot approve report with status '${currentReport.status}'. Report must be forwarded by Branch Manager first.`);
+      }
+
+      // Check HQ manager authorization
+      const userProfile = await userProfileService.getUserProfile();
+      console.log('🔍 User profile for approval:', { role: userProfile.role, id: userProfile.id });
+      
+      if (userProfile.role !== 'hq_manager' && userProfile.role !== 'system_admin') {
+        throw new Error(`Access denied: Only HQ managers and system admins can approve reports. Current role: ${userProfile.role}`);
+      }
+
+      // Use the HQ review endpoint with APPROVE action
+      const hqReviewData = {
+        action: 'APPROVE' as const,
+        remarks: data.comments || `Report approved by ${data.approvedBy}`
+      };
+
+      console.log('🔍 Using HQ review endpoint for report approval');
+      console.log('🔍 Report ID:', id);
+      console.log('🔍 Report ID type:', typeof id);
+      console.log('🔍 Request URL:', API_ENDPOINTS.REPORTS.HQ_REVIEW(id));
+      console.log('🔍 Full URL will be:', `${API_CONFIG.BASE_URL}${API_ENDPOINTS.REPORTS.HQ_REVIEW(id)}`);
+      console.log('🔍 Request data:', JSON.stringify(hqReviewData, null, 2));
+      console.log('🔍 Original approval data received:', JSON.stringify(data, null, 2));
+      console.log('🔍 User profile for approval:', { role: userProfile.role, id: userProfile.id, email: userProfile.email });
+      
+      // Check what token is being used
+      if (typeof window !== 'undefined') {
+        const sessionData = localStorage.getItem("auth_session");
+        if (sessionData) {
+          try {
+            const session = JSON.parse(sessionData);
+            console.log('🔍 Auth session data:', { role: session.role, hasToken: !!session.token, tokenLength: session.token?.length });
+          } catch (error) {
+            console.error('Failed to parse auth session:', error);
+          }
+        }
+      }
+
+      const response: ApiResponse<Report> = await apiClient.put(
+        API_ENDPOINTS.REPORTS.HQ_REVIEW(id),
+        hqReviewData
       );
 
-      // The unified API client handles transformation automatically
+      console.log(`✅ Report ${id} approved successfully by HQ Manager`);
       return response.data;
     } catch (error) {
+      // Enhanced error logging with proper serialization
+      console.error('❌ Detailed approval error:');
+      console.error('Report ID:', id);
+      console.error('Error message:', error instanceof Error ? error.message : 'Unknown error');
+      console.error('Error object:', error);
+      
+      // Log axios-specific error details
+      if ((error as any)?.isAxiosError) {
+        console.error('❌ Axios Error Details:');
+        console.error('Status:', (error as any)?.response?.status);
+        console.error('Status Text:', (error as any)?.response?.statusText);
+        console.error('Response Data:', (error as any)?.response?.data);
+        console.error('Request URL:', (error as any)?.config?.url);
+        console.error('Request Method:', (error as any)?.config?.method);
+        console.error('Request Data:', (error as any)?.config?.data);
+        console.error('Request Headers:', (error as any)?.config?.headers);
+      }
+      
       const errorMessage = UnifiedAPIErrorHandler.handleApiError(error, {
         logError: true,
         showToast: false
@@ -288,16 +414,49 @@ class ReportsAPIService implements ReportsService {
 
   /**
    * Decline a report
+   * Uses the HQ review endpoint - only available to HQ Managers
    * Uses unified API client with automatic retry and error handling
    */
   async declineReport(id: string, data: ReportApprovalData): Promise<Report> {
     try {
-      const response: ApiResponse<Report> = await apiClient.post(
-        API_ENDPOINTS.REPORTS.DECLINE(id),
-        data
+      // Get the current report to check its status
+      console.log('🔍 Fetching current report status before decline...');
+      const currentReport = await this.getReportById(id);
+      console.log('🔍 Current report status:', currentReport.status);
+
+      // Check if report can be declined
+      if (currentReport.status === 'declined') {
+        throw new Error('Report is already declined');
+      }
+      if (currentReport.status === 'approved') {
+        throw new Error('Cannot decline an approved report');
+      }
+      if (currentReport.status === 'draft') {
+        throw new Error('Cannot decline a draft report. The report must be forwarded by the Branch Manager first.');
+      }
+      if (currentReport.status !== 'forwarded' && currentReport.status !== 'pending' && currentReport.status !== 'submitted') {
+        throw new Error(`Cannot decline report with status '${currentReport.status}'. Report must be forwarded by Branch Manager first.`);
+      }
+
+      // Check HQ manager authorization
+      const userProfile = await userProfileService.getUserProfile();
+      if (userProfile.role !== 'hq_manager' && userProfile.role !== 'system_admin') {
+        throw new Error(`Access denied: Only HQ managers and system admins can decline reports. Current role: ${userProfile.role}`);
+      }
+
+      // Use the HQ review endpoint with DECLINE action
+      const hqReviewData = {
+        action: 'DECLINE' as const,
+        remarks: data.comments || `Report declined by ${data.approvedBy}`
+      };
+
+      console.log('🔍 Using HQ review endpoint for report decline');
+      const response: ApiResponse<Report> = await apiClient.put(
+        API_ENDPOINTS.REPORTS.HQ_REVIEW(id),
+        hqReviewData
       );
 
-      // The unified API client handles transformation automatically
+      console.log(`✅ Report ${id} declined successfully by HQ Manager`);
       return response.data;
     } catch (error) {
       const errorMessage = UnifiedAPIErrorHandler.handleApiError(error, {
@@ -311,93 +470,87 @@ class ReportsAPIService implements ReportsService {
 
   /**
    * Get report statistics
+   * Calculates statistics from existing /reports endpoint since dedicated statistics endpoints don't exist
    * Uses unified API client with automatic retry and error handling
-   * Updated to handle backend validation requirements for numeric parameters
    */
   async getReportStatistics(filters: Pick<ReportFilters, 'dateFrom' | 'dateTo' | 'branchId'> = {}): Promise<ReportStatistics> {
     try {
-      console.log('🔍 Raw filters received:', filters);
+      console.log('🔍 Calculating report statistics from /reports endpoint with filters:', filters);
 
-      const params = new URLSearchParams();
+      // Since the backend doesn't have dedicated statistics endpoints (/reports/statistics or /reports/dashboard/stats),
+      // we'll fetch all reports and calculate statistics from the data
+      const reportsResponse = await this.getAllReports({
+        branchId: filters.branchId,
+        page: 1,
+        limit: 1000, // Get a large number to calculate accurate statistics
+      });
 
-      // The backend appears to require specific numeric parameters
-      // Add default pagination parameters that the backend expects
-      params.append('page', '1');
-      params.append('limit', '100');
+      const reports = reportsResponse.data || [];
+      console.log('📊 Fetched reports for statistics calculation:', reports.length);
 
-      // Validate and add date filters
-      if (filters.dateFrom) {
-        const dateFrom = this.validateDateFormat(filters.dateFrom);
-        if (dateFrom) {
-          params.append('dateFrom', dateFrom);
-          console.log('✅ Added dateFrom:', dateFrom);
-        } else {
-          console.warn('❌ Invalid dateFrom format, skipping:', filters.dateFrom);
-        }
+      // Apply date filtering client-side since backend doesn't support dateFrom/dateTo
+      let filteredReports = reports;
+      if (filters.dateFrom || filters.dateTo) {
+        filteredReports = reports.filter(report => {
+          const reportDate = new Date(report.createdAt || report.dateSent);
+          
+          if (filters.dateFrom) {
+            const fromDate = new Date(filters.dateFrom);
+            if (reportDate < fromDate) return false;
+          }
+          
+          if (filters.dateTo) {
+            const toDate = new Date(filters.dateTo);
+            if (reportDate > toDate) return false;
+          }
+          
+          return true;
+        });
       }
 
-      if (filters.dateTo) {
-        const dateTo = this.validateDateFormat(filters.dateTo);
-        if (dateTo) {
-          params.append('dateTo', dateTo);
-          console.log('✅ Added dateTo:', dateTo);
-        } else {
-          console.warn('❌ Invalid dateTo format, skipping:', filters.dateTo);
-        }
-      }
+      console.log('📊 Filtered reports for date range:', filteredReports.length);
 
-      // Validate and add branch filter
-      if (filters.branchId) {
-        const branchId = this.validateBranchId(filters.branchId);
-        if (branchId) {
-          params.append('branchId', branchId);
-          console.log('✅ Added branchId:', branchId);
-        } else {
-          console.warn('❌ Invalid branchId format, skipping:', filters.branchId);
-        }
-      }
+      // Calculate statistics from the filtered reports
+      const totalReports = filteredReports.length;
+      const submittedReports = filteredReports.filter(r => r.status === 'submitted').length;
+      const pendingReports = filteredReports.filter(r => r.status === 'pending' || r.status === 'submitted').length;
+      const approvedReports = filteredReports.filter(r => r.status === 'approved').length;
+      
+      // For missed reports, we'll calculate based on reports that should have been submitted but weren't
+      // Since we don't have a "missed" status in the backend, we'll use declined reports as a proxy
+      const missedReports = filteredReports.filter(r => r.status === 'declined').length;
 
-      const finalUrl = `${API_ENDPOINTS.REPORTS.DASHBOARD_STATS}?${params.toString()}`;
-      console.log('🌐 Final API URL with params:', finalUrl);
-      console.log('📋 URL params string:', params.toString());
+      // Calculate growth percentages (for now, we'll use 0 since we don't have historical data)
+      // In a real implementation, you'd compare with previous period data
+      const calculatedStats: ReportStatistics = {
+        totalReports: { count: totalReports, growth: 0 },
+        submittedReports: { count: submittedReports, growth: 0 },
+        pendingReports: { count: pendingReports, growth: 0 },
+        approvedReports: { count: approvedReports, growth: 0 },
+        missedReports: { count: missedReports, growth: 0 },
+      };
 
-      const response: ApiResponse<ReportStatistics> = await apiClient.get(finalUrl);
+      console.log('✅ Calculated report statistics:', calculatedStats);
+      return calculatedStats;
 
-      // The unified API client handles transformation automatically
-      return response.data;
     } catch (error) {
-      console.error('❌ Report statistics API error details:', {
+      console.error('❌ Report statistics calculation error:', {
         error,
         filters,
-        endpoint: API_ENDPOINTS.REPORTS.STATISTICS,
         message: error instanceof Error ? error.message : 'Unknown error',
-        errorType: error instanceof Error ? error.constructor.name : 'Unknown'
       });
 
-      // Check if this is the specific validation error we're trying to fix
-      if (error instanceof Error && error.message.includes('Validation failed (numeric string is expected)')) {
-        console.warn('🚨 Backend validation error detected - the /reports/statistics endpoint may not be properly implemented');
-        console.warn('💡 Consider using dashboard KPI endpoint instead for report statistics');
+      // Return meaningful default data instead of throwing
+      const defaultStats: ReportStatistics = {
+        totalReports: { count: 0, growth: 0 },
+        submittedReports: { count: 0, growth: 0 },
+        pendingReports: { count: 0, growth: 0 },
+        approvedReports: { count: 0, growth: 0 },
+        missedReports: { count: 0, growth: 0 },
+      };
 
-        // Return meaningful default data instead of throwing
-        const defaultStats: ReportStatistics = {
-          totalReports: { count: 0, growth: 0 },
-          submittedReports: { count: 0, growth: 0 },
-          pendingReports: { count: 0, growth: 0 },
-          approvedReports: { count: 0, growth: 0 },
-          missedReports: { count: 0, growth: 0 },
-        };
-
-        console.log('📊 Returning default report statistics due to backend validation error');
-        return defaultStats;
-      }
-
-      const errorMessage = UnifiedAPIErrorHandler.handleApiError(error, {
-        logError: true,
-        showToast: false
-      });
-      console.error('Report statistics fetch error:', errorMessage);
-      throw error;
+      console.log('📊 Returning default report statistics due to calculation error');
+      return defaultStats;
     }
   }
 

@@ -258,11 +258,10 @@ export const API_ENDPOINTS = {
     LIST: '/reports',
     BY_ID: (id: string) => `/reports/${id}`,
     BY_BRANCH: (branchName: string) => `/reports/branch/${branchName}`,
-    APPROVE: (id: string) => `/reports/${id}/approve`,
-    DECLINE: (id: string) => `/reports/${id}/decline`,
     HQ_REVIEW: (id: string) => `/reports/${id}/hq-review`,
-    STATISTICS: '/reports/statistics',
-    DASHBOARD_STATS: '/reports/dashboard/stats',
+    // Note: Only HQ review endpoint exists for approval/decline actions
+    // Only HQ Managers can approve/decline reports using the hq-review endpoint
+    // Statistics are calculated from the main /reports endpoint
   },
 
   // Ratings endpoints for branch performance leaderboard

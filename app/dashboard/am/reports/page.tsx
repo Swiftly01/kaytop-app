@@ -15,6 +15,7 @@ import { StatisticsCardSkeleton, TableSkeleton } from '@/app/_components/ui/Skel
 import { ReportsErrorBoundary, HQDashboardErrorBoundary } from '@/app/_components/ui/HQDashboardErrorBoundary';
 import { PAGINATION_LIMIT } from '@/lib/config';
 import { reportsService } from '@/lib/services/reports';
+import { userProfileService } from '@/lib/services/userProfile';
 import type { Report, ReportStatistics, ReportFilters as APIReportFilters, BranchReport } from '@/lib/api/types';
 import { DateRange } from 'react-day-picker';
 import type { TimePeriod } from '@/app/_components/ui/FilterControls';
@@ -30,12 +31,17 @@ export default function AMReportsPage() {
   
   // Role-based access control
   useEffect(() => {
-    if (session && !['account_manager', 'hq_manager', 'system_admin'].includes(session.role)) {
-      error('Access denied. This page is only accessible to Account Managers, HQ Managers, and System Administrators.');
+    console.log('🔍 Current session:', session);
+    console.log('🔍 User role check:', session?.role);
+    console.log('🔍 Is HQ Manager:', isHQManager);
+    
+    if (session && !['hq_manager', 'system_admin'].includes(session.role)) {
+      error('Access denied. This page is only accessible to HQ Managers and System Administrators.');
       // Redirect to appropriate dashboard based on role
       const roleRedirects = {
         'credit_officer': '/dashboard/co',
-        'branch_manager': '/dashboard/bm'
+        'branch_manager': '/dashboard/bm',
+        'account_manager': '/dashboard/am'
       };
       const redirectPath = roleRedirects[session.role as keyof typeof roleRedirects] || '/dashboard';
       window.location.href = redirectPath;
@@ -44,12 +50,12 @@ export default function AMReportsPage() {
   }, [session, error]);
 
   // Don't render the page if user doesn't have proper access
-  if (session && !['account_manager', 'hq_manager', 'system_admin'].includes(session.role)) {
+  if (session && !['hq_manager', 'system_admin'].includes(session.role)) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
-          <p className="text-gray-600">This page is only accessible to Account Managers, HQ Managers, and System Administrators.</p>
+          <p className="text-gray-600">This page is only accessible to HQ Managers and System Administrators.</p>
         </div>
       </div>
     );
@@ -402,8 +408,21 @@ export default function AMReportsPage() {
     try {
       setLoading(true);
 
+      console.log('🔍 Clicked report data:', report);
+
       // Fetch detailed report information from API
       const detailedReport = await reportsService.getReportById(report.id);
+
+      console.log('🔍 Detailed report from API:', detailedReport);
+      console.log('🔍 Report fields check:', {
+        reportId: detailedReport.reportId,
+        creditOfficer: detailedReport.creditOfficer,
+        branch: detailedReport.branch,
+        email: detailedReport.email,
+        dateSent: detailedReport.dateSent,
+        timeSent: detailedReport.timeSent,
+        status: detailedReport.status
+      });
 
       setSelectedReportForDetails(detailedReport);
       setDetailsModalOpen(true);
@@ -420,10 +439,15 @@ export default function AMReportsPage() {
       try {
         setLoading(true);
 
+        // Get user profile for proper name
+        const userProfile = await userProfileService.getUserProfile();
+        const approverName = `${userProfile.firstName} ${userProfile.lastName}`;
+
         const approvalData = {
           status: 'approved' as const,
-          approvedBy: session?.role || 'area-manager', // Use actual user info when available
+          approvedBy: approverName,
           approvedAt: new Date().toISOString(),
+          comments: 'Report approved via HQ dashboard'
         };
 
         const updatedReport = await reportsService.approveReport(
@@ -448,7 +472,21 @@ export default function AMReportsPage() {
 
       } catch (err) {
         console.error('Failed to approve report:', err);
-        error('Failed to approve report. Please try again.');
+        
+        // Provide user-friendly error messages for specific cases
+        if (err instanceof Error) {
+          if (err.message.includes('not in forwarded status') || err.message.includes('draft report')) {
+            error('This report cannot be approved yet. It must be forwarded by the Branch Manager first.');
+          } else if (err.message.includes('already approved')) {
+            error('This report has already been approved.');
+          } else if (err.message.includes('declined report')) {
+            error('Cannot approve a report that has been declined.');
+          } else {
+            error('Failed to approve report. Please try again.');
+          }
+        } else {
+          error('Failed to approve report. Please try again.');
+        }
       } finally {
         setLoading(false);
       }
@@ -460,11 +498,15 @@ export default function AMReportsPage() {
       try {
         setLoading(true);
 
+        // Get user profile for proper name
+        const userProfile = await userProfileService.getUserProfile();
+        const approverName = `${userProfile.firstName} ${userProfile.lastName}`;
+
         const declineData = {
           status: 'declined' as const,
-          approvedBy: session?.role || 'account-manager', // Use actual user info when available
+          approvedBy: approverName,
           approvedAt: new Date().toISOString(),
-          comments: 'Report declined by account manager',
+          comments: 'Report declined via HQ dashboard',
         };
 
         const updatedReport = await reportsService.declineReport(
@@ -488,7 +530,21 @@ export default function AMReportsPage() {
 
       } catch (err) {
         console.error('Failed to decline report:', err);
-        error('Failed to decline report. Please try again.');
+        
+        // Provide user-friendly error messages for specific cases
+        if (err instanceof Error) {
+          if (err.message.includes('not in forwarded status') || err.message.includes('draft report')) {
+            error('This report cannot be declined yet. It must be forwarded by the Branch Manager first.');
+          } else if (err.message.includes('already approved')) {
+            error('Cannot decline a report that has already been approved.');
+          } else if (err.message.includes('declined report')) {
+            error('This report has already been declined.');
+          } else {
+            error('Failed to decline report. Please try again.');
+          }
+        } else {
+          error('Failed to decline report. Please try again.');
+        }
       } finally {
         setLoading(false);
       }
@@ -694,7 +750,7 @@ export default function AMReportsPage() {
                     onClick={() => setViewMode('individual')}
                     className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                       viewMode === 'individual'
-                        ? 'bg-white text-gray-900 shadow-sm'
+                        ? 'bg-[#7F56D9] text-white shadow-sm'
                         : 'text-gray-600 hover:text-gray-900'
                     }`}
                     style={{
@@ -707,7 +763,7 @@ export default function AMReportsPage() {
                     onClick={() => setViewMode('branch_aggregates')}
                     className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                       viewMode === 'branch_aggregates'
-                        ? 'bg-white text-gray-900 shadow-sm'
+                        ? 'bg-[#7F56D9] text-white shadow-sm'
                         : 'text-gray-600 hover:text-gray-900'
                     }`}
                     style={{

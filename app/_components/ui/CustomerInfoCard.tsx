@@ -52,12 +52,15 @@ export default function CustomerInfoCard({
             >
               {field.label}
             </p>
-            <p
-              className="text-base font-normal"
-              style={{ color: '#1E3146' }}
-            >
-              {field.value}
-            </p>
+            <div className="min-w-0">
+              <p
+                className={`text-base font-normal ${field.label === 'Email address' || field.label === 'Address' ? 'truncate' : ''}`}
+                style={{ color: '#1E3146' }}
+                title={field.label === 'Email address' || field.label === 'Address' ? field.value : undefined}
+              >
+                {field.value}
+              </p>
+            </div>
           </div>
         ))}
       </div>

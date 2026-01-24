@@ -13,7 +13,7 @@ export default function CreditOfficerTabs({ activeTab, onTabChange }: CreditOffi
       <button
         className={`text-base font-medium pb-2 border-b-2 transition-colors ${
           activeTab === 'collections'
-            ? 'text-purple-600 border-purple-600'
+            ? 'text-[#7F56D9] border-[#7F56D9]'
             : 'text-gray-500 border-transparent hover:text-gray-700'
         }`}
         onClick={() => onTabChange('collections')}
@@ -27,7 +27,7 @@ export default function CreditOfficerTabs({ activeTab, onTabChange }: CreditOffi
       <button
         className={`text-base font-medium pb-2 border-b-2 transition-colors ${
           activeTab === 'loans-disbursed'
-            ? 'text-purple-600 border-purple-600'
+            ? 'text-[#7F56D9] border-[#7F56D9]'
             : 'text-gray-500 border-transparent hover:text-gray-700'
         }`}
         onClick={() => onTabChange('loans-disbursed')}

@@ -59,6 +59,7 @@ export default function AMBranchesPage() {
   const [branchStatistics, setBranchStatistics] = useState<StatSection[]>([]);
   const [performanceStatistics, setPerformanceStatistics] = useState<PerformanceStatSection[]>([]);
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>([]);
+  const [lastCalculationResult, setLastCalculationResult] = useState<any>(null);
   const [apiError, setApiError] = useState<string | null>(null);
 
   // Fetch branch data from unified API
@@ -172,6 +173,8 @@ export default function AMBranchesPage() {
   // Fetch performance statistics for leaderboard
   const fetchPerformanceStatistics = async () => {
     try {
+      console.log('🔄 Fetching performance statistics...');
+      
       // Fetch real performance data using ratings API
       const leaderboardData = await ratingsService.getLeaderboard({
         type: leaderboardType,
@@ -179,10 +182,14 @@ export default function AMBranchesPage() {
         limit: 3 // Get top 3 for performance cards
       });
 
+      console.log('📊 Leaderboard data received:', leaderboardData);
+
       // Transform leaderboard data to performance statistics format
       const performanceStats: PerformanceStatSection[] = [];
 
       // Get top performers for each metric type
+      console.log('🔄 Fetching top performers for each metric...');
+      
       const savingsLeader = await ratingsService.getLeaderboard({
         type: 'SAVINGS',
         period: leaderboardPeriod,
@@ -201,11 +208,13 @@ export default function AMBranchesPage() {
         limit: 1
       });
 
+      console.log('📊 Top performers:', { savingsLeader, disbursementLeader, repaymentLeader });
+
       // Create performance statistics from real data
       if (savingsLeader.length > 0) {
         performanceStats.push({
           label: 'Top by Savings',
-          branchName: savingsLeader[0].branchName,
+          branchName: savingsLeader[0].branchName || 'Unknown Branch',
           value: savingsLeader[0].savingsScore || 0,
           change: 0, // Change percentage not available in current API
           isCurrency: true,
@@ -216,7 +225,7 @@ export default function AMBranchesPage() {
       if (disbursementLeader.length > 0) {
         performanceStats.push({
           label: 'Top by Loan Disbursement',
-          branchName: disbursementLeader[0].branchName,
+          branchName: disbursementLeader[0].branchName || 'Unknown Branch',
           value: disbursementLeader[0].disbursementScore || 0,
           change: 0, // Change percentage not available in current API
           isCurrency: true,
@@ -227,7 +236,7 @@ export default function AMBranchesPage() {
       if (repaymentLeader.length > 0) {
         performanceStats.push({
           label: 'Top by Loan Repayment',
-          branchName: repaymentLeader[0].branchName,
+          branchName: repaymentLeader[0].branchName || 'Unknown Branch',
           value: repaymentLeader[0].repaymentScore || 0,
           change: 0, // Change percentage not available in current API
           isCurrency: true,
@@ -244,19 +253,35 @@ export default function AMBranchesPage() {
         limit: 10
       });
 
-      // Transform to LeaderboardEntry format
-      const transformedLeaderboard: LeaderboardEntry[] = fullLeaderboard.map((rating, index) => ({
-        rank: index + 1,
-        branchName: rating.branchName,
-        branchId: `ID: ${rating.branchId || rating.branchName.substring(0, 3).toUpperCase()}`,
-        value: getValueForType(rating, leaderboardType),
-        change: 0, // Change percentage not available in current API
-        isCurrency: true
-      }));
+      // Validate that we received an array
+      if (!Array.isArray(fullLeaderboard)) {
+        console.warn('Leaderboard data is not an array:', fullLeaderboard);
+        setLeaderboardData([]);
+        return;
+      }
+
+      // Transform to LeaderboardEntry format with proper null checks
+      const transformedLeaderboard: LeaderboardEntry[] = fullLeaderboard.map((rating, index) => {
+        // Safely handle missing branchName and branchId
+        const safeBranchName = rating.branchName || `Branch ${index + 1}`;
+        const safeBranchId = rating.branchId || 
+          (rating.branchName ? rating.branchName.substring(0, 3).toUpperCase() : `BR${index + 1}`);
+        
+        return {
+          rank: index + 1,
+          branchName: safeBranchName,
+          branchId: `ID: ${safeBranchId}`,
+          value: getValueForType(rating, leaderboardType),
+          change: 0, // Change percentage not available in current API
+          isCurrency: true
+        };
+      });
       
       setLeaderboardData(transformedLeaderboard);
+      
+      console.log('✅ Performance statistics updated successfully');
     } catch (err) {
-      console.error('Failed to fetch performance statistics:', err);
+      console.error('❌ Failed to fetch performance statistics:', err);
       // Graceful degradation - show empty data but keep UI functional
       setPerformanceStatistics([]);
       setLeaderboardData([]);
@@ -266,11 +291,17 @@ export default function AMBranchesPage() {
         error('Access denied: You need HQ manager permissions to view performance data.');
       }
       // For other errors, fail silently to avoid disrupting the user experience
+      console.log('🔄 Continuing with empty performance data due to error');
     }
   };
 
   // Helper function to get the appropriate value based on leaderboard type
   const getValueForType = (rating: any, type: LeaderboardType): number => {
+    // Handle null/undefined rating object
+    if (!rating || typeof rating !== 'object') {
+      return 0;
+    }
+    
     switch (type) {
       case 'SAVINGS':
         return rating.savingsScore || rating.totalSavings || 0;
@@ -298,26 +329,147 @@ export default function AMBranchesPage() {
         dateRange.from.toISOString().split('T')[0] : 
         new Date().toISOString().split('T')[0];
       
+      console.log('🔄 Starting ratings calculation with params:', { period, periodDate });
+      
       // Call ratings calculation API
       const result = await ratingsService.calculateRatings({
         period: period as RatingPeriod,
         periodDate: periodDate
       });
       
-      if (result.success) {
+      console.log('📊 Ratings calculation result:', result);
+      
+      if (result && result.success) {
         success('Ratings calculated successfully!');
         
-        // Refresh performance statistics after calculation
-        await fetchPerformanceStatistics();
+        console.log('🔄 Processing calculation results directly...');
+        
+        // Store the calculation result for future use
+        setLastCalculationResult(result);
+        
+        // Transform calculation results directly instead of calling leaderboard API
+        if (result.moneyDisbursed || result.loanRepayment || result.savings) {
+          await processCalculationResults(result);
+        } else {
+          console.log('🔄 No calculation data in result, refreshing from API...');
+          // Fallback to refreshing from API
+          try {
+            await fetchPerformanceStatistics();
+            console.log('✅ Performance statistics refreshed successfully');
+          } catch (refreshError) {
+            console.error('❌ Failed to refresh performance statistics:', refreshError);
+            // Don't show error for refresh failure, calculation was successful
+          }
+        }
       } else {
-        error(result.error || 'Failed to calculate ratings. Please try again.');
+        const errorMsg = result?.error || result?.message || 'Failed to calculate ratings. Please try again.';
+        console.error('❌ Ratings calculation failed:', errorMsg);
+        error(errorMsg);
       }
       
     } catch (err) {
-      console.error('Failed to calculate ratings:', err);
-      error('Failed to calculate ratings. Please try again.');
+      console.error('❌ Exception during ratings calculation:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to calculate ratings. Please try again.';
+      error(errorMessage);
     } finally {
       setIsCalculatingRatings(false);
+    }
+  };
+
+  // Process calculation results directly
+  const processCalculationResults = async (calculationResult: any) => {
+    try {
+      console.log('🔄 Processing calculation results:', calculationResult);
+      
+      // Get the appropriate data array based on current leaderboard type
+      let dataArray: any[] = [];
+      switch (leaderboardType) {
+        case 'MONEY_DISBURSED':
+          dataArray = calculationResult.moneyDisbursed || [];
+          break;
+        case 'LOAN_REPAYMENT':
+          dataArray = calculationResult.loanRepayment || [];
+          break;
+        case 'SAVINGS':
+          dataArray = calculationResult.savings || [];
+          break;
+        default:
+          dataArray = calculationResult.moneyDisbursed || [];
+      }
+
+      console.log('📊 Using data array for', leaderboardType, ':', dataArray);
+
+      // Transform calculation data to LeaderboardEntry format
+      const transformedData: LeaderboardEntry[] = dataArray.map((item, index) => {
+        const safeBranchName = item.branch || `Branch ${index + 1}`;
+        const safeBranchId = item.branchId || 
+          (item.branch ? item.branch.substring(0, 3).toUpperCase() : `BR${index + 1}`);
+        
+        return {
+          rank: item.rank || (index + 1),
+          branchName: safeBranchName,
+          branchId: `ID: ${safeBranchId}`,
+          value: item.totalValue || 0,
+          change: 0, // Change percentage not available in current API
+          isCurrency: true
+        };
+      });
+
+      console.log('📊 Transformed leaderboard data:', transformedData);
+      setLeaderboardData(transformedData);
+
+      // Also update performance statistics with top performers
+      const performanceStats: PerformanceStatSection[] = [];
+
+      // Get top performer for each metric type from calculation results
+      const savingsData = calculationResult.savings || [];
+      const disbursementData = calculationResult.moneyDisbursed || [];
+      const repaymentData = calculationResult.loanRepayment || [];
+
+      if (savingsData.length > 0) {
+        const topSavings = savingsData[0];
+        performanceStats.push({
+          label: 'Top by Savings',
+          branchName: topSavings.branch || 'Unknown Branch',
+          value: topSavings.totalValue || 0,
+          change: 0,
+          isCurrency: true,
+          rank: 1
+        });
+      }
+
+      if (disbursementData.length > 0) {
+        const topDisbursement = disbursementData[0];
+        performanceStats.push({
+          label: 'Top by Loan Disbursement',
+          branchName: topDisbursement.branch || 'Unknown Branch',
+          value: topDisbursement.totalValue || 0,
+          change: 0,
+          isCurrency: true,
+          rank: 1
+        });
+      }
+
+      if (repaymentData.length > 0) {
+        const topRepayment = repaymentData[0];
+        performanceStats.push({
+          label: 'Top by Loan Repayment',
+          branchName: topRepayment.branch || 'Unknown Branch',
+          value: topRepayment.totalValue || 0,
+          change: 0,
+          isCurrency: true,
+          rank: 1
+        });
+      }
+
+      console.log('📊 Updated performance statistics:', performanceStats);
+      setPerformanceStatistics(performanceStats);
+
+      console.log('✅ Calculation results processed successfully');
+    } catch (err) {
+      console.error('❌ Failed to process calculation results:', err);
+      // Fallback to API refresh
+      await fetchPerformanceStatistics();
     }
   };
 
@@ -331,6 +483,17 @@ export default function AMBranchesPage() {
     try {
       setIsLoading(true);
       
+      // If we have recent calculation results, use them instead of API
+      if (lastCalculationResult && (lastCalculationResult.moneyDisbursed || lastCalculationResult.loanRepayment || lastCalculationResult.savings)) {
+        console.log('🔄 Using stored calculation results for filter change');
+        await processCalculationResults(lastCalculationResult);
+        success(`Leaderboard updated for ${leaderboardType.replace('_', ' ').toLowerCase()} - ${leaderboardPeriod.toLowerCase()}`);
+        return;
+      }
+      
+      // Fallback to API call if no calculation results available
+      console.log('🔄 No stored calculation results, fetching from API...');
+      
       // Fetch real leaderboard data using ratings API
       const leaderboardData = await ratingsService.getLeaderboard({
         type: leaderboardType,
@@ -338,15 +501,29 @@ export default function AMBranchesPage() {
         limit: 10
       });
 
-      // Transform to LeaderboardEntry format
-      const transformedData: LeaderboardEntry[] = leaderboardData.map((rating, index) => ({
-        rank: index + 1,
-        branchName: rating.branchName,
-        branchId: `ID: ${rating.branchId || rating.branchName.substring(0, 3).toUpperCase()}`,
-        value: getValueForType(rating, leaderboardType),
-        change: 0, // Change percentage not available in current API
-        isCurrency: true
-      }));
+      // Validate that we received an array
+      if (!Array.isArray(leaderboardData)) {
+        console.warn('Leaderboard data is not an array:', leaderboardData);
+        error('Invalid leaderboard data received. Please try again.');
+        return;
+      }
+
+      // Transform to LeaderboardEntry format with proper null checks
+      const transformedData: LeaderboardEntry[] = leaderboardData.map((rating, index) => {
+        // Safely handle missing branchName and branchId
+        const safeBranchName = rating.branchName || `Branch ${index + 1}`;
+        const safeBranchId = rating.branchId || 
+          (rating.branchName ? rating.branchName.substring(0, 3).toUpperCase() : `BR${index + 1}`);
+        
+        return {
+          rank: index + 1,
+          branchName: safeBranchName,
+          branchId: `ID: ${safeBranchId}`,
+          value: getValueForType(rating, leaderboardType),
+          change: 0, // Change percentage not available in current API
+          isCurrency: true
+        };
+      });
       
       setLeaderboardData(transformedData);
       success(`Leaderboard updated for ${leaderboardType.replace('_', ' ').toLowerCase()} - ${leaderboardPeriod.toLowerCase()}`);
@@ -377,6 +554,14 @@ export default function AMBranchesPage() {
       router.push('/auth/bm/login');
     }
   }, [session, router]);
+
+  // Auto-calculate ratings when switching to leaderboard tab
+  useEffect(() => {
+    if (session && activeTab === 'leaderboard' && !lastCalculationResult) {
+      console.log('🔄 Leaderboard tab active and no cached data, auto-calculating ratings...');
+      handleCalculateRatings();
+    }
+  }, [activeTab, session]); // Only trigger when tab changes or session is established
 
   // Background refresh for leaderboard data every 5 minutes
   useEffect(() => {
@@ -489,10 +674,15 @@ export default function AMBranchesPage() {
         const branchRating = await ratingsService.getBranchRating(query.trim(), leaderboardPeriod, leaderboardType);
         
         if (branchRating) {
+          // Safely handle missing branchName and branchId
+          const safeBranchName = branchRating.branchName || 'Unknown Branch';
+          const safeBranchId = branchRating.branchId || 
+            (branchRating.branchName ? branchRating.branchName.substring(0, 3).toUpperCase() : 'UNK');
+          
           searchResults.push({
             rank: branchRating.rank || 1,
-            branchName: branchRating.branchName,
-            branchId: `ID: ${branchRating.branchId || branchRating.branchName.substring(0, 3).toUpperCase()}`,
+            branchName: safeBranchName,
+            branchId: `ID: ${safeBranchId}`,
             value: getValueForType(branchRating, leaderboardType),
             change: 0, // Change percentage not available in current API
             isCurrency: true
@@ -673,7 +863,7 @@ export default function AMBranchesPage() {
                       style={{
                         boxShadow: '0px 1px 2px rgba(16, 24, 40, 0.05)',
                       }}
-                      aria-label="Calculate performance ratings"
+                      aria-label="Refresh performance ratings"
                     >
                       {isCalculatingRatings ? (
                         <>
@@ -681,7 +871,7 @@ export default function AMBranchesPage() {
                           Calculating...
                         </>
                       ) : (
-                        'Calculate Ratings'
+                        'Refresh Ratings'
                       )}
                     </button>
                   ) : null
@@ -716,32 +906,48 @@ export default function AMBranchesPage() {
             <div className="pl-4 flex items-center justify-between" style={{ marginBottom: '24px' }}>
               <div className="flex items-center gap-8">
                 {/* Tab Navigation */}
-                <div className="flex items-center">
+                <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1 w-fit">
                   <button
                     onClick={() => {
                       setActiveTab('branches');
                       setSearchQuery(''); // Clear search when switching tabs
                     }}
-                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                       activeTab === 'branches'
-                        ? 'bg-[#7F56D9] text-white'
-                        : 'text-[#475467] hover:text-[#344054] hover:bg-gray-50'
+                        ? 'bg-[#7F56D9] text-white shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
                     }`}
+                    style={{
+                      fontFamily: "'Open Sauce Sans', sans-serif",
+                    }}
                   >
                     Branches
                   </button>
                   <button
                     onClick={() => {
+                      console.log('🔄 Switching to leaderboard tab...');
                       setActiveTab('leaderboard');
                       setSearchQuery(''); // Clear search when switching tabs
+                      // Auto-calculation will be handled by useEffect
                     }}
-                    className={`ml-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    disabled={isCalculatingRatings}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 inline-flex items-center gap-2 ${
                       activeTab === 'leaderboard'
-                        ? 'bg-[#7F56D9] text-white'
-                        : 'text-[#475467] hover:text-[#344054] hover:bg-gray-50'
-                    }`}
+                        ? 'bg-[#7F56D9] text-white shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    } ${isCalculatingRatings ? 'opacity-75 cursor-not-allowed' : ''}`}
+                    style={{
+                      fontFamily: "'Open Sauce Sans', sans-serif",
+                    }}
                   >
-                    Leaderboard
+                    {isCalculatingRatings && activeTab === 'leaderboard' ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                        Calculating...
+                      </>
+                    ) : (
+                      'Leaderboard'
+                    )}
                   </button>
                 </div>
               </div>

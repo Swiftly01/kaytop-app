@@ -391,7 +391,53 @@ export function ReportDetailsModal({
             )}
           </div>
 
-          {/* Approval Status Label */}
+          {/* Report Status Display */}
+          <div className="mb-5">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-[#344054]">Status:</span>
+              <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                reportData.status === 'approved' ? 'bg-green-100 text-green-800' :
+                reportData.status === 'declined' ? 'bg-red-100 text-red-800' :
+                reportData.status === 'forwarded' || reportData.status === 'pending' || reportData.status === 'submitted' ? 'bg-yellow-100 text-yellow-800' :
+                'bg-gray-100 text-gray-800'
+              }`}>
+                {reportData.status === 'draft' ? 'Draft' :
+                 reportData.status === 'forwarded' ? 'Forwarded to HQ' :
+                 reportData.status === 'pending' ? 'Pending Review' :
+                 reportData.status === 'submitted' ? 'Submitted' :
+                 reportData.status === 'approved' ? 'Approved' :
+                 reportData.status === 'declined' ? 'Declined' :
+                 'Unknown'}
+              </span>
+            </div>
+            
+            {/* Status-specific messages */}
+            {reportData.status === 'draft' && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  This report is still in draft status. It must be forwarded by the Branch Manager before it can be reviewed by HQ.
+                </p>
+              </div>
+            )}
+            
+            {reportData.status === 'approved' && (
+              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-sm text-green-800">
+                  This report has been approved and is locked.
+                </p>
+              </div>
+            )}
+            
+            {reportData.status === 'declined' && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-800">
+                  This report has been declined.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Legacy Approval Status Label - keeping for backward compatibility */}
           {reportData.isApproved && (
             <div className="mb-5">
               <div
@@ -404,27 +450,62 @@ export function ReportDetailsModal({
           )}
 
           {/* Action Buttons - Only show if not approved */}
-          {!reportData.isApproved && (
+          {!reportData.isApproved && reportData.status !== 'approved' && (
             <div className="flex flex-col gap-3">
-              {/* Approve Button */}
-              <button
-                onClick={onApprove}
-                className="w-full px-4 py-3 text-[16px] font-semibold leading-[24px] text-white bg-[#7F56D9] rounded-lg hover:bg-[#6941C6] transition-colors focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:ring-offset-2"
-                style={{ fontFamily: 'Open Sauce Sans, sans-serif' }}
-                aria-label="Approve report"
-              >
-                Approve
-              </button>
+              {/* Check if report can be reviewed */}
+              {(reportData.status === 'forwarded' || reportData.status === 'pending' || reportData.status === 'submitted') ? (
+                <>
+                  {/* Approve Button */}
+                  <button
+                    onClick={onApprove}
+                    className="w-full px-4 py-3 text-[16px] font-semibold leading-[24px] text-white bg-[#7F56D9] rounded-lg hover:bg-[#6941C6] transition-colors focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:ring-offset-2"
+                    style={{ fontFamily: 'Open Sauce Sans, sans-serif' }}
+                    aria-label="Approve report"
+                  >
+                    Approve
+                  </button>
 
-              {/* Decline Button */}
-              <button
-                onClick={onDecline}
-                className="w-full px-4 py-3 text-[16px] font-semibold leading-[24px] text-[#344054] bg-white border border-[#D0D5DD] rounded-lg hover:bg-[#F9FAFB] transition-colors focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:ring-offset-2"
-                style={{ fontFamily: 'Open Sauce Sans, sans-serif' }}
-                aria-label="Decline report"
-              >
-                Decline
-              </button>
+                  {/* Decline Button */}
+                  <button
+                    onClick={onDecline}
+                    className="w-full px-4 py-3 text-[16px] font-semibold leading-[24px] text-[#344054] bg-white border border-[#D0D5DD] rounded-lg hover:bg-[#F9FAFB] transition-colors focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:ring-offset-2"
+                    style={{ fontFamily: 'Open Sauce Sans, sans-serif' }}
+                    aria-label="Decline report"
+                  >
+                    Decline
+                  </button>
+                </>
+              ) : (
+                /* Disabled buttons with explanation */
+                <div className="flex flex-col gap-3">
+                  <button
+                    disabled
+                    className="w-full px-4 py-3 text-[16px] font-semibold leading-[24px] text-gray-400 bg-gray-100 border border-gray-200 rounded-lg cursor-not-allowed"
+                    style={{ fontFamily: 'Open Sauce Sans, sans-serif' }}
+                    aria-label="Approve report (disabled)"
+                  >
+                    Approve
+                  </button>
+
+                  <button
+                    disabled
+                    className="w-full px-4 py-3 text-[16px] font-semibold leading-[24px] text-gray-400 bg-gray-100 border border-gray-200 rounded-lg cursor-not-allowed"
+                    style={{ fontFamily: 'Open Sauce Sans, sans-serif' }}
+                    aria-label="Decline report (disabled)"
+                  >
+                    Decline
+                  </button>
+                  
+                  <p className="text-sm text-gray-600 text-center mt-2">
+                    {reportData.status === 'draft' 
+                      ? 'Report must be forwarded by Branch Manager first'
+                      : reportData.status === 'declined'
+                      ? 'Report has already been declined'
+                      : 'Report cannot be reviewed in current status'
+                    }
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>

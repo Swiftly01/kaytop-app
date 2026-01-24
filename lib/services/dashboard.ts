@@ -15,6 +15,7 @@ import type {
   StatisticValue,
   BranchPerformance,
   ReportStatistics,
+  ReportFilters,
 } from '../api/types';
 import { isSuccessResponse } from '../utils/responseHelpers';
 
@@ -156,112 +157,37 @@ class DashboardAPIService implements DashboardService {
 
   /**
    * Get report statistics for dashboard KPIs
-   * Uses dashboard KPI endpoint instead of reports statistics endpoint to avoid validation errors
+   * Uses the reports service to calculate statistics from existing /reports endpoint
+   * since dedicated statistics endpoints don't exist in the backend
    */
   async getReportStatistics(params: DashboardParams = {}): Promise<ReportStatistics> {
     try {
       console.log('🔍 Dashboard getReportStatistics called with params:', params);
       
-      // Use the dedicated reports dashboard stats endpoint
-      const queryParams = new URLSearchParams();
+      // Import the reports service to calculate statistics from existing data
+      const { reportsService } = await import('./reports');
+      
+      // Convert dashboard params to reports service filters
+      const filters: Pick<ReportFilters, 'dateFrom' | 'dateTo' | 'branchId'> = {};
       
       if (params.startDate) {
-        queryParams.append('startDate', params.startDate);
+        filters.dateFrom = params.startDate;
       }
       
       if (params.endDate) {
-        queryParams.append('endDate', params.endDate);
+        filters.dateTo = params.endDate;
       }
       
       if (params.branch) {
-        queryParams.append('branch', params.branch);
+        filters.branchId = params.branch;
       }
 
-      const url = `${API_ENDPOINTS.REPORTS.DASHBOARD_STATS}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-      console.log('🌐 Fetching report statistics from dedicated endpoint:', url);
+      console.log('🔍 Calling reports service with filters:', filters);
       
-      const response = await apiClient.get<Record<string, unknown>>(url);
+      // Use the reports service to calculate statistics from actual report data
+      const reportStats = await reportsService.getReportStatistics(filters);
       
-      console.log('🔍 Raw reports dashboard stats response:', JSON.stringify(response, null, 2));
-      
-      // Extract report statistics from the response
-      let reportStats: ReportStatistics;
-      
-      if (response && response.data) {
-        const data = response.data;
-        
-        console.log('🔍 Extracted data object:', JSON.stringify(data, null, 2));
-        
-        // Backend returns: totalPending, totalApproved, totalDeclined
-        // Calculate total reports from the sum of all statuses
-        const totalCount = (data.totalPending || 0) + (data.totalApproved || 0) + (data.totalDeclined || 0);
-        
-        // The endpoint returns report statistics in a different format
-        // Backend returns: { totalPending: number, totalApproved: number, totalDeclined: number }
-        // Frontend expects: ReportStatistics format
-        reportStats = {
-          totalReports: {
-            count: totalCount,
-            growth: 0 // Backend doesn't provide growth data
-          },
-          submittedReports: {
-            count: totalCount, // All reports are submitted
-            growth: 0
-          },
-          pendingReports: {
-            count: data.totalPending || 0,
-            growth: 0
-          },
-          approvedReports: {
-            count: data.totalApproved || 0,
-            growth: 0
-          },
-          missedReports: {
-            count: data.totalDeclined || 0, // Using declined as missed for now
-            growth: 0
-          }
-        };
-        
-        console.log('✅ Transformed report statistics:', reportStats);
-        // Transform to match the expected ReportStatistics interface
-        reportStats = {
-          totalReports: {
-            count: data.totalReports?.count || data.total || totalCount,
-            growth: data.totalReports?.growth || data.totalGrowth || 0
-          },
-          submittedReports: {
-            // Backend doesn't distinguish between submitted and pending
-            count: data.submittedReports?.count || data.submitted || 0,
-            growth: data.submittedReports?.growth || data.submittedGrowth || 0
-          },
-          pendingReports: {
-            count: data.pendingReports?.count || data.pending || data.totalPending || 0,
-            growth: data.pendingReports?.growth || data.pendingGrowth || 0
-          },
-          approvedReports: {
-            count: data.approvedReports?.count || data.approved || data.totalApproved || 0,
-            growth: data.approvedReports?.growth || data.approvedGrowth || 0
-          },
-          missedReports: {
-            // Backend doesn't have missed reports, use declined as a proxy or 0
-            count: data.missedReports?.count || data.missed || data.totalDeclined || 0,
-            growth: data.missedReports?.growth || data.missedGrowth || 0
-          }
-        };
-        
-        console.log('🔍 Constructed reportStats:', JSON.stringify(reportStats, null, 2));
-      } else {
-        // Fallback to default values if no data is available
-        reportStats = {
-          totalReports: { count: 0, growth: 0 },
-          submittedReports: { count: 0, growth: 0 },
-          pendingReports: { count: 0, growth: 0 },
-          approvedReports: { count: 0, growth: 0 },
-          missedReports: { count: 0, growth: 0 },
-        };
-      }
-      
-      console.log('✅ Successfully fetched report statistics:', reportStats);
+      console.log('✅ Successfully fetched report statistics from reports service:', reportStats);
       return reportStats;
       
     } catch (error) {

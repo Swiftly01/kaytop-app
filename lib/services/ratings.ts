@@ -127,7 +127,25 @@ class RatingsAPIService implements RatingsService {
       }
 
       console.log('✅ Ratings calculation completed successfully');
-      return response.data;
+      
+      // Ensure consistent response structure
+      if (response.data && typeof response.data === 'object') {
+        // If the response already has a success field, return it as-is
+        if ('success' in response.data) {
+          return response.data;
+        }
+        // Otherwise, wrap the response to indicate success
+        return {
+          success: true,
+          ...response.data
+        };
+      }
+      
+      // Fallback for unexpected response structure
+      return {
+        success: true,
+        message: 'Ratings calculated successfully'
+      };
 
     } catch (error) {
       const errorMessage = UnifiedAPIErrorHandler.handleApiError(error, {

@@ -4,7 +4,7 @@
  */
 
 import apiClient from '@/lib/apiClient';
-import { API_ENDPOINTS } from '../api/config';
+import { API_ENDPOINTS, API_CONFIG } from '../api/config';
 import type { AdminProfile } from '../api/types';
 import { isSuccessResponse } from '../utils/responseHelpers';
 import { DataTransformers } from '../api/transformers';
