@@ -10,6 +10,8 @@ import ViewReportModal from "./reportcomponent/ViewReportModal";
 import ReportsTable from "./reportcomponent/ReportsTable";
 import { CreateReportPayload, Report, ReportListItem } from "@/app/types/report";
 import Button from "@/app/_components/ui/Button";
+import { AxiosError } from "axios";
+import { ApiResponseError } from "@/app/types/auth";
 
 
 
@@ -22,6 +24,7 @@ export default function ReportAgentClient() {
     data,
     isLoading,
     status,
+    error: queryError,
     setStatus,
     type,
     setType,
@@ -54,7 +57,7 @@ const handleCreateReport = async (payload: CreateReportPayload): Promise<Report>
     setSelectedReportId(reportId);
   };
 
-  const totalPages = data?.meta?.totalPages || 1;
+  
 
   /* ===================== UI ===================== */
   return (
@@ -88,8 +91,11 @@ const handleCreateReport = async (payload: CreateReportPayload): Promise<Report>
         {/* Table */}
         <div className="bg-card rounded-xl border border-border overflow-hidden">
           <ReportsTable
-            reports={data?.data || []}  
+            reports={data?.data || []}
+            meta={data?.meta} 
             isLoading={isLoading}
+           error={queryError as AxiosError<ApiResponseError> | null}
+            onPageChange={setPage}
             onRowClick={handleRowClick}
           />
         </div>

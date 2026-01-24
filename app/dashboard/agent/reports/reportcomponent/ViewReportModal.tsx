@@ -37,7 +37,7 @@ export default function ViewReportModal({ isOpen, onClose, report, isLoading }: 
 
         {isLoading ? (
           <div className="py-12 text-center">
-            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+            <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto" />
             <p className="text-sm text-muted-foreground mt-3">Loading report...</p>
           </div>
         ) : report ? (
@@ -137,7 +137,7 @@ export default function ViewReportModal({ isOpen, onClose, report, isLoading }: 
               {report.remarks && (
                 <div>
                   <h3 className="text-sm font-medium text-foreground mb-2">Remarks</h3>
-                  <p className="text-sm text-muted-foreground bg-secondary/30 rounded-lg p-3">
+                  <p className="text-sm text-muted-foreground bg-[#f4ebff] rounded-lg p-3">
                     {report.remarks}
                   </p>
                 </div>

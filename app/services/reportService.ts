@@ -95,19 +95,7 @@ export class ReportService {
   }
 
    /* ===================== GENERATE (CREATE) REPORT ===================== */
-  // static async createReport(
-  //   payload: CreateReportPayload
-  // ): Promise<Report> {
-  //   try {
-  //     const response = await apiClient.post<Report>(
-  //       `${apiBaseUrl}/reports`,
-  //       payload
-  //     );
-  //     return response.data;
-  //   } catch (error) {
-  //     throw error as AxiosError;
-  //   }
-  // }
+  
   static async createReport(
   payload: CreateReportPayload
 ): Promise<CreateReportResponse> {

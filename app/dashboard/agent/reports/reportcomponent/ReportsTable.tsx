@@ -1,12 +1,22 @@
+import Pagination from "@/app/_components/ui/Pagination";
+import TableState from "@/app/_components/ui/table/TableState";
+import { ApiResponseError } from "@/app/types/auth";
+import { Meta } from "@/app/types/dashboard";
 import { ReportListItem, ReportStatus } from "@/app/types/report";
+import { AxiosError } from "axios";
 import { FileText, CheckCircle, XCircle, Clock, AlertCircle } from "lucide-react";
 
 
-interface Props {
-  reports: ReportListItem[];
+
+interface ReportsTableProps {
   isLoading: boolean;
+  error: AxiosError<ApiResponseError> | null;
+  reports: ReportListItem[];
+  meta?: Meta;
+  onPageChange?: (page: number) => void;
   onRowClick: (reportId: number) => void;
 }
+
 
 const statusConfig: Record<ReportStatus, { label: string; color: string; icon: typeof CheckCircle }> = {
   draft: { label: "Draft", color: "bg-gray-200 text-secondary-foreground", icon: FileText },
@@ -17,7 +27,7 @@ const statusConfig: Record<ReportStatus, { label: string; color: string; icon: t
   pending: { label: "Pending", color: "bg-yellow-100 text-yellow-700", icon: Clock },
 };
 
-export default function ReportsTable({ reports, isLoading, onRowClick }: Props) {
+export default function ReportsTable({ reports, isLoading, onRowClick, meta, onPageChange, error}: ReportsTableProps) {
   if (isLoading) {
     return (
       <div className="p-8 text-center">
@@ -40,9 +50,11 @@ export default function ReportsTable({ reports, isLoading, onRowClick }: Props) 
   }
 
   return (
+      <div className="overflow-x-auto">
     <table className="table table-md text-sm">
       <thead className="bg-gray-50">
         <tr>
+          <th className="p-4 w-12 text-center">#</th>
           <th className="p-4">Title</th>
           <th className="p-4">Type</th>
           <th className="p-4">Status</th>
@@ -51,9 +63,20 @@ export default function ReportsTable({ reports, isLoading, onRowClick }: Props) 
         </tr>
       </thead>
       <tbody>
-        {reports.map((report) => {
-          const status = statusConfig[report.status];
-          const StatusIcon = status.icon;
+         <TableState
+            isLoading={isLoading}
+            error={error}
+            isEmpty={!isLoading && !reports?.length}
+            colSpan={6}
+            emptyMessage="No reports found"
+          />
+        {reports?.map((report, index) => {
+            const status = statusConfig[report.status];
+            const StatusIcon = status.icon;
+
+            const rowNumber =
+                meta ? (meta.page - 1) * meta.limit + index + 1 : index + 1;
+
 
           return (
             <tr
@@ -61,6 +84,9 @@ export default function ReportsTable({ reports, isLoading, onRowClick }: Props) 
               className="border-t hover:bg-gray-50 text-nowrap cursor-pointer"
               onClick={() => onRowClick(report.id)}
             >
+              <td className="p-4 text-center text-muted-foreground">
+                 {rowNumber}
+                </td>
               <td className="p-4">
                 <div>
                   <p className="font-medium text-foreground">{report.title}</p>
@@ -87,7 +113,9 @@ export default function ReportsTable({ reports, isLoading, onRowClick }: Props) 
               </td>
               <td className="p-4">
                 <span className="text-sm text-muted-foreground">
-                  {new Date(report.submittedAt).toLocaleDateString()}
+                  {report.submittedAt
+                    ? new Date(report.submittedAt).toLocaleDateString()
+                    : "—"}
                 </span>
               </td>
             </tr>
@@ -95,5 +123,16 @@ export default function ReportsTable({ reports, isLoading, onRowClick }: Props) 
         })}
       </tbody>
     </table>
+
+    <div className="mt-4 mb-2">
+    {meta && onPageChange && (
+            <Pagination
+              page={meta.page}
+              totalPages={meta.totalPages}
+              onPageChange={onPageChange}
+            />
+          )}
+          </div>
+          </div>
   );
 }

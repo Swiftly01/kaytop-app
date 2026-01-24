@@ -4,13 +4,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { CreateReportPayload, CreateReportResponse, ReportStatus, ReportType, SubmitReportPayload } from "../types/report";
 import { ReportService } from "../services/reportService";
-// import { ReportStatus, ReportType, CreateReportPayload, SubmitReportPayload } from "@/types/report";
+
 
 export interface UseReportsOptions {
   initialPage?: number;
   initialLimit?: number;
   initialStatus?: ReportStatus;
   initialType?: ReportType;
+  branch?: string;
 }
 
 export function useReports(options: UseReportsOptions = {}) {
@@ -19,6 +20,7 @@ export function useReports(options: UseReportsOptions = {}) {
     initialLimit = 10,
     initialStatus,
     initialType,
+    branch,
   } = options;
 
   const [page, setPage] = useState(initialPage);
