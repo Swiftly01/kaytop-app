@@ -710,13 +710,9 @@ export default function AMBranchesPage() {
               )}
             </div>
 
-            {/* Branches Section Title and Search */}
+            {/* Tab Navigation and Search */}
             <div className="pl-4 flex items-center justify-between" style={{ marginBottom: '24px' }}>
               <div className="flex items-center gap-8">
-                <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-dark)' }}>
-                  Branches
-                </h2>
-                
                 {/* Tab Navigation */}
                 <div className="flex items-center">
                   <button
