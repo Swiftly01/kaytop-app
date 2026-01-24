@@ -293,11 +293,6 @@ export function getReportMetrics({
       border: true,
     },
     {
-      title: "Total Pending",
-      value: data?.reportStats.totalPending.toString(),
-      border: true,
-    },
-    {
       title: "Total Declined",
       value: data?.reportStats.totalDeclined.toString(),
       border: true,
