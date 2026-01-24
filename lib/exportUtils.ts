@@ -1,4 +1,14 @@
-export function exportLoanDetailsToCSV(loanData: any): void {
+interface ExportLoanData {
+  id?: string | number;
+  amount?: string | number;
+  customerName?: string;
+  status?: string;
+  disbursementDate?: string;
+  dueDate?: string;
+  [key: string]: unknown;
+}
+
+export function exportLoanDetailsToCSV(loanData: ExportLoanData): void {
   // Simple CSV export functionality
   const csvContent = "data:text/csv;charset=utf-8," 
     + "Field,Value\n"
@@ -16,7 +26,7 @@ export function exportLoanDetailsToCSV(loanData: any): void {
   document.body.removeChild(link);
 }
 
-export function printLoanDetails(loanData: any): void {
+export function printLoanDetails(loanData: ExportLoanData): void {
   // Simple print functionality
   const printWindow = window.open('', '_blank');
   if (printWindow) {

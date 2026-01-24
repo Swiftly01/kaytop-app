@@ -17,6 +17,8 @@ import { unifiedLoanService } from '@/lib/services/unifiedLoan';
 import { unifiedSavingsService } from '@/lib/services/unifiedSavings';
 import { useToast } from '@/app/hooks/useToast';
 import { ToastContainer } from '@/app/_components/ui/ToastContainer';
+import { formatDate } from '@/lib/utils';
+import { formatCustomerDate } from '@/lib/dateUtils';
 import type { User, Loan, SavingsAccount, Transaction } from '@/lib/api/types';
 
 interface PageProps {
@@ -89,18 +91,14 @@ export default function AMCustomerDetailsPage({ params }: PageProps) {
     savings: any = null
   ): CustomerDetails => {
     const activeLoan = loans.find(loan => loan.status === 'active') || loans[0];
-    
+
     return {
       id: customer.id,
       name: `${customer.firstName} ${customer.lastName}`,
       userId: customer.customerId || String(customer.id).slice(-8).toUpperCase(),
-      dateJoined: new Date(customer.joinDate || customer.createdAt).toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      }),
+      dateJoined: formatCustomerDate(customer.joinDate || customer.createdAt),
       email: customer.email,
-      phoneNumber: customer.phone || customer.mobileNumber,
+      phoneNumber: customer.mobileNumber || customer.phone,
       gender: customer.gender || 'Not specified',
       address: customer.address || 'Not specified',
       branch: customer.branch || 'Not assigned',
@@ -108,11 +106,8 @@ export default function AMCustomerDetailsPage({ params }: PageProps) {
       riskScore: customer.riskScore || 'Low',
       loanRepayment: {
         amount: activeLoan ? activeLoan.amount * 0.1 : 0, // Assuming 10% monthly payment
-        nextPayment: activeLoan?.nextRepaymentDate ? 
-          new Date(activeLoan.nextRepaymentDate).toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric' 
-          }) : 'N/A',
+        nextPayment: activeLoan?.nextRepaymentDate ?
+          formatDate(activeLoan.nextRepaymentDate) || 'N/A' : 'N/A',
         growth: 5 // Placeholder
       },
       savingsAccount: {
@@ -235,7 +230,7 @@ export default function AMCustomerDetailsPage({ params }: PageProps) {
                 </svg>
               </button>
             </div>
-            
+
             <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
               <div className="text-red-800 font-medium mb-2">Error Loading Customer Details</div>
               <div className="text-red-700 text-sm mb-4">{apiError}</div>
@@ -258,7 +253,7 @@ export default function AMCustomerDetailsPage({ params }: PageProps) {
   const loanOutstanding = customerDetails.activeLoan.outstanding;
   const loanPaid = loanAmount - loanOutstanding;
   const loanPercentage = loanAmount > 0 ? (loanPaid / loanAmount) * 100 : 0;
-  
+
   // Prepare chart data
   const loanChartData = [
     { value: loanPaid, color: '#7F56D9' },
@@ -407,7 +402,7 @@ export default function AMCustomerDetailsPage({ params }: PageProps) {
 
           {/* Transaction History Table */}
           <div>
-            <TransactionHistoryTable 
+            <TransactionHistoryTable
               transactions={customerDetails.transactions}
               onTransactionAction={(transaction) => {
                 success('Transaction details feature coming soon!');
@@ -416,7 +411,7 @@ export default function AMCustomerDetailsPage({ params }: PageProps) {
           </div>
         </div>
       </main>
-      
+
       {/* Toast Container */}
       <ToastContainer toasts={toasts} onClose={removeToast} />
     </div>

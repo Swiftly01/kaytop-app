@@ -165,10 +165,14 @@ export function getDashboardMetrics({ data }: DashboardMetricsInput): {
 export function getCreditOfficerMetrics({
   data,
 }: DashboardMetricsInput): MetricProps[] {
+  // Based on Postman investigation: Both System Admin and HQ Manager 
+  // get totalCreditOfficers as a number from /dashboard/kpi endpoint
+  const creditOfficerCount = data?.totalCreditOfficers || 0;
+  
   return [
     {
       title: "Total Credit Officers",
-      value: data?.totalCreditOfficers.toString(),
+      value: creditOfficerCount.toString(),
       border: false,
     },
   ];
@@ -499,7 +503,30 @@ export function isReportStatus(value: string | null): value is ReportStatus {
   return value !== null && ["pending", "approved", "declined", "draft", "submitted", "forwarded"].includes(value);
 }
 // Report mapping functions
-export function mapReportDetails(data: any): SummaryProps[] {
+interface ReportData {
+  id?: string | number;
+  title?: string;
+  description?: string;
+  branch?: string;
+  state?: string;
+  type?: string;
+  status?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  [key: string]: unknown;
+}
+
+interface LoanReportData {
+  totalLoans?: number;
+  totalAmount?: string | number;
+  activeLoans?: number;
+  completedLoans?: number;
+  overdueLoans?: number;
+  averageAmount?: string | number;
+  [key: string]: unknown;
+}
+
+export function mapReportDetails(data: ReportData): SummaryProps[] {
   if (!data) return [];
   return [
     { label: "Report ID", value: data.id?.toString() || "N/A" },
@@ -517,7 +544,7 @@ export function mapReportDetails(data: any): SummaryProps[] {
   ];
 }
 
-export function mapReportLoanDetails(data: any): SummaryProps[] {
+export function mapReportLoanDetails(data: LoanReportData): SummaryProps[] {
   if (!data) return [];
   return [
     { label: "Total Loans Processed", value: data.totalLoansProcessed?.toString() || "0" },

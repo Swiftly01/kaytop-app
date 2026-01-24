@@ -29,7 +29,7 @@ type TabValue = 'disbursements' | 're-collections' | 'savings' | 'missed-payment
 export default function AccountManagerDashboard() {
   const { toasts, removeToast, success, error: showError } = useToast();
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
-  const [timePeriod, setTimePeriod] = useState<TimePeriod>('last_30_days');
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>(null);
   const [activeTab, setActiveTab] = useState<TabValue>('disbursements');
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);

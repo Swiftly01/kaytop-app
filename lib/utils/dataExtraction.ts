@@ -9,9 +9,9 @@
  * @param fallback - Fallback value if extraction fails
  * @returns The extracted primitive value
  */
-export const extractValue = (obj: any, fallback: any = 0): any => {
+export const extractValue = (obj: unknown, fallback: unknown = 0): unknown => {
   if (obj === null || obj === undefined) return fallback;
-  if (typeof obj === 'object' && obj.value !== undefined) return obj.value;
+  if (typeof obj === 'object' && obj !== null && 'value' in obj) return (obj as { value: unknown }).value;
   return obj;
 };
 
@@ -21,7 +21,7 @@ export const extractValue = (obj: any, fallback: any = 0): any => {
  * @param fallback - Fallback numeric value if extraction fails
  * @returns The extracted numeric value
  */
-export const extractNumericValue = (obj: any, fallback: number = 0): number => {
+export const extractNumericValue = (obj: unknown, fallback: number = 0): number => {
   const value = extractValue(obj, fallback);
   const numericValue = typeof value === 'string' ? parseFloat(value) : value;
   return isNaN(numericValue) ? fallback : numericValue;
@@ -33,7 +33,7 @@ export const extractNumericValue = (obj: any, fallback: number = 0): number => {
  * @param label - Label for the statistic
  * @returns A properly formatted StatSection
  */
-export const extractStatSection = (data: any, label: string) => {
+export const extractStatSection = (data: Record<string, unknown>, label: string) => {
   if (!data) {
     return {
       label,
@@ -60,7 +60,7 @@ export const extractStatSection = (data: any, label: string) => {
  * @returns Array of properly formatted StatSections
  */
 export const extractStatSections = (
-  dashboardData: any,
+  dashboardData: Record<string, unknown>,
   sections: Array<{ key: string; label: string }>
 ) => {
   if (!dashboardData) return [];

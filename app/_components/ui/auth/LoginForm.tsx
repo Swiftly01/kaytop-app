@@ -64,6 +64,9 @@ export default function LoginForm() {
         case 'account_manager':
           router.push('/dashboard/am');
           break;
+        case 'hq_manager':
+          router.push('/dashboard/am');
+          break;
         case 'branch_manager':
           router.push(ROUTES.Bm.DASHBOARD);
           break;

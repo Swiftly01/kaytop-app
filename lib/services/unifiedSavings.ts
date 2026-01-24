@@ -52,7 +52,7 @@ export interface SavingsTransaction {
 }
 
 class UnifiedSavingsAPIService {
-  async getSavingsAccounts(params?: SavingsFilterParams): Promise<PaginatedResponse<SavingsAccount> & { summary?: any }> {
+  async getSavingsAccounts(params?: SavingsFilterParams): Promise<PaginatedResponse<SavingsAccount> & { summary?: Record<string, unknown> }> {
     const queryParams = new URLSearchParams();
     
     if (params?.branch) queryParams.append('branch', params.branch);
@@ -64,7 +64,7 @@ class UnifiedSavingsAPIService {
 
     const endpoint = `/savings/all${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     
-    const response: ApiResponse<PaginatedResponse<SavingsAccount> & { summary?: any }> = await apiClient.get(endpoint);
+    const response: ApiResponse<PaginatedResponse<SavingsAccount> & { summary?: Record<string, unknown> }> = await apiClient.get(endpoint);
     return response.data;
   }
 
@@ -73,7 +73,7 @@ class UnifiedSavingsAPIService {
     return response.data;
   }
 
-  async getSavingsTransactions(params?: TransactionFilterParams): Promise<PaginatedResponse<SavingsTransaction> & { summary?: any }> {
+  async getSavingsTransactions(params?: TransactionFilterParams): Promise<PaginatedResponse<SavingsTransaction> & { summary?: Record<string, unknown> }> {
     const queryParams = new URLSearchParams();
     
     if (params?.accountId) queryParams.append('accountId', params.accountId);
@@ -87,7 +87,7 @@ class UnifiedSavingsAPIService {
 
     const endpoint = `/savings/transactions/all${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     
-    const response: ApiResponse<PaginatedResponse<SavingsTransaction> & { summary?: any }> = await apiClient.get(endpoint);
+    const response: ApiResponse<PaginatedResponse<SavingsTransaction> & { summary?: Record<string, unknown> }> = await apiClient.get(endpoint);
     return response.data;
   }
 

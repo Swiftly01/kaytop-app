@@ -1,11 +1,5 @@
 import { Meta } from "./dashboard";
 
-interface Borrower {
-  name: string;
-  email: string;
-  phone: string;
-}
-
 export interface BaseLoanData {
   amount: string;
   amountPaid: string;

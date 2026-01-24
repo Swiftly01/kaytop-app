@@ -1,0 +1,135 @@
+@baseUrl = https://kaytop-production.up.railway.app
+@systemAdminToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFkbWluQGtheXRvcC5jb20iLCJzdWIiOjEsInJvbGUiOiJzeXN0ZW1fYWRtaW4iLCJpYXQiOjE3Mzc2MzE4NzV9.Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8
+@hqManagerToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFkbWluaHFAbWFpbHNhYy5jb20iLCJzdWIiOjQwLCJyb2xlIjoiaHFfbWFuYWdlciIsImlhdCI6MTczNzYzMTg3NX0.Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8
+
+### Test the specific endpoint mentioned by user
+### GET /admin/users?page=1&limit=10 - System Admin
+GET {{baseUrl}}/admin/users?page=1&limit=10
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+### Test the same endpoint with HQ Manager
+GET {{baseUrl}}/admin/users?page=1&limit=10
+Authorization: Bearer {{hqManagerToken}}
+Content-Type: application/json
+
+### Test without pagination parameters
+GET {{baseUrl}}/admin/users
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+### Test with different pagination
+GET {{baseUrl}}/admin/users?page=2&limit=5
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+### Test specific user by ID to verify response format
+GET {{baseUrl}}/admin/users/40
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+### Get user 8 (the one mentioned in the error) to see current structure
+GET {{baseUrl}}/admin/users/8
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+### Test minimal update on user 8 - just firstName
+PATCH {{baseUrl}}/admin/users/8
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+{
+  "firstName": "John"
+}
+
+### Test update with the exact data the frontend is sending
+PATCH {{baseUrl}}/admin/users/8
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+{
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "johnomotosho2001@gmail.com",
+  "mobileNumber": "1234567890"
+}
+
+### Test with phone field instead of mobileNumber
+PATCH {{baseUrl}}/admin/users/8
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+{
+  "firstName": "John",
+  "lastName": "Doe", 
+  "email": "johnomotosho2001@gmail.com",
+  "phone": "1234567890"
+}
+
+### Test with additional fields that might be required
+PATCH {{baseUrl}}/admin/users/8
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+{
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "johnomotosho2001@gmail.com",
+  "mobileNumber": "1234567890",
+  "branch": "Main Branch",
+  "state": "Lagos"
+}
+
+### Test with user 40 instead of user 8 (different user)
+PATCH {{baseUrl}}/admin/users/40
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+{
+  "firstName": "Ade",
+  "lastName": "Mark"
+}
+
+### Test the /users/me endpoint (self-update) with HQ Manager token
+PATCH {{baseUrl}}/users/me
+Authorization: Bearer {{hqManagerToken}}
+Content-Type: application/json
+
+{
+  "firstName": "Ade",
+  "lastName": "Mark Updated"
+}
+
+### Test role update endpoint (separate from profile update)
+PATCH {{baseUrl}}/admin/users/8/update-role
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+{
+  "role": "credit_officer"
+}
+
+### Test getting current admin profile to verify token works
+GET {{baseUrl}}/admin/profile
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+### Test getting current user profile with /users/me
+GET {{baseUrl}}/users/me
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+### Test creating a new staff member (to see if admin permissions work)
+POST {{baseUrl}}/admin/staff/create
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+{
+  "firstName": "Test",
+  "lastName": "User",
+  "email": "testuser@example.com",
+  "mobileNumber": "1234567890",
+  "password": "TempPassword123!",
+  "role": "credit_officer",
+  "branch": "Test Branch"
+}

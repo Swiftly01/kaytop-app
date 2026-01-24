@@ -1,0 +1,41 @@
+@baseUrl = https://kaytop-production.up.railway.app
+@systemAdminToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFkbWluQGtheXRvcC5jb20iLCJzdWIiOjEsInJvbGUiOiJzeXN0ZW1fYWRtaW4iLCJpYXQiOjE3Mzc2MzE4NzV9.Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8
+
+### First, get user 8 to see current data structure
+GET {{baseUrl}}/admin/users/8
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+### Test minimal update (just firstName)
+PATCH {{baseUrl}}/admin/users/8
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+{
+  "firstName": "John"
+}
+
+### Test with phone field instead of mobileNumber
+PATCH {{baseUrl}}/admin/users/8
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+{
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "johnomotosho2001@gmail.com",
+  "phone": "1234567890"
+}
+
+### Test with both phone and mobileNumber
+PATCH {{baseUrl}}/admin/users/8
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+{
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "johnomotosho2001@gmail.com",
+  "mobileNumber": "1234567890",
+  "phone": "1234567890"
+}

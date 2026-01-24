@@ -100,7 +100,7 @@ export function BranchManagerGuard({ children }: { children: React.ReactNode }) 
  */
 export function AccountManagerGuard({ children }: { children: React.ReactNode }) {
   return (
-    <AuthGuard requiredRole="account_manager" fallbackPath="/auth/am/login">
+    <AuthGuard requiredRoles={["account_manager", "hq_manager"]} fallbackPath="/auth/login">
       {children}
     </AuthGuard>
   );
@@ -123,7 +123,7 @@ export function CreditOfficerGuard({ children }: { children: React.ReactNode }) 
 export function StaffGuard({ children }: { children: React.ReactNode }) {
   return (
     <AuthGuard 
-      requiredRoles={['system_admin', 'branch_manager', 'account_manager', 'credit_officer']}
+      requiredRoles={['system_admin', 'branch_manager', 'account_manager', 'hq_manager', 'credit_officer']}
       fallbackPath="/auth/login"
     >
       {children}

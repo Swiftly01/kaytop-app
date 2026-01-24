@@ -18,6 +18,8 @@ import LoanCoverageModal from '@/app/_components/ui/LoanCoverageModal';
 import TransactionApprovalModal from '@/app/_components/ui/TransactionApprovalModal';
 import { userService } from '@/lib/services/users';
 import { loanService } from '@/lib/services/loans';
+import { formatDate } from '@/lib/utils';
+import { formatCustomerDate } from '@/lib/dateUtils';
 import { savingsService } from '@/lib/services/savings';
 import { useToast } from '@/app/hooks/useToast';
 import { ToastContainer } from '@/app/_components/ui/ToastContainer';
@@ -103,11 +105,7 @@ export default function CustomerDetailsPage({ params }: PageProps) {
       id: String(user.id), // Ensure ID is string
       name: `${user.firstName} ${user.lastName}`,
       userId: String(user.id).slice(-8).toUpperCase(),
-      dateJoined: new Date(user.createdAt).toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      }),
+      dateJoined: formatCustomerDate(user.createdAt),
       email: user.email,
       phoneNumber: user.mobileNumber,
       gender: 'Not specified', // This field might not be available in the API
@@ -115,10 +113,7 @@ export default function CustomerDetailsPage({ params }: PageProps) {
       loanRepayment: {
         amount: activeLoan ? activeLoan.amount * 0.1 : 0, // Assuming 10% monthly payment
         nextPayment: activeLoan?.nextRepaymentDate ? 
-          new Date(activeLoan.nextRepaymentDate).toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric' 
-          }) : 'N/A',
+          formatDate(activeLoan.nextRepaymentDate) || 'N/A' : 'N/A',
         growth: 5 // Placeholder
       },
       savingsAccount: {

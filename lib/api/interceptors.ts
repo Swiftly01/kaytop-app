@@ -8,12 +8,12 @@ import { errorLogger } from '../services/errorLogging';
 
 export interface RequestInterceptor {
   onRequest?: (url: string, config?: RequestConfig) => void;
-  onRequestError?: (error: any) => void;
+  onRequestError?: (error: Error) => void;
 }
 
 export interface ResponseInterceptor {
   onResponse?: <T>(response: ApiResponse<T>) => void;
-  onResponseError?: (error: any) => void;
+  onResponseError?: (error: Error) => void;
 }
 
 class InterceptorManager {
@@ -48,7 +48,7 @@ class InterceptorManager {
     });
   }
 
-  executeResponseErrorInterceptors(error: any): void {
+  executeResponseErrorInterceptors(error: Error): void {
     this.responseInterceptors.forEach(interceptor => {
       try {
         interceptor.onResponseError?.(error);
@@ -74,10 +74,10 @@ const loggingInterceptor: RequestInterceptor & ResponseInterceptor = {
       console.log('[API Response]', response);
     }
   },
-  onRequestError: (error: any) => {
+  onRequestError: (error: Error) => {
     console.error('[API Request Error]', error);
   },
-  onResponseError: (error: any) => {
+  onResponseError: (error: Error & { suppressLog?: boolean }) => {
     // Check if error logging is suppressed
     if (error?.suppressLog) {
       return;

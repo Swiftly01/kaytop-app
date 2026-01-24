@@ -15,6 +15,8 @@ import { PageSkeleton } from '@/app/_components/ui/Skeleton';
 import { dashboardService } from '@/lib/services/dashboard';
 import { unifiedUserService } from '@/lib/services/unifiedUser';
 import { reportsService } from '@/lib/services/reports';
+import { userService } from '@/lib/services/users';
+import { branchService } from '@/lib/services/branches';
 import type { ReportStatistics } from '@/lib/api/types';
 
 // TypeScript Interfaces
@@ -49,32 +51,10 @@ export default function AMBranchDetailsPage({ params }: AMBranchDetailsPageProps
         setIsLoading(true);
         setError(null);
 
-        // Create mock branch details since we're using unified services
-        const mockBranchDetails = {
-          id: id,
-          name: `Branch ${id}`,
-          code: `BR-${id.padStart(4, '0')}`,
-          region: 'Lagos',
-          state: 'Lagos',
-          dateCreated: '2024-01-15',
-          createdAt: '2024-01-15T10:00:00Z',
-          manager: 'John Manager',
-          phone: '+234 801 234 5678',
-          email: `branch${id}@kaytop.com`,
-          address: `${id} Branch Street, Lagos`,
-          statistics: {
-            totalCreditOfficers: 5,
-            creditOfficersGrowth: 12.5,
-            totalCustomers: 150,
-            customersGrowth: 8.7,
-            activeLoans: 45,
-            activeLoansGrowth: 15.3,
-            loansProcessed: 2500000,
-            loansProcessedGrowth: 22.1
-          }
-        };
+        // Fetch real branch details from API
+        const branchDetails = await branchService.getBranchById(id);
         
-        setBranchData(mockBranchDetails);
+        setBranchData(branchDetails);
         
         // Fetch real branch report statistics
         let branchReportStats: ReportStatistics | null = null;
@@ -90,35 +70,35 @@ export default function AMBranchDetailsPage({ params }: AMBranchDetailsPageProps
           setBranchReportStats(null);
         }
         
-        // Transform statistics for the component, including report statistics
+        // Transform statistics for the component, using real branch data
         const transformedStats = {
           allCOs: {
-            value: mockBranchDetails.statistics.totalCreditOfficers,
-            change: mockBranchDetails.statistics.creditOfficersGrowth,
-            changeLabel: mockBranchDetails.statistics.creditOfficersGrowth > 0 
-              ? `+${mockBranchDetails.statistics.creditOfficersGrowth}% this month`
-              : `${mockBranchDetails.statistics.creditOfficersGrowth}% this month`
+            value: branchDetails.statistics.totalCreditOfficers,
+            change: branchDetails.statistics.creditOfficersGrowth,
+            changeLabel: branchDetails.statistics.creditOfficersGrowth > 0 
+              ? `+${branchDetails.statistics.creditOfficersGrowth}% this month`
+              : `${branchDetails.statistics.creditOfficersGrowth}% this month`
           },
           allCustomers: {
-            value: mockBranchDetails.statistics.totalCustomers,
-            change: mockBranchDetails.statistics.customersGrowth,
-            changeLabel: mockBranchDetails.statistics.customersGrowth > 0 
-              ? `+${mockBranchDetails.statistics.customersGrowth}% this month`
-              : `${mockBranchDetails.statistics.customersGrowth}% this month`
+            value: branchDetails.statistics.totalCustomers,
+            change: branchDetails.statistics.customersGrowth,
+            changeLabel: branchDetails.statistics.customersGrowth > 0 
+              ? `+${branchDetails.statistics.customersGrowth}% this month`
+              : `${branchDetails.statistics.customersGrowth}% this month`
           },
           activeLoans: {
-            value: mockBranchDetails.statistics.activeLoans,
-            change: mockBranchDetails.statistics.activeLoansGrowth,
-            changeLabel: mockBranchDetails.statistics.activeLoansGrowth > 0 
-              ? `+${mockBranchDetails.statistics.activeLoansGrowth}% this month`
-              : `${mockBranchDetails.statistics.activeLoansGrowth}% this month`
+            value: branchDetails.statistics.activeLoans,
+            change: branchDetails.statistics.activeLoansGrowth,
+            changeLabel: branchDetails.statistics.activeLoansGrowth > 0 
+              ? `+${branchDetails.statistics.activeLoansGrowth}% this month`
+              : `${branchDetails.statistics.activeLoansGrowth}% this month`
           },
           loansProcessed: {
-            amount: mockBranchDetails.statistics.loansProcessed,
-            change: mockBranchDetails.statistics.loansProcessedGrowth,
-            changeLabel: mockBranchDetails.statistics.loansProcessedGrowth > 0 
-              ? `+${mockBranchDetails.statistics.loansProcessedGrowth}% this month`
-              : `${mockBranchDetails.statistics.loansProcessedGrowth}% this month`
+            amount: branchDetails.statistics.totalDisbursed,
+            change: branchDetails.statistics.totalDisbursedGrowth,
+            changeLabel: branchDetails.statistics.totalDisbursedGrowth > 0 
+              ? `+${branchDetails.statistics.totalDisbursedGrowth}% this month`
+              : `${branchDetails.statistics.totalDisbursedGrowth}% this month`
           },
           // Add real report statistics
           totalReports: branchReportStats ? {
@@ -154,14 +134,15 @@ export default function AMBranchDetailsPage({ params }: AMBranchDetailsPageProps
         // Fetch real credit officers data for this branch
         let creditOfficersData: any[] = [];
         try {
-          // Use unified services to get credit officers for this branch
-          const branchUsersResponse = await unifiedUserService.getUsers({ 
-            branch: `Branch ${id}`, 
-            role: 'credit_officer',
+          // Use userService to get credit officers for this branch
+          const branchUsersResponse = await userService.getUsersByBranch(branchDetails.name, { 
             page: 1, 
             limit: 100 
           });
-          creditOfficersData = branchUsersResponse?.data || [];
+          
+          // Filter credit officers from the response
+          const usersData = branchUsersResponse?.data || [];
+          creditOfficersData = usersData.filter(user => user.role === 'credit_officer');
         } catch (creditOfficersError) {
           console.warn('Failed to fetch credit officers:', creditOfficersError);
           creditOfficersData = [];
@@ -205,7 +186,7 @@ export default function AMBranchDetailsPage({ params }: AMBranchDetailsPageProps
           missedReportsData = missedReportsResponse.map(report => ({
             id: report.id,
             reportId: report.reportId,
-            branchName: report.branch || `Branch ${id}`,
+            branchName: report.branch || branchDetails.name,
             status: 'Missed' as const,
             dateDue: report.dateSent || report.createdAt,
           }));

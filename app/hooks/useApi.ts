@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext';
 
 export interface UseApiOptions {
   immediate?: boolean; // Whether to call the API immediately on mount
-  dependencies?: any[]; // Dependencies that trigger a refetch
+  dependencies?: unknown[]; // Dependencies that trigger a refetch
 }
 
 export interface UseApiResult<T> {
@@ -50,17 +50,18 @@ export function useApi<T>(
       if (!abortControllerRef.current.signal.aborted) {
         setData(result);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Only handle error if request wasn't aborted
       if (!abortControllerRef.current.signal.aborted) {
         console.error('API call failed:', err);
         
         // Handle authentication errors
-        if (err.status === 401 || err.type === 'auth') {
+        const error = err as { status?: number; type?: string; message?: string };
+        if (error.status === 401 || error.type === 'auth') {
           logOut();
           setError('Session expired. Please login again.');
         } else {
-          setError(err.message || 'An error occurred');
+          setError(error.message || 'An error occurred');
         }
       }
     } finally {

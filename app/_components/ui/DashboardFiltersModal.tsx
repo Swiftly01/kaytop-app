@@ -23,7 +23,7 @@ export function DashboardFiltersModal({ isOpen, onClose, onApply }: DashboardFil
   const [maxAmount, setMaxAmount] = useState<number>(1000000);
 
   // Sample data - replace with actual data from API
-  const branches = ['Igando Branch', 'Ikeja Branch', 'Lekki Branch', 'Victoria Island Branch'];
+  const branches = ['Report Overview', 'Ikeja Branch', 'Lekki Branch', 'Victoria Island Branch'];
   const creditOfficers = ['John Doe', 'Jane Smith', 'Mike Johnson', 'Sarah Williams'];
   const loanStatuses = ['Active', 'Scheduled', 'Completed', 'Defaulted'];
 

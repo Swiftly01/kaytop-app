@@ -6,11 +6,21 @@
 import apiClient from '@/lib/apiClient';
 import { API_ENDPOINTS } from '../api/config';
 
+interface ApiResponse<T = unknown> {
+  success: boolean;
+  data: T;
+}
+
+interface ExportResponse {
+  success?: boolean;
+  data?: unknown;
+}
+
 export interface ExportService {
-  exportUsers(filters?: Record<string, any>, format?: 'csv' | 'excel' | 'pdf'): Promise<Blob>;
-  exportLoans(filters?: Record<string, any>, format?: 'csv' | 'excel' | 'pdf'): Promise<Blob>;
-  exportReports(filters?: Record<string, any>, format?: 'csv' | 'excel' | 'pdf'): Promise<Blob>;
-  exportActivityLogs(filters?: Record<string, any>, format?: 'csv' | 'excel' | 'pdf'): Promise<Blob>;
+  exportUsers(filters?: Record<string, unknown>, format?: 'csv' | 'excel' | 'pdf'): Promise<Blob>;
+  exportLoans(filters?: Record<string, unknown>, format?: 'csv' | 'excel' | 'pdf'): Promise<Blob>;
+  exportReports(filters?: Record<string, unknown>, format?: 'csv' | 'excel' | 'pdf'): Promise<Blob>;
+  exportActivityLogs(filters?: Record<string, unknown>, format?: 'csv' | 'excel' | 'pdf'): Promise<Blob>;
   getExportHistory(): Promise<ExportHistoryItem[]>;
 }
 
@@ -26,7 +36,7 @@ export interface ExportHistoryItem {
 }
 
 class ExportAPIService implements ExportService {
-  async exportUsers(filters: Record<string, any> = {}, format: 'csv' | 'excel' | 'pdf' = 'csv'): Promise<Blob> {
+  async exportUsers(filters: Record<string, unknown> = {}, format: 'csv' | 'excel' | 'pdf' = 'csv'): Promise<Blob> {
     try {
       const params = new URLSearchParams();
       params.append('format', format);
@@ -47,9 +57,10 @@ class ExportAPIService implements ExportService {
 
       // Backend returns direct data format, not wrapped in success/data
       if (response && typeof response === 'object') {
+        const exportResponse = response as ExportResponse;
         // Check if it's wrapped in success/data format
-        if ((response as any).success && (response as any).data) {
-          return new Blob([JSON.stringify((response as any).data)], { type: this.getMimeType(format) });
+        if (exportResponse.success && exportResponse.data) {
+          return new Blob([JSON.stringify(exportResponse.data)], { type: this.getMimeType(format) });
         }
         // Check if it's direct data format (export data)
         else if (response) {
@@ -64,7 +75,7 @@ class ExportAPIService implements ExportService {
     }
   }
 
-  async exportLoans(filters: Record<string, any> = {}, format: 'csv' | 'excel' | 'pdf' = 'csv'): Promise<Blob> {
+  async exportLoans(filters: Record<string, unknown> = {}, format: 'csv' | 'excel' | 'pdf' = 'csv'): Promise<Blob> {
     try {
       const params = new URLSearchParams();
       params.append('format', format);
@@ -85,9 +96,10 @@ class ExportAPIService implements ExportService {
 
       // Backend returns direct data format, not wrapped in success/data
       if (response && typeof response === 'object') {
+        const exportResponse = response as ExportResponse;
         // Check if it's wrapped in success/data format
-        if ((response as any).success && (response as any).data) {
-          return new Blob([JSON.stringify((response as any).data)], { type: this.getMimeType(format) });
+        if (exportResponse.success && exportResponse.data) {
+          return new Blob([JSON.stringify(exportResponse.data)], { type: this.getMimeType(format) });
         }
         // Check if it's direct data format (export data)
         else if (response) {
@@ -102,7 +114,7 @@ class ExportAPIService implements ExportService {
     }
   }
 
-  async exportReports(filters: Record<string, any> = {}, format: 'csv' | 'excel' | 'pdf' = 'csv'): Promise<Blob> {
+  async exportReports(filters: Record<string, unknown> = {}, format: 'csv' | 'excel' | 'pdf' = 'csv'): Promise<Blob> {
     try {
       const params = new URLSearchParams();
       params.append('format', format);
@@ -123,9 +135,10 @@ class ExportAPIService implements ExportService {
 
       // Backend returns direct data format, not wrapped in success/data
       if (response && typeof response === 'object') {
+        const exportResponse = response as ExportResponse;
         // Check if it's wrapped in success/data format
-        if ((response as any).success && (response as any).data) {
-          return new Blob([JSON.stringify((response as any).data)], { type: this.getMimeType(format) });
+        if (exportResponse.success && exportResponse.data) {
+          return new Blob([JSON.stringify(exportResponse.data)], { type: this.getMimeType(format) });
         }
         // Check if it's direct data format (export data)
         else if (response) {
@@ -140,7 +153,7 @@ class ExportAPIService implements ExportService {
     }
   }
 
-  async exportActivityLogs(filters: Record<string, any> = {}, format: 'csv' | 'excel' | 'pdf' = 'csv'): Promise<Blob> {
+  async exportActivityLogs(filters: Record<string, unknown> = {}, format: 'csv' | 'excel' | 'pdf' = 'csv'): Promise<Blob> {
     try {
       const params = new URLSearchParams();
       params.append('format', format);
@@ -161,9 +174,10 @@ class ExportAPIService implements ExportService {
 
       // Backend returns direct data format, not wrapped in success/data
       if (response && typeof response === 'object') {
+        const exportResponse = response as ExportResponse;
         // Check if it's wrapped in success/data format
-        if ((response as any).success && (response as any).data) {
-          return new Blob([JSON.stringify((response as any).data)], { type: this.getMimeType(format) });
+        if (exportResponse.success && exportResponse.data) {
+          return new Blob([JSON.stringify(exportResponse.data)], { type: this.getMimeType(format) });
         }
         // Check if it's direct data format (export data)
         else if (response) {
@@ -184,9 +198,10 @@ class ExportAPIService implements ExportService {
 
       // Backend returns direct data format, not wrapped in success/data
       if (response && typeof response === 'object') {
+        const exportResponse = response as ExportResponse;
         // Check if it's wrapped in success/data format
-        if ((response as any).success && (response as any).data) {
-          return (response as any).data;
+        if (exportResponse.success && exportResponse.data) {
+          return exportResponse.data as ExportHistoryItem[];
         }
         // Check if it's direct array format (export history list)
         else if (Array.isArray(response)) {

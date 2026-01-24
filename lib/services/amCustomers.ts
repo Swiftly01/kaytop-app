@@ -8,7 +8,7 @@ import apiClient from '@/lib/apiClient';
 import { API_ENDPOINTS } from '../api/config';
 import { DataTransformers } from '../api/transformers';
 import { APIErrorHandler } from '../api/errorHandler';
-import { isSuccessResponse, extractResponseData } from '../utils/responseHelpers';
+import { isSuccessResponse } from '../utils/responseHelpers';
 import type {
   User,
   PaginatedResponse,
@@ -45,9 +45,9 @@ export interface AMCustomerPortfolio {
 export interface AMCustomerService {
   getCustomers(params?: AMCustomerFilterParams): Promise<PaginatedResponse<User>>;
   getCustomerById(id: string): Promise<User>;
-  updateCustomer(id: string, data: any): Promise<User>;
-  getCustomerLoans(id: string, params?: PaginationParams): Promise<PaginatedResponse<any>>;
-  getCustomerSavings(id: string, params?: PaginationParams): Promise<PaginatedResponse<any>>;
+  updateCustomer(id: string, data: Record<string, unknown>): Promise<User>;
+  getCustomerLoans(id: string, params?: PaginationParams): Promise<PaginatedResponse<unknown>>;
+  getCustomerSavings(id: string, params?: PaginationParams): Promise<PaginatedResponse<unknown>>;
   getCustomerTransactions(id: string, params?: PaginationParams): Promise<PaginatedResponse<any>>;
   getPortfolioSummary(): Promise<AMCustomerPortfolio>;
   assignCustomer(customerId: string, accountManagerId: string, notes?: string): Promise<AMCustomerAssignment>;
@@ -55,6 +55,22 @@ export interface AMCustomerService {
 }
 
 class AMCustomerAPIService implements AMCustomerService {
+  // Type guard for user-like objects
+  private isUserLike(obj: unknown): obj is Record<string, unknown> & { id?: unknown; email?: unknown; firstName?: unknown } {
+    return typeof obj === 'object' && obj !== null && 
+           ('id' in obj || 'email' in obj || 'firstName' in obj);
+  }
+
+  // Type guard for portfolio-like objects
+  private isPortfolioLike(obj: unknown): obj is Record<string, unknown> & { totalCustomers?: unknown } {
+    return typeof obj === 'object' && obj !== null && 'totalCustomers' in obj;
+  }
+
+  // Type guard for assignment-like objects
+  private isAssignmentLike(obj: unknown): obj is Record<string, unknown> & { id?: unknown; customerId?: unknown } {
+    return typeof obj === 'object' && obj !== null && 
+           ('id' in obj || 'customerId' in obj);
+  }
   async getCustomers(params?: AMCustomerFilterParams): Promise<PaginatedResponse<User>> {
     try {
       // Build query parameters
@@ -139,7 +155,7 @@ class AMCustomerAPIService implements AMCustomerService {
           return DataTransformers.transformUser(response.data);
         }
         // Check if it's direct data format (has user fields)
-        else if ((response as any).id || (response as any).email || (response as any).firstName) {
+        else if (this.isUserLike(response)) {
           return DataTransformers.transformUser(response);
         }
       }
@@ -152,9 +168,9 @@ class AMCustomerAPIService implements AMCustomerService {
     }
   }
 
-  async updateCustomer(id: string, data: any): Promise<User> {
+  async updateCustomer(id: string, data: Record<string, unknown>): Promise<User> {
     try {
-      const response = await apiClient.put<any>(API_ENDPOINTS.ADMIN.UPDATE_USER(id), data);
+      const response = await apiClient.put<User>(API_ENDPOINTS.ADMIN.UPDATE_USER(id), data);
 
       if (response && typeof response === 'object') {
         // Check if it's wrapped in success/data format
@@ -162,7 +178,7 @@ class AMCustomerAPIService implements AMCustomerService {
           return response.data;
         }
         // Check if it's direct data format (has user fields)
-        else if ((response as any).id || (response as any).email || (response as any).firstName) {
+        else if (this.isUserLike(response)) {
           return response as unknown as User;
         }
       }
@@ -293,7 +309,7 @@ class AMCustomerAPIService implements AMCustomerService {
   async getPortfolioSummary(): Promise<AMCustomerPortfolio> {
     try {
       // Use dashboard KPI endpoint as fallback for portfolio summary
-      const response = await apiClient.get<any>(API_ENDPOINTS.DASHBOARD.KPI);
+      const response = await apiClient.get<AMCustomerPortfolio>(API_ENDPOINTS.DASHBOARD.KPI);
 
       if (response && typeof response === 'object') {
         // Check if it's wrapped in success/data format
@@ -301,7 +317,7 @@ class AMCustomerAPIService implements AMCustomerService {
           return this.transformKPIToPortfolio(response.data);
         }
         // Check if it's direct data format
-        else if ((response as any).totalCustomers !== undefined) {
+        else if (this.isPortfolioLike(response)) {
           return response as unknown as AMCustomerPortfolio;
         }
         // Transform KPI data to portfolio format
@@ -327,14 +343,8 @@ class AMCustomerAPIService implements AMCustomerService {
 
   async assignCustomer(customerId: string, accountManagerId: string, notes?: string): Promise<AMCustomerAssignment> {
     try {
-      const data = {
-        customerId,
-        accountManagerId,
-        notes,
-      };
-
       // Use admin user update endpoint for assignment
-      const response = await apiClient.put<any>(API_ENDPOINTS.ADMIN.UPDATE_USER(customerId), {
+      const response = await apiClient.put<AMCustomerAssignment>(API_ENDPOINTS.ADMIN.UPDATE_USER(customerId), {
         accountManagerId,
         notes
       });
@@ -345,7 +355,7 @@ class AMCustomerAPIService implements AMCustomerService {
           return this.transformUserToAssignment(response.data, accountManagerId, notes);
         }
         // Check if it's direct data format
-        else if ((response as any).id || (response as any).customerId) {
+        else if (this.isAssignmentLike(response)) {
           return response as unknown as AMCustomerAssignment;
         }
       }
@@ -397,7 +407,7 @@ class AMCustomerAPIService implements AMCustomerService {
   }
 
   // Helper function to transform KPI data to portfolio format
-  private transformKPIToPortfolio(kpiData: any): AMCustomerPortfolio {
+  private transformKPIToPortfolio(kpiData: Record<string, unknown>): AMCustomerPortfolio {
     return {
       totalCustomers: kpiData.customers?.value || 0,
       activeLoans: kpiData.activeLoans?.value || 0,
@@ -409,7 +419,7 @@ class AMCustomerAPIService implements AMCustomerService {
   }
 
   // Helper function to transform user data to assignment format
-  private transformUserToAssignment(userData: any, accountManagerId: string, notes?: string): AMCustomerAssignment {
+  private transformUserToAssignment(userData: Record<string, unknown>, accountManagerId: string, notes?: string): AMCustomerAssignment {
     return {
       id: userData.id || 'assignment-' + Date.now(),
       customerId: userData.id,

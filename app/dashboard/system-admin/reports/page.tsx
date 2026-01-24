@@ -7,11 +7,10 @@ import ReportsTable from '@/app/_components/ui/ReportsTable';
 import { ToastContainer } from '@/app/_components/ui/ToastContainer';
 import { useToast } from '@/app/hooks/useToast';
 import Pagination from '@/app/_components/ui/Pagination';
-import EditReportModal from '@/app/_components/ui/EditReportModal';
-import DeleteConfirmationModal from '@/app/_components/ui/DeleteConfirmationModal';
 import ReportsFiltersModal, { ReportsFilters } from '@/app/_components/ui/ReportsFiltersModal';
 import ReportDetailsModal, { ReportDetailsData } from '@/app/_components/ui/ReportDetailsModal';
 import { StatisticsCardSkeleton, TableSkeleton } from '@/app/_components/ui/Skeleton';
+import { PAGINATION_LIMIT } from '@/lib/config';
 import { reportsService } from '@/lib/services/reports';
 import { dashboardService } from '@/lib/services/dashboard';
 import type { Report, ReportStatistics, ReportFilters as APIReportFilters } from '@/lib/api/types';
@@ -22,14 +21,41 @@ import { useAuth } from '@/app/context/AuthContext';
 export default function ReportsPage() {
   const { session } = useAuth();
   const { toasts, removeToast, success, error } = useToast();
-  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('last_30_days');
+  
+  // Role-based access control
+  useEffect(() => {
+    if (session && session.role !== 'system_admin') {
+      error('Access denied. This page is only accessible to System Administrators.');
+      // Redirect to appropriate dashboard based on role
+      const roleRedirects = {
+        'credit_officer': '/dashboard/co',
+        'branch_manager': '/dashboard/bm',
+        'account_manager': '/dashboard/am',
+        'hq_manager': '/dashboard/am'
+      };
+      const redirectPath = roleRedirects[session.role as keyof typeof roleRedirects] || '/dashboard';
+      window.location.href = redirectPath;
+      return;
+    }
+  }, [session, error]);
+
+  // Don't render the page if user doesn't have proper access
+  if (session && session.role !== 'system_admin') {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
+          <p className="text-gray-600">This page is only accessible to System Administrators.</p>
+        </div>
+      </div>
+    );
+  }
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedReports, setSelectedReports] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(PAGINATION_LIMIT);
   const [reports, setReports] = useState<Report[]>([]);
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [appliedFilters, setAppliedFilters] = useState<ReportsFilters>({
@@ -45,9 +71,8 @@ export default function ReportsPage() {
   // API data state
   const [reportStatistics, setReportStatistics] = useState<ReportStatistics | null>(null);
   const [totalReports, setTotalReports] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [apiError, setApiError] = useState<string | null>(null);
-
-  const itemsPerPage = 10;
 
   // Fetch reports data from API
   const fetchReportsData = async (filters?: APIReportFilters) => {
@@ -177,9 +202,11 @@ export default function ReportsPage() {
       console.log('🔄 SA Reports - Transformed first report:', reportsData[0]);
 
       setReports(reportsData);
-      // Handle pagination - use total from pagination object
+      // Handle pagination - use data from backend pagination object
       const totalCount = reportsResponse?.pagination?.total || reportsData.length || 0;
+      const backendTotalPages = reportsResponse?.pagination?.totalPages || 1;
       setTotalReports(totalCount);
+      setTotalPages(backendTotalPages);
       setReportStatistics(statisticsResponse);
 
     } catch (err) {
@@ -194,7 +221,7 @@ export default function ReportsPage() {
   // Load initial data
   useEffect(() => {
     fetchReportsData();
-  }, [currentPage]);
+  }, [currentPage, itemsPerPage]);
 
   // Reload data when filters change
   useEffect(() => {
@@ -231,14 +258,24 @@ export default function ReportsPage() {
 
   const handlePeriodChange = (period: TimePeriod) => {
     setSelectedPeriod(period);
+    // Clear custom date range when selecting a preset period
+    if (period !== 'custom') {
+      setDateRange(undefined);
+    }
     setCurrentPage(1);
-    console.log('Time period changed:', period);
+    // Refetch data with the new period filter
+    fetchReportsData();
   };
 
   const handleDateRangeChange = (range: DateRange | undefined) => {
     setDateRange(range);
+    // When a custom date range is selected, set period to 'custom'
+    if (range) {
+      setSelectedPeriod('custom');
+    }
     setCurrentPage(1);
-    console.log('Date range changed:', range);
+    // Refetch data with the new date range
+    fetchReportsData();
   };
 
   const handleFilterClick = () => {
@@ -254,6 +291,11 @@ export default function ReportsPage() {
     if (activeCount > 0) {
       success(`${activeCount} filter${activeCount > 1 ? 's' : ''} applied successfully!`);
     }
+  };
+
+  const handleSelectionChange = (selectedIds: string[]) => {
+    setSelectedReports(selectedIds);
+    console.log('Selected reports:', selectedIds);
   };
 
   const handleReportClick = async (report: Report) => {
@@ -277,11 +319,14 @@ export default function ReportsPage() {
     if (selectedReportForDetails) {
       try {
         setLoading(true);
-        
+
         const approvalData = {
           status: 'approved' as const,
-          approvedBy: session?.role || 'system-admin', // Use actual user info when available
+          approvedBy: session?.firstName && session?.lastName 
+            ? `${session.firstName} ${session.lastName}` 
+            : session?.role || 'HQ Manager',
           approvedAt: new Date().toISOString(),
+          comments: 'Report approved via system admin dashboard'
         };
 
         const updatedReport = await reportsService.approveReport(
@@ -290,25 +335,20 @@ export default function ReportsPage() {
         );
 
         // Update the report in the reports state
-        setReports(prevReports => 
-          prevReports.map(report => 
+        setReports(prevReports =>
+          prevReports.map(report =>
             report.id === selectedReportForDetails.id ? updatedReport : report
           )
         );
-        
+
         // Update the selected report for details to reflect the approval
         setSelectedReportForDetails(updatedReport);
-        
+
         success(`Report "${selectedReportForDetails.reportId}" approved successfully!`);
-        
+
         // Refresh statistics to reflect the change
-        try {
-          await fetchReportsData();
-        } catch (refreshError) {
-          console.warn('Failed to refresh data after approval:', refreshError);
-          // Don't throw error, just log it since the approval was successful
-        }
-        
+        await fetchReportsData();
+
       } catch (err) {
         console.error('Failed to approve report:', err);
         error('Failed to approve report. Please try again.');
@@ -322,12 +362,14 @@ export default function ReportsPage() {
     if (selectedReportForDetails) {
       try {
         setLoading(true);
-        
+
         const declineData = {
           status: 'declined' as const,
-          approvedBy: session?.role || 'system-admin', // Use actual user info when available
+          approvedBy: session?.firstName && session?.lastName 
+            ? `${session.firstName} ${session.lastName}` 
+            : session?.role || 'HQ Manager',
           approvedAt: new Date().toISOString(),
-          comments: 'Report declined by system admin',
+          comments: 'Report declined via system admin dashboard',
         };
 
         const updatedReport = await reportsService.declineReport(
@@ -336,24 +378,19 @@ export default function ReportsPage() {
         );
 
         // Update the report in the reports state
-        setReports(prevReports => 
-          prevReports.map(report => 
+        setReports(prevReports =>
+          prevReports.map(report =>
             report.id === selectedReportForDetails.id ? updatedReport : report
           )
         );
-        
+
         success(`Report "${selectedReportForDetails.reportId}" declined.`);
         setDetailsModalOpen(false);
         setSelectedReportForDetails(null);
-        
+
         // Refresh statistics to reflect the change
-        try {
-          await fetchReportsData();
-        } catch (refreshError) {
-          console.warn('Failed to refresh data after decline:', refreshError);
-          // Don't throw error, just log it since the decline was successful
-        }
-        
+        await fetchReportsData();
+
       } catch (err) {
         console.error('Failed to decline report:', err);
         error('Failed to decline report. Please try again.');
@@ -363,76 +400,18 @@ export default function ReportsPage() {
     }
   };
 
-  const handleSelectionChange = (selectedIds: string[]) => {
-    setSelectedReports(selectedIds);
-    console.log('Selected reports:', selectedIds);
-  };
-
-  const handleEdit = (reportId: string) => {
-    const report = reports.find(r => r.id === reportId);
-    if (report) {
-      setSelectedReport(report);
-      setEditModalOpen(true);
-    }
-  };
-
-  const handleDelete = (reportId: string) => {
-    const report = reports.find(r => r.id === reportId);
-    if (report) {
-      setSelectedReport(report);
-      setDeleteModalOpen(true);
-    }
-  };
-
-  const handleSaveReport = async (updatedReport: Report) => {
-    try {
-      setLoading(true);
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      setReports(prevReports => 
-        prevReports.map(report => 
-          report.id === updatedReport.id ? updatedReport : report
-        )
-      );
-      success(`Report "${updatedReport.reportId}" updated successfully!`);
-    } catch (error) {
-      console.error('Error updating report:', error);
-      // Error handling would go here
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleConfirmDelete = async () => {
-    if (selectedReport) {
-      try {
-        setLoading(true);
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        setReports(prevReports => 
-          prevReports.filter(report => report.id !== selectedReport.id)
-        );
-        success(`Report "${selectedReport.reportId}" deleted successfully!`);
-        setSelectedReport(null);
-      } catch (error) {
-        console.error('Error deleting report:', error);
-        // Error handling would go here
-      } finally {
-        setLoading(false);
-      }
-    }
-  };
-
-  // Pagination (now handled by API)
-  const totalPages = Math.ceil(totalReports / itemsPerPage);
+  // Pagination (handled by backend API)
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = Math.min(startIndex + itemsPerPage, totalReports);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleItemsPerPageChange = (items: number) => {
+    setItemsPerPage(items);
+    setCurrentPage(1); // Reset to first page when changing items per page
   };
 
   return (
@@ -462,7 +441,7 @@ export default function ReportsPage() {
                   opacity: 0.5
                 }}
               >
-                Igando Branch
+                Report Overview
               </p>
             </div>
 
@@ -531,18 +510,28 @@ export default function ReportsPage() {
                     reports={reports}
                     selectedReports={selectedReports}
                     onSelectionChange={handleSelectionChange}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
+                    // System Admins can't edit/delete reports - only approve/decline
+                    // Edit/Delete buttons will be hidden when these props are undefined
                     onReportClick={handleReportClick}
                   />
 
                   {/* Pagination Controls */}
-                  {totalPages > 1 && (
+                  {totalReports > 0 && (
                     <div className="mt-4 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-[#475467]">
                           Showing {startIndex + 1}-{endIndex} of {totalReports} results
                         </span>
+                        <select
+                          value={itemsPerPage}
+                          onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                          className="px-3 py-1.5 text-sm border border-[#D0D5DD] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:border-[#7F56D9]"
+                          aria-label="Items per page"
+                        >
+                          <option value={10}>10 per page</option>
+                          <option value={25}>25 per page</option>
+                          <option value={50}>50 per page</option>
+                        </select>
                       </div>
 
                       <Pagination
@@ -561,29 +550,6 @@ export default function ReportsPage() {
 
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onClose={removeToast} />
-
-      {/* Edit Report Modal */}
-      <EditReportModal
-        isOpen={editModalOpen}
-        onClose={() => {
-          setEditModalOpen(false);
-          setSelectedReport(null);
-        }}
-        onSave={handleSaveReport}
-        report={selectedReport}
-      />
-
-      {/* Delete Confirmation Modal */}
-      <DeleteConfirmationModal
-        isOpen={deleteModalOpen}
-        onClose={() => {
-          setDeleteModalOpen(false);
-          setSelectedReport(null);
-        }}
-        onConfirm={handleConfirmDelete}
-        title="Delete Report"
-        message={`Are you sure you want to delete report "${selectedReport?.reportId}"? This action cannot be undone.`}
-      />
 
       {/* Reports Filters Modal */}
       <ReportsFiltersModal
@@ -604,7 +570,7 @@ export default function ReportsPage() {
           reportData={{
             reportId: selectedReportForDetails.reportId,
             creditOfficer: selectedReportForDetails.creditOfficer,
-            branch: selectedReportForDetails.branch || 'Igando Branch',
+            branch: selectedReportForDetails.branch || 'Report Overview',
             email: selectedReportForDetails.email,
             dateSent: selectedReportForDetails.dateSent,
             timeSent: selectedReportForDetails.timeSent,

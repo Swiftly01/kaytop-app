@@ -5,7 +5,7 @@
  * Displays comprehensive loan pipeline management for Account Managers
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import SimpleStatisticsCard from '@/app/_components/ui/SimpleStatisticsCard';
 import LoansTabNavigation from '@/app/_components/ui/LoansTabNavigation';
 import LoansTable from '@/app/_components/ui/LoansTable';
@@ -18,7 +18,9 @@ import { TableSkeleton } from '@/app/_components/ui/Skeleton';
 import { EmptyState } from '@/app/_components/ui/EmptyState';
 import { DateRange } from 'react-day-picker';
 import LoansPageLoanDetailsModal, { LoanDetailsData } from '@/app/_components/ui/LoansPageLoanDetailsModal';
-import { unifiedLoanService } from '@/lib/services/unifiedLoan';
+import { bulkLoansService } from '@/lib/services/bulkLoans';
+import { dashboardService } from '@/lib/services/dashboard';
+import type { BulkLoansFilters, LoanStatistics } from '@/lib/api/types';
 
 type TabId = 'all' | 'active' | 'completed' | 'missed';
 type TimePeriod = 'last_24_hours' | 'last_7_days' | 'last_30_days' | 'custom' | null;
@@ -51,9 +53,10 @@ interface AMLoanStatistics {
   readyForDisbursement: { count: number; growth: number };
 }
 
-// Transform API Loan to LoanData format
+// Transform API Loan to LoanData format (now handled by bulk API)
 const transformAMLoanToLoanData = (loan: any): LoanData => {
-  let status: 'pending' | 'approved' | 'disbursed' | 'active' | 'completed' | 'defaulted' | 'overdue' = 'pending';
+  // Map status to expected values
+  let status: 'pending' | 'approved' | 'disbursed' | 'active' | 'completed' | 'defaulted' | 'overdue' = 'active';
   if (loan.status) {
     const lowerStatus = loan.status.toLowerCase();
     if (lowerStatus.includes('completed') || lowerStatus.includes('paid')) {
@@ -62,29 +65,29 @@ const transformAMLoanToLoanData = (loan: any): LoanData => {
       status = 'overdue';
     } else if (lowerStatus.includes('defaulted') || lowerStatus.includes('default')) {
       status = 'defaulted';
+    } else if (lowerStatus.includes('pending')) {
+      status = 'pending';
     } else if (lowerStatus.includes('approved')) {
       status = 'approved';
     } else if (lowerStatus.includes('disbursed')) {
       status = 'disbursed';
-    } else if (lowerStatus.includes('active')) {
-      status = 'active';
     } else {
-      status = 'pending';
+      status = 'active';
     }
   }
 
   return {
-    id: String(loan.id),
-    loanId: loan.loanId || `LN-${String(loan.id).slice(-5)}`,
-    customerId: loan.customerId || String(loan.customer_id || ''),
+    id: String(loan.id), // Ensure ID is string
+    loanId: String(loan.id).slice(-5).toUpperCase(), // Convert to string before slicing
+    customerId: String(loan.customerId || loan.customer_id || ''),
     customerName: loan.customerName || 'Unknown Customer',
     status,
     amount: loan.amount,
-    interestRate: loan.interestRate || 15,
+    interestRate: loan.interestRate,
     nextRepaymentDate: loan.nextRepaymentDate || loan.dueDate || new Date().toISOString(),
     disbursementDate: loan.disbursementDate || loan.createdAt || new Date().toISOString(),
-    term: loan.term || loan.tenure || 12,
-    branchId: loan.branch || 'Unknown',
+    term: loan.term || loan.repaymentPeriod || loan.duration || 30,
+    branchId: loan.branchId || 'Unknown',
     creditOfficer: loan.creditOfficer || 'Unassigned',
     stage: loan.stage || 'inquiry',
     purpose: loan.purpose || 'Business',
@@ -95,9 +98,9 @@ const transformAMLoanToLoanData = (loan: any): LoanData => {
 export default function AMLoansPage() {
   // State management
   const { toasts, removeToast, success, error: showError } = useToast();
-  
+
   // Filter and pagination state
-  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('last_30_days');
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
@@ -114,7 +117,7 @@ export default function AMLoansPage() {
 
   // API data state
   const [allLoans, setAllLoans] = useState<LoanData[]>([]);
-  const [loanStatistics, setLoanStatistics] = useState<AMLoanStatistics | null>(null);
+  const [loanStatistics, setLoanStatistics] = useState<LoanStatistics | null>(null);
   const [totalLoans, setTotalLoans] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -125,14 +128,14 @@ export default function AMLoansPage() {
   const [selectedLoan, setSelectedLoan] = useState<LoanDetailsData | null>(null);
   const [isLoanDetailsModalOpen, setIsLoanDetailsModalOpen] = useState(false);
 
-  // Fetch loans data from AM API
+  // Fetch loans data from API using bulk operations
   const fetchLoansData = async (page: number = 1) => {
     try {
       setIsLoading(true);
       setApiError(null);
 
-      // Build query parameters
-      const queryParams: any = {
+      // Build API filters from current state
+      const apiFilters: BulkLoansFilters = {
         page,
         limit: ITEMS_PER_PAGE,
       };
@@ -140,64 +143,79 @@ export default function AMLoansPage() {
       // Apply tab filter
       if (activeTab !== 'all') {
         const statusMap = {
-          'active': 'active',
-          'completed': 'completed',
-          'missed': 'overdue'
+          'active': ['active'],
+          'completed': ['completed', 'disbursed'],
+          'missed': ['overdue', 'defaulted']
         };
-        queryParams.status = statusMap[activeTab];
+        apiFilters.status = statusMap[activeTab] || [];
       }
 
       // Apply search filter
       if (searchQuery) {
-        queryParams.search = searchQuery;
+        apiFilters.search = searchQuery;
       }
 
-      // Apply stage filter if needed
-      if (appliedFilters.loanStatus.length > 0) {
-        queryParams.status = appliedFilters.loanStatus[0].toLowerCase();
-      }
+      // Apply period filter
+      if (selectedPeriod) {
+        const now = new Date();
+        let startDate: Date;
 
-      // Fetch loans using unified service
-      const loansResponse = await unifiedLoanService.getLoans(queryParams);
-      
-      // Handle response structure - loansResponse.data is already a Loan[]
-      const loansData = Array.isArray(loansResponse.data) ? loansResponse.data : [];
-      const paginationData = {
-        page: 1,
-        limit: ITEMS_PER_PAGE,
-        total: loansData.length,
-        totalPages: Math.ceil(loansData.length / ITEMS_PER_PAGE)
-      };
-      
-      // Transform loans data
-      const transformedLoans = Array.isArray(loansData) 
-        ? loansData.map(transformAMLoanToLoanData)
-        : [];
-      
-      setAllLoans(transformedLoans);
-      setTotalLoans(paginationData.total);
-      setTotalPages(paginationData.totalPages);
-
-      // Calculate statistics from the data
-      const stats: AMLoanStatistics = {
-        totalApplications: { 
-          count: paginationData.total, 
-          growth: 12.5 
-        },
-        pendingReview: { 
-          count: transformedLoans.filter(loan => loan.stage === 'review').length, 
-          growth: 8.3 
-        },
-        awaitingApproval: { 
-          count: transformedLoans.filter(loan => loan.stage === 'approval').length, 
-          growth: 15.2 
-        },
-        readyForDisbursement: { 
-          count: transformedLoans.filter(loan => loan.stage === 'disbursement').length, 
-          growth: 5.7 
+        switch (selectedPeriod) {
+          case 'last_24_hours':
+            startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+            break;
+          case 'last_7_days':
+            startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            break;
+          case 'last_30_days':
+            startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            break;
+          case 'custom':
+          default:
+            startDate = new Date(now);
+            startDate.setMonth(now.getMonth() - 12);
+            break;
         }
-      };
-      setLoanStatistics(stats);
+
+        apiFilters.dateFrom = startDate.toISOString().split('T')[0];
+      }
+
+      // Apply custom date range filter
+      if (dateRange?.from) {
+        apiFilters.dateFrom = dateRange.from.toISOString().split('T')[0];
+        if (dateRange.to) {
+          apiFilters.dateTo = dateRange.to.toISOString().split('T')[0];
+        }
+      }
+
+      // Apply advanced filters
+      if (appliedFilters.loanStatus.length > 0) {
+        apiFilters.status = appliedFilters.loanStatus.map(status => status.toLowerCase());
+      }
+
+      if (appliedFilters.amountRange.min > 0 || appliedFilters.amountRange.max < 1000000) {
+        apiFilters.amountMin = appliedFilters.amountRange.min;
+        apiFilters.amountMax = appliedFilters.amountRange.max;
+      }
+
+      // Fetch bulk loans and statistics
+      const [loansResponse, statisticsResponse] = await Promise.all([
+        bulkLoansService.getBulkLoans(apiFilters),
+        bulkLoansService.getLoanStatistics({
+          branchId: apiFilters.branchId,
+          creditOfficerId: apiFilters.creditOfficerId,
+          dateFrom: apiFilters.dateFrom,
+          dateTo: apiFilters.dateTo,
+        }),
+      ]);
+
+      // Transform loans data
+      const transformedLoans = loansResponse.loans.map(transformAMLoanToLoanData);
+
+      setAllLoans(transformedLoans);
+      setTotalLoans(loansResponse.pagination.total);
+      setTotalPages(loansResponse.pagination.totalPages);
+      setLoanStatistics(statisticsResponse);
 
     } catch (err) {
       console.error('Failed to fetch AM loans data:', err);
@@ -207,6 +225,30 @@ export default function AMLoansPage() {
       setIsLoading(false);
     }
   };
+
+  // Convert LoanStatistics to AMLoanStatistics format for display
+  const amLoanStatistics = useMemo((): AMLoanStatistics | null => {
+    if (!loanStatistics) return null;
+
+    return {
+      totalApplications: {
+        count: loanStatistics.totalLoans.count,
+        growth: loanStatistics.totalLoans.growth || 12.5
+      },
+      pendingReview: {
+        count: allLoans.filter(loan => loan.stage === 'review').length,
+        growth: 8.3
+      },
+      awaitingApproval: {
+        count: allLoans.filter(loan => loan.stage === 'approval').length,
+        growth: 15.2
+      },
+      readyForDisbursement: {
+        count: allLoans.filter(loan => loan.stage === 'disbursement').length,
+        growth: 5.7
+      }
+    };
+  }, [loanStatistics, allLoans]);
 
   // Load initial data
   useEffect(() => {
@@ -223,13 +265,23 @@ export default function AMLoansPage() {
   // Event handlers
   const handlePeriodChange = (period: TimePeriod) => {
     setSelectedPeriod(period);
+    // Clear custom date range when selecting a preset period
+    if (period !== 'custom') {
+      setDateRange(undefined);
+    }
     setCurrentPage(1);
+    // Refetch data with the new period filter
     fetchLoansData(1);
   };
 
   const handleDateRangeChange = (range: DateRange | undefined) => {
     setDateRange(range);
+    // When a custom date range is selected, set period to 'custom'
+    if (range) {
+      setSelectedPeriod('custom');
+    }
     setCurrentPage(1);
+    // Refetch data with the new date range
     fetchLoansData(1);
   };
 
@@ -241,13 +293,13 @@ export default function AMLoansPage() {
     setAppliedFilters(filters);
     setCurrentPage(1);
     fetchLoansData(1);
-    
-    const filterCount = 
-      filters.branches.length + 
-      filters.creditOfficers.length + 
-      filters.loanStatus.length + 
+
+    const filterCount =
+      filters.branches.length +
+      filters.creditOfficers.length +
+      filters.loanStatus.length +
       (filters.amountRange.min > 0 || filters.amountRange.max < 1000000 ? 1 : 0);
-    
+
     success(`${filterCount} filter${filterCount > 1 ? 's' : ''} applied successfully!`);
   };
 
@@ -331,25 +383,25 @@ export default function AMLoansPage() {
   // Apply sorting
   const sortedLoans = sortColumn
     ? [...filteredLoans].sort((a, b) => {
-        let aValue: any = a[sortColumn as keyof LoanData];
-        let bValue: any = b[sortColumn as keyof LoanData];
+      let aValue: any = a[sortColumn as keyof LoanData];
+      let bValue: any = b[sortColumn as keyof LoanData];
 
-        // Handle different data types
-        if (sortColumn === 'amount') {
-          aValue = Number(aValue);
-          bValue = Number(bValue);
-        } else if (sortColumn === 'interestRate') {
-          aValue = Number(aValue);
-          bValue = Number(bValue);
-        } else if (sortColumn === 'disbursementDate' || sortColumn === 'nextRepaymentDate') {
-          aValue = new Date(aValue).getTime();
-          bValue = new Date(bValue).getTime();
-        }
+      // Handle different data types
+      if (sortColumn === 'amount') {
+        aValue = Number(aValue);
+        bValue = Number(bValue);
+      } else if (sortColumn === 'interestRate') {
+        aValue = Number(aValue);
+        bValue = Number(bValue);
+      } else if (sortColumn === 'disbursementDate' || sortColumn === 'nextRepaymentDate') {
+        aValue = new Date(aValue).getTime();
+        bValue = new Date(bValue).getTime();
+      }
 
-        if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
-        if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
-        return 0;
-      })
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    })
     : filteredLoans;
 
   return (
@@ -367,7 +419,7 @@ export default function AMLoansPage() {
                 marginBottom: '8px'
               }}
             >
-              Loan Pipeline
+              Overview
             </h1>
             <p
               className="font-medium"
@@ -378,7 +430,7 @@ export default function AMLoansPage() {
                 opacity: 0.5
               }}
             >
-              Portfolio Management
+              Loan Overview
             </p>
             {/* Breadcrumb line */}
             <div
@@ -399,58 +451,58 @@ export default function AMLoansPage() {
               onDateRangeChange={handleDateRangeChange}
               onFilter={handleFilterClick}
             />
-            
+
             {/* Active Filters Display */}
-            {(appliedFilters.branches.length > 0 || 
-              appliedFilters.creditOfficers.length > 0 || 
+            {(appliedFilters.branches.length > 0 ||
+              appliedFilters.creditOfficers.length > 0 ||
               appliedFilters.loanStatus.length > 0 ||
-              appliedFilters.amountRange.min > 0 || 
+              appliedFilters.amountRange.min > 0 ||
               appliedFilters.amountRange.max < 1000000) && (
-              <div className="mt-4 flex items-center gap-2">
-                <span className="text-sm text-[#475467]">Active filters:</span>
-                <div className="flex flex-wrap gap-2">
-                  {appliedFilters.loanStatus.map((status) => (
-                    <span
-                      key={status}
-                      className="inline-flex items-center gap-1 px-3 py-1 bg-[#F4F3FF] text-[#5925DC] text-sm rounded-full"
+                <div className="mt-4 flex items-center gap-2">
+                  <span className="text-sm text-[#475467]">Active filters:</span>
+                  <div className="flex flex-wrap gap-2">
+                    {appliedFilters.loanStatus.map((status) => (
+                      <span
+                        key={status}
+                        className="inline-flex items-center gap-1 px-3 py-1 bg-[#F4F3FF] text-[#5925DC] text-sm rounded-full"
+                      >
+                        {status}
+                      </span>
+                    ))}
+                    <button
+                      onClick={handleClearFilters}
+                      className="text-sm text-[#7F56D9] hover:text-[#6941C6] font-medium"
                     >
-                      {status}
-                    </span>
-                  ))}
-                  <button
-                    onClick={handleClearFilters}
-                    className="text-sm text-[#7F56D9] hover:text-[#6941C6] font-medium"
-                  >
-                    Clear all
-                  </button>
+                      Clear all
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
           </div>
 
           {/* Statistics Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {loanStatistics && (
+            {amLoanStatistics && (
               <>
                 <SimpleStatisticsCard
                   label="Total Applications"
-                  value={loanStatistics.totalApplications.count}
-                  growth={loanStatistics.totalApplications.growth}
+                  value={amLoanStatistics.totalApplications.count}
+                  growth={amLoanStatistics.totalApplications.growth}
                 />
                 <SimpleStatisticsCard
                   label="Pending Review"
-                  value={loanStatistics.pendingReview.count}
-                  growth={loanStatistics.pendingReview.growth}
+                  value={amLoanStatistics.pendingReview.count}
+                  growth={amLoanStatistics.pendingReview.growth}
                 />
                 <SimpleStatisticsCard
                   label="Awaiting Approval"
-                  value={loanStatistics.awaitingApproval.count}
-                  growth={loanStatistics.awaitingApproval.growth}
+                  value={amLoanStatistics.awaitingApproval.count}
+                  growth={amLoanStatistics.awaitingApproval.growth}
                 />
                 <SimpleStatisticsCard
                   label="Ready for Disbursement"
-                  value={loanStatistics.readyForDisbursement.count}
-                  growth={loanStatistics.readyForDisbursement.growth}
+                  value={amLoanStatistics.readyForDisbursement.count}
+                  growth={amLoanStatistics.readyForDisbursement.growth}
                 />
               </>
             )}
@@ -460,7 +512,7 @@ export default function AMLoansPage() {
           <div className="mb-6">
             <LoansTabNavigation
               tabs={[
-                { id: 'all', label: 'All Loans' },
+                { id: 'all', label: 'Loan Overview' },
                 { id: 'active', label: 'Active' },
                 { id: 'completed', label: 'Completed' },
                 { id: 'missed', label: 'Missed Payments' }
@@ -564,9 +616,9 @@ export default function AMLoansPage() {
                   action={
                     searchQuery
                       ? {
-                          label: 'Clear search',
-                          onClick: () => setSearchQuery(''),
-                        }
+                        label: 'Clear search',
+                        onClick: () => setSearchQuery(''),
+                      }
                       : undefined
                   }
                 />
@@ -615,19 +667,21 @@ export default function AMLoansPage() {
             )}
           </div>
         </div>
-      </main>
+      </main >
 
       {/* Loan Details Modal */}
-      {selectedLoan && (
-        <LoansPageLoanDetailsModal
-          isOpen={isLoanDetailsModalOpen}
-          onClose={() => setIsLoanDetailsModalOpen(false)}
-          loanData={selectedLoan}
-          onEdit={(loanData) => success('Edit loan feature coming soon!')}
-          onDelete={(loanId) => success('Delete loan feature coming soon!')}
-          onViewSchedule={(loanId) => success('View schedule feature coming soon!')}
-        />
-      )}
+      {
+        selectedLoan && (
+          <LoansPageLoanDetailsModal
+            isOpen={isLoanDetailsModalOpen}
+            onClose={() => setIsLoanDetailsModalOpen(false)}
+            loanData={selectedLoan}
+            onEdit={(loanData) => success('Edit loan feature coming soon!')}
+            onDelete={(loanId) => success('Delete loan feature coming soon!')}
+            onViewSchedule={(loanId) => success('View schedule feature coming soon!')}
+          />
+        )
+      }
 
       {/* Advanced Filters Modal */}
       <DashboardFiltersModal
@@ -638,6 +692,6 @@ export default function AMLoansPage() {
 
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onClose={removeToast} />
-    </div>
+    </div >
   );
 }

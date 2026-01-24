@@ -114,7 +114,7 @@ export function useSystemSettings() {
 /**
  * Hook for fetching all users with filters
  */
-export function useUsers(filters?: any) {
+export function useUsers(filters?: Record<string, unknown>) {
   return useQuery({
     queryKey: ["users", filters],
     queryFn: () => userService.getAllUsers(filters),
@@ -130,7 +130,7 @@ export function useUpdateUser() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => userService.updateUser(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => userService.updateUser(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
     },
@@ -158,7 +158,7 @@ export function useCreateStaff() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: any) => userService.createStaffUser(data),
+    mutationFn: (data: Record<string, unknown>) => userService.createStaffUser(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
     },
@@ -220,7 +220,7 @@ export function useUpdateSystemSettings() {
  * Hook for fetching activity logs with filters
  */
 export function useActivityLogs(filters: ActivityLogFilters) {
-  return useQuery<{ data: ActivityLog[]; pagination: any }, AxiosError>({
+  return useQuery<{ data: ActivityLog[]; pagination: Record<string, unknown> }, AxiosError>({
     queryKey: ["activity-logs", filters],
     queryFn: async () => {
       console.log('🔄 useActivityLogs query executing with filters:', filters);

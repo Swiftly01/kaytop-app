@@ -19,7 +19,7 @@ import { AxiosResponse } from 'axios';
  *   return response.data.data;
  * }
  */
-export function isSuccessResponse(response: AxiosResponse<any>): boolean {
+export function isSuccessResponse(response: AxiosResponse<unknown>): boolean {
   return !!(
     response?.data &&
     typeof response.data === 'object' &&
@@ -34,7 +34,7 @@ export function isSuccessResponse(response: AxiosResponse<any>): boolean {
  * @param response - The Axios response object
  * @returns true if response.data has a success property set to false
  */
-export function isFailureResponse(response: AxiosResponse<any>): boolean {
+export function isFailureResponse(response: AxiosResponse<unknown>): boolean {
   return !!(
     response?.data &&
     typeof response.data === 'object' &&
@@ -49,7 +49,7 @@ export function isFailureResponse(response: AxiosResponse<any>): boolean {
  * @param response - The Axios response object
  * @returns The data from response.data.data, or response.data if not wrapped
  */
-export function extractResponseData<T = any>(response: AxiosResponse<any>): T {
+export function extractResponseData<T = unknown>(response: AxiosResponse<unknown>): T {
   if (isSuccessResponse(response)) {
     return response.data.data;
   }

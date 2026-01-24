@@ -119,7 +119,7 @@ export function validateConfiguration(): ConfigValidationResult {
 /**
  * Get configuration summary for debugging
  */
-export function getConfigurationSummary(): Record<string, any> {
+export function getConfigurationSummary(): Record<string, string | number | boolean> {
   return {
     baseUrl: API_CONFIG.BASE_URL,
     timeout: API_CONFIG.TIMEOUT,
@@ -140,10 +140,6 @@ export function getConfigurationSummary(): Record<string, any> {
  */
 export function initializeConfiguration(): void {
   const validation = validateConfiguration();
-
-  if (API_CONFIG.DEBUG || API_CONFIG.LOG_LEVEL === 'debug') {
-    console.log('🔧 API Configuration Summary:', getConfigurationSummary());
-  }
 
   if (validation.warnings.length > 0) {
     console.warn('⚠️ Configuration warnings:', validation.warnings);
@@ -261,10 +257,21 @@ export const API_ENDPOINTS = {
   REPORTS: {
     LIST: '/reports',
     BY_ID: (id: string) => `/reports/${id}`,
-    APPROVE: (id: string) => `/reports/${id}/approve`,
-    DECLINE: (id: string) => `/reports/${id}/decline`,
-    STATISTICS: '/reports/statistics',
-    DASHBOARD_STATS: '/reports/dashboard/stats',
+    BY_BRANCH: (branchName: string) => `/reports/branch/${branchName}`,
+    HQ_REVIEW: (id: string) => `/reports/${id}/hq-review`,
+    // Note: Only HQ review endpoint exists for approval/decline actions
+    // Only HQ Managers can approve/decline reports using the hq-review endpoint
+    // Statistics are calculated from the main /reports endpoint
+  },
+
+  // Ratings endpoints for branch performance leaderboard
+  RATINGS: {
+    CALCULATE: '/ratings/calculate',
+    CURRENT: '/ratings/current',
+    LEADERBOARD: '/ratings/leaderboard',
+    BRANCH: (branchName: string) => `/ratings/branch/${branchName}`,
+    HISTORY: '/ratings/history',
+    PERIODS_CURRENT: '/ratings/periods/current',
   },
 
   // Activity Logs endpoints

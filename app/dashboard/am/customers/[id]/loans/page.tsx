@@ -44,7 +44,7 @@ export default function AMCustomerLoansPage({ params }: PageProps) {
   const { toasts, removeToast, success, error } = useToast();
 
   // State management
-  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('last_30_days');
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');

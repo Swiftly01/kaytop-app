@@ -31,6 +31,7 @@ export default function MissedPaymentTable({
             <th>Name</th>
             <th>Status</th>
             <th>Amount</th>
+            <th>Due Date</th>
             <th>Days missed</th>
             <th>Intrest</th>
           </tr>

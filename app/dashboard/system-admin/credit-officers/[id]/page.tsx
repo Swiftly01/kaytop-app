@@ -17,6 +17,7 @@ import EditLoanModal from '@/app/_components/ui/EditLoanModal';
 import { userService } from '@/lib/services/users';
 import { loanService } from '@/lib/services/loans';
 import { savingsService } from '@/lib/services/savings';
+import { creditOfficerService } from '@/lib/services/creditOfficer';
 import type { User, Loan, Transaction } from '@/lib/api/types';
 
 interface CreditOfficerDetails {
@@ -135,57 +136,89 @@ export default function CreditOfficerDetailsPage({ params }: { params: Promise<{
       setIsLoading(true);
       setApiError(null);
 
-      // Fetch credit officer details
-      const user = await userService.getUserById(id);
-      if (user.role !== 'credit_officer') {
-        throw new Error('User is not a credit officer');
-      }
+      console.log(`[CreditOfficerPage] Starting data fetch for officer ID: ${id}`);
 
-      const officerDetails = transformUserToCreditOfficerDetails(user);
+      // Use the new credit officer service to get all data
+      const creditOfficerData = await creditOfficerService.getCreditOfficerData(id);
+      
+      console.log(`[CreditOfficerPage] Credit officer data received:`, {
+        officer: creditOfficerData.officer.id,
+        branchCustomers: creditOfficerData.branchCustomers.length,
+        branchLoans: creditOfficerData.branchLoans.length,
+        branchTransactions: creditOfficerData.branchTransactions.length
+      });
+      
+      const officerDetails = transformUserToCreditOfficerDetails(creditOfficerData.officer);
       setCreditOfficer(officerDetails);
 
-      // For now, we'll use placeholder data for collections and loans
-      // since we don't have specific endpoints to get credit officer's managed transactions
-      // In a real implementation, you would have endpoints like:
-      // - GET /admin/credit-officers/{id}/collections
-      // - GET /admin/credit-officers/{id}/loans
+      // Transform loans to disbursed loans format
+      const transformedLoans = await Promise.all(
+        creditOfficerData.branchLoans.map(async (loan: Loan) => {
+          let customerName = 'Unknown Customer';
+          
+          // Find customer in branch customers for efficiency
+          const customer = creditOfficerData.branchCustomers.find(c => String(c.id) === String(loan.customerId));
+          if (customer) {
+            customerName = `${customer.firstName} ${customer.lastName}`;
+          }
+          
+          return transformLoanToDisbursed(loan, customerName);
+        })
+      );
+      
+      console.log(`[CreditOfficerPage] Transformed ${transformedLoans.length} loans`);
+      setLoansData(transformedLoans);
 
-      // Placeholder statistics
+      // Transform transactions to collections format
+      const transformedCollections = creditOfficerData.branchTransactions.map((transaction: Transaction, index: number) => {
+        let customerName = 'Unknown Customer';
+        
+        // Try to match with branch customers
+        if (creditOfficerData.branchCustomers.length > 0) {
+          const customer = creditOfficerData.branchCustomers[index % creditOfficerData.branchCustomers.length];
+          customerName = `${customer.firstName} ${customer.lastName}`;
+        }
+        
+        return transformTransactionToCollection(transaction, customerName);
+      });
+      
+      console.log(`[CreditOfficerPage] Transformed ${transformedCollections.length} transactions`);
+      setCollectionsData(transformedCollections);
+
+      // Use statistics from the service
       const stats: StatSection[] = [
         {
-          label: 'All Customers',
-          value: 0, // Would come from API
+          label: 'Branch Customers',
+          value: creditOfficerData.statistics.totalCustomers,
           change: 0,
-          changeLabel: 'No change this month',
+          changeLabel: creditOfficerData.officer.branch ? `Customers in ${creditOfficerData.officer.branch} branch` : 'Total customers',
           isCurrency: false,
         },
         {
-          label: 'Active loans',
-          value: 0, // Would come from API
+          label: 'Active Loans',
+          value: creditOfficerData.statistics.activeLoans,
           change: 0,
-          changeLabel: 'No change this month',
+          changeLabel: 'Currently active loans',
           isCurrency: false,
         },
         {
           label: 'Loans Processed',
-          value: 0, // Would come from API
+          value: creditOfficerData.statistics.totalLoansProcessed,
           change: 0,
-          changeLabel: 'No change this month',
+          changeLabel: 'Total loans processed',
           isCurrency: false,
         },
         {
-          label: 'Loan Amount',
-          value: 0, // Would come from API
+          label: 'Total Loan Amount',
+          value: creditOfficerData.statistics.totalLoanAmount,
           change: 0,
-          changeLabel: 'No change this month',
+          changeLabel: 'Total amount disbursed',
           isCurrency: true
         },
       ];
+      
+      console.log(`[CreditOfficerPage] Statistics set:`, stats);
       setCreditOfficerStatistics(stats);
-
-      // Set empty arrays for now - in real implementation these would be populated from API
-      setCollectionsData([]);
-      setLoansData([]);
 
     } catch (err) {
       console.error('Failed to fetch credit officer data:', err);
@@ -371,7 +404,21 @@ export default function CreditOfficerDetailsPage({ params }: { params: Promise<{
 
             {/* Credit Officer Info Card */}
             <div className="w-full max-w-[1091px]" style={{ marginBottom: '48px' }}>
-              {isLoading || !creditOfficer ? (
+              {apiError ? (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-5 h-5 text-red-500">
+                      <svg fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-red-800 font-medium">Error Loading Credit Officer Data</h3>
+                      <p className="text-red-600 text-sm mt-1">{apiError}</p>
+                    </div>
+                  </div>
+                </div>
+              ) : isLoading || !creditOfficer ? (
                 <div className="bg-white rounded-lg p-6 border border-gray-200">
                   <div className="animate-pulse">
                     <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>

@@ -4,10 +4,9 @@
  */
 
 import apiClient from '@/lib/apiClient';
-import { API_ENDPOINTS } from '../api/config';
 import { unifiedUserService } from './unifiedUser';
-import type { BranchPerformance, DashboardParams, PaginatedResponse, Loan } from '../api/types';
-import { isSuccessResponse, isFailureResponse, extractResponseData } from '../utils/responseHelpers';
+import type { BranchPerformance, DashboardParams, Loan } from '../api/types';
+import { isSuccessResponse } from '../utils/responseHelpers';
 
 export interface BranchPerformanceMetrics {
   branchName: string;
@@ -131,15 +130,15 @@ class BranchPerformanceAPIService implements BranchPerformanceService {
       queryParams.append('limit', '1000'); // Large limit to get most data
       
       const url = `${endpoint}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-      const response = await apiClient.get<any>(url);
+      const response = await apiClient.get<unknown>(url);
       
       // Handle different response formats
       if (response.data && Array.isArray(response.data)) {
-        return response.data;
-      } else if (isSuccessResponse(response) && Array.isArray(response.data.data)) {
-        return response.data.data;
+        return response.data as Loan[];
+      } else if (isSuccessResponse(response) && Array.isArray((response.data as any).data)) {
+        return (response.data as any).data as Loan[];
       } else if (Array.isArray(response)) {
-        return response;
+        return response as Loan[];
       }
       
       return [];
@@ -154,16 +153,16 @@ class BranchPerformanceAPIService implements BranchPerformanceService {
    */
   private async fetchBranches(): Promise<string[]> {
     try {
-      const response = await apiClient.get<any>('/users/branches');
+      const response = await apiClient.get<unknown>('/users/branches');
       
       // Check if response is wrapped with success field
-      if (isSuccessResponse(response) && Array.isArray(response.data.data)) {
-        return response.data.data;
+      if (isSuccessResponse(response) && Array.isArray((response.data as any).data)) {
+        return (response.data as any).data as string[];
       }
       
       // Check if response.data is directly an array
       if (Array.isArray(response.data)) {
-        return response.data;
+        return response.data as string[];
       }
       
       // Fallback to known branches from the image
@@ -193,7 +192,7 @@ class BranchPerformanceAPIService implements BranchPerformanceService {
   /**
    * Fetch users data to get branch assignments
    */
-  private async fetchUsers(): Promise<any[]> {
+  private async fetchUsers(): Promise<Record<string, unknown>[]> {
     try {
       // Use unifiedUserService which now transforms data with role detection
       const response = await unifiedUserService.getUsers({ limit: 1000 });
@@ -213,7 +212,7 @@ class BranchPerformanceAPIService implements BranchPerformanceService {
     recollections: Loan[],
     missedPayments: Loan[],
     branches: string[],
-    users: any[]
+    users: Record<string, unknown>[]
   ): BranchPerformanceMetrics[] {
     
     return branches.map(branchName => {
@@ -225,15 +224,15 @@ class BranchPerformanceAPIService implements BranchPerformanceService {
       
       // Get branch users
       const branchUsers = users.filter(user => 
-        user.branch && user.branch.toLowerCase() === branchName.toLowerCase()
+        user.branch && (user.branch as string).toLowerCase() === branchName.toLowerCase()
       );
       
       const creditOfficers = branchUsers.filter(user => 
-        user.role === 'credit_officer' || user.role === 'creditofficer'
+        (user.role as string) === 'credit_officer' || (user.role as string) === 'creditofficer'
       );
       
       const customers = branchUsers.filter(user => 
-        user.role === 'customer'
+        (user.role as string) === 'customer'
       );
 
       // Calculate metrics
@@ -282,12 +281,12 @@ class BranchPerformanceAPIService implements BranchPerformanceService {
   /**
    * Filter loans by branch using user data to map customers to branches
    */
-  private filterLoansByBranch(loans: Loan[], branchName: string, users: any[]): Loan[] {
+  private filterLoansByBranch(loans: Loan[], branchName: string, users: Record<string, unknown>[]): Loan[] {
     // Create a map of customer ID to branch
     const customerBranchMap = new Map<string, string>();
     users.forEach(user => {
       if (user.branch && (user.id || user.userId)) {
-        customerBranchMap.set(user.id?.toString() || user.userId?.toString(), user.branch);
+        customerBranchMap.set((user.id as string)?.toString() || (user.userId as string)?.toString(), user.branch as string);
       }
     });
 

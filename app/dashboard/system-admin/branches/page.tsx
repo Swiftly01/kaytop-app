@@ -28,7 +28,7 @@ import { branchService } from '@/lib/services/branches';
 export default function BranchesPage() {
   const router = useRouter();
   const { toasts, removeToast, success, error } = useToast();
-  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('last_30_days');
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -79,7 +79,7 @@ export default function BranchesPage() {
             const usersData = branchUsers?.data || [];
             const creditOfficers = usersData.filter(user => user.role === 'credit_officer');
             const customers = usersData.filter(user => user.role === 'customer');
-            
+
             return {
               ...record,
               cos: creditOfficers.length.toString(),
@@ -90,7 +90,7 @@ export default function BranchesPage() {
             const errorMsg = error?.message || 'Unknown error';
             const statusCode = error?.response?.status || error?.status;
             console.warn(`Failed to get user counts for branch "${record.name}" (${statusCode || 'no status'}): ${errorMsg}`);
-            
+
             return {
               ...record,
               cos: '0',
@@ -100,11 +100,25 @@ export default function BranchesPage() {
         })
       );
 
-      setBranchData(branchRecordsWithCounts);
+      // Apply time period and date range filters
+      let filteredBranches = branchRecordsWithCounts;
+      if (selectedPeriod || dateRange) {
+        const { filterByTimePeriod, filterByDateRange } = await import('@/lib/utils/dateFilters');
+
+        if (selectedPeriod && selectedPeriod !== 'custom') {
+          // Apply preset time period filter
+          filteredBranches = filterByTimePeriod(branchRecordsWithCounts, 'dateCreated', selectedPeriod);
+        } else if (dateRange) {
+          // Apply custom date range filter
+          filteredBranches = filterByDateRange(branchRecordsWithCounts, 'dateCreated', dateRange);
+        }
+      }
+
+      setBranchData(filteredBranches);
 
       // Fetch dashboard statistics
       const dashboardData = await dashboardService.getKPIs();
-      
+
       // Helper function to safely extract values
       const extractValue = (obj: any, fallback: any = 0) => {
         if (obj === null || obj === undefined) return fallback;
@@ -142,7 +156,7 @@ export default function BranchesPage() {
           isCurrency: extractValue(dashboardData.activeLoans?.isCurrency, false),
         },
       ];
-      
+
       setBranchStatistics(stats);
 
     } catch (err) {
@@ -176,14 +190,14 @@ export default function BranchesPage() {
     try {
       console.log('Branch created:', data);
       console.log('Assigned users:', data.assignUsers);
-      
+
       // TODO: Add API call to create branch when endpoint is available
       // For now, just refresh the data to show updated branch list
       await fetchBranchData();
-      
+
       // Show success notification
       const userCount = data.assignUsers.length;
-      const message = userCount > 0 
+      const message = userCount > 0
         ? `Branch "${data.branchName}" created with ${userCount} user${userCount > 1 ? 's' : ''} assigned!`
         : `Branch "${data.branchName}" created successfully!`;
       success(message);
@@ -195,15 +209,21 @@ export default function BranchesPage() {
 
   const handlePeriodChange = (period: TimePeriod) => {
     setSelectedPeriod(period);
-    console.log('Time period changed:', period);
-    // Refresh data with time filter - this would be used for statistics
+    // Clear custom date range when selecting a preset period
+    if (period !== 'custom') {
+      setDateRange(undefined);
+    }
+    // Refetch data with the new period filter
     fetchBranchData();
   };
 
   const handleDateRangeChange = (range: DateRange | undefined) => {
     setDateRange(range);
-    console.log('Date range changed:', range);
-    // Refresh data with date range filter - this would be used for statistics
+    // When a custom date range is selected, set period to 'custom'
+    if (range) {
+      setSelectedPeriod('custom');
+    }
+    // Refetch data with the new date range
     fetchBranchData();
   };
 
@@ -214,7 +234,7 @@ export default function BranchesPage() {
   const handleApplyAdvancedFilters = (filters: AdvancedFilters) => {
     setAdvancedFilters(filters);
     setCurrentPage(1); // Reset to first page
-    
+
     const activeCount = Object.values(filters).filter((v) => v !== '').length;
     if (activeCount > 0) {
       success(`${activeCount} filter${activeCount > 1 ? 's' : ''} applied successfully!`);
@@ -306,7 +326,7 @@ export default function BranchesPage() {
     // Handle different data types
     if (sortColumn === 'customers') {
       // Numeric comparison
-      return sortDirection === 'asc' 
+      return sortDirection === 'asc'
         ? (aValue as number) - (bValue as number)
         : (bValue as number) - (aValue as number);
     } else if (sortColumn === 'dateCreated') {
@@ -428,7 +448,7 @@ export default function BranchesPage() {
                   onChange={handleSearchChange}
                   placeholder="Search by Name or ID..."
                   className="w-full pl-10 pr-10 py-2 text-sm rounded-lg focus:outline-none focus:ring-2 transition-all"
-                  style={{ 
+                  style={{
                     border: '1px solid var(--color-border-gray-300)',
                     '--tw-ring-color': 'var(--color-primary-600)'
                   } as React.CSSProperties}
@@ -461,8 +481,8 @@ export default function BranchesPage() {
                 <TableSkeleton rows={itemsPerPage} />
               ) : paginatedBranches.length > 0 ? (
                 <>
-                  <Table 
-                    data={paginatedBranches} 
+                  <Table
+                    data={paginatedBranches}
                     tableType="branches"
                     onSelectionChange={handleSelectionChange}
                     onRowClick={handleRowClick}
@@ -470,7 +490,7 @@ export default function BranchesPage() {
                     sortDirection={sortDirection}
                     onSort={handleSort}
                   />
-                  
+
                   {/* Pagination Controls */}
                   <div className="mt-4 flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -488,7 +508,7 @@ export default function BranchesPage() {
                         <option value={50}>50 per page</option>
                       </select>
                     </div>
-                    
+
                     <Pagination
                       totalPages={totalPages}
                       page={currentPage}

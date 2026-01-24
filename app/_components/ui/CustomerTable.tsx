@@ -92,8 +92,16 @@ export function CustomerTable({
                 </span>
               </td>
 
-              <td className="p-4">{c.mobileNumber}</td>
-              <td className="p-4">{c.email}</td>
+              <td className="p-4" style={{ maxWidth: '150px' }}>
+                <div className="truncate" title={c.mobileNumber}>
+                  {c.mobileNumber}
+                </div>
+              </td>
+              <td className="p-4" style={{ maxWidth: '200px' }}>
+                <div className="truncate" title={c.email}>
+                  {c.email}
+                </div>
+              </td>
               <td className="p-4 text-center">{c?.createdAt
                     ? new Date(c.createdAt).toDateString()
                     : "—"}</td>

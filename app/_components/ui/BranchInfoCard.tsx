@@ -27,7 +27,7 @@ export default function BranchInfoCard({ fields }: BranchInfoCardProps) {
           : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7'
       }`}>
         {fields.map((field, index) => (
-          <div key={index} className="flex flex-col gap-1">
+          <div key={index} className="flex flex-col gap-1 min-w-0">
             {/* Label */}
             <div 
               className="text-sm"
@@ -42,12 +42,16 @@ export default function BranchInfoCard({ fields }: BranchInfoCardProps) {
 
             {/* Value */}
             <div 
-              className="text-base text-gray-900"
+              className="text-base text-gray-900 break-words overflow-hidden"
               style={{
                 fontWeight: 400,
                 lineHeight: '120%',
-                color: '#1E3146'
+                color: '#1E3146',
+                wordWrap: 'break-word',
+                overflowWrap: 'break-word',
+                hyphens: 'auto'
               }}
+              title={field.value} // Show full value on hover
             >
               {field.value}
             </div>

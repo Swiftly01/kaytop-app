@@ -172,3 +172,108 @@ GET {{baseUrl}}/reports
 Authorization: Bearer {{}}
 Content-Type: application/json
 
+ @baseUrl = https://kaytop-production.up.railway.app
+
+
+### Credit Officer creates report
+POST {{baseUrl}}/reports
+Content-Type: application/json
+Authorization: Bearer {{credit_officer_token}}
+
+{
+  "title": "Daily Report",
+  "description": "John Doe's Report",
+  "type": "daily",
+  "reportDate": "2026-01-23",
+  "startDate": "2026-01-23",
+  "endDate": "2026-01-23"
+}
+
+### Credit Officer submits report
+POST {{baseUrl}}/reports/9/submit
+Content-Type: application/json
+Authorization: Bearer {{credit_officer_token}}
+
+{
+  "remarks": "Today's report from John Doe"
+}
+
+
+### Branch Manager generates aggregate
+POST {{baseUrl}}/reports/branch/aggregate
+Content-Type: application/json
+Authorization: Bearer {{branch_manager_token}}
+
+{
+  "title": "Lagos Island",
+  "description": "Daily Report 2",
+  "type": "daily",
+  "reportDate": "2026-01-23"
+}
+
+
+### Branch Manager Submit to HQ
+POST {{baseUrl}}/reports/branch/2/submit-to-hq
+Content-Type: application/json
+Authorization: Bearer {{branch_manager_token}}
+
+{
+  "remarks": "Sorry for the late submission"
+}
+
+
+### HQ reviews the report
+PUT {{baseUrl}}/reports/1/hq-review
+Content-Type: application/json
+Authorization: Bearer {{hq_manager_token}}
+
+{
+  "action": "APPROVE",
+  "remarks": "Welldone"
+}
+
+
+### Get all reports
+GET {{baseUrl}}/reports?page=1&limit=20&type=daily
+Authorization: Bearer {{hq_manager_token}}
+
+
+### Get report by Id
+GET {{baseUrl}}/reports/2
+Authorization: Bearer {{hq_manager_token}}
+[1/23, 20:04] +234 703 107 8790: ### 1. CALCULATE RATINGS
+### Calculate ratings for a specific period
+### period: DAILY, WEEKLY, MONTHLY, QUARTERLY, YEARLY
+### periodDate: Optional - format depends on period
+GET https://kaytop-production.up.railway.app/ratings/calculate?period=DAILY&periodDate=2026-01-23
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImxhZ29zX2JyYW5jaEBtYWlsc2FjLmNvbSIsInN1YiI6Nywicm9sZSI6ImJyYW5jaF9tYW5hZ2VyIiwiaWF0IjoxNzY0NDE2NzUxLCJleHAiOjE3NjQ0MjAzNTF9.qILsyPnYyc9_loCvXTA_teGVJUe4Hgi1aKsF2fHQGZk
+
+### 2. GET CURRENT RATINGS
+### Get latest calculated ratings for current period
+GET https://kaytop-production.up.railway.app/ratings/current?period=DAILY
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImxhZ29zX2JyYW5jaEBtYWlsc2FjLmNvbSIsInN1YiI6Nywicm9sZSI6ImJyYW5jaF9tYW5hZ2VyIiwiaWF0IjoxNzY0NDE2NzUxLCJleHAiOjE3NjQ0MjAzNTF9.qILsyPnYyc9_loCvXTA_teGVJUe4Hgi1aKsF2fHQGZk
+
+### 3. GET LEADERBOARD
+### Get top branches for a specific rating type
+### type: MONEY_DISBURSED, LOAN_REPAYMENT, SAVINGS
+GET https://kaytop-production.up.railway.app/ratings/leaderboard?type=MONEY_DISBURSED&period=DAILY&limit=5
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImxhZ29zX2JyYW5jaEBtYWlsc2FjLmNvbSIsInN1YiI6Nywicm9sZSI6ImJyYW5jaF9tYW5hZ2VyIiwiaWF0IjoxNzY0NDE2NzUxLCJleHAiOjE3NjQ0MjAzNTF9.qILsyPnYyc9_loCvXTA_teGVJUe4Hgi1aKsF2fHQGZk
+
+### 4. GET BRANCH RATINGS
+### Get ratings for a specific branch
+GET https://kaytop-production.up.railway.app/ratings/branch/kwara
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImxhZ29zX2JyYW5jaEBtYWlsc2FjLmNvbSIsInN1YiI6Nywicm9sZSI6ImJyYW5jaF9tYW5hZ2VyIiwiaWF0IjoxNzY0NDE2NzUxLCJleHAiOjE3NjQ0MjAzNTF9.qILsyPnYyc9_loCvXTA_teGVJUe4Hgi1aKsF2fHQGZk
+
+### 5. GET BRANCH RATINGS WITH FILTERS
+GET https://kaytop-production.up.railway.app/ratings/branch/main-branch?period=DAILY&type=LOAN_REPAYMENT
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImxhZ29zX2JyYW5jaEBtYWlsc2FjLmNvbSIsInN1YiI6Nywicm9sZSI6ImJyYW5jaF9tYW5hZ2VyIiwiaWF0IjoxNzY0NDE2NzUxLCJleHAiOjE3NjQ0MjAzNTF9.qILsyPnYyc9_loCvXTA_teGVJUe4Hgi1aKsF2fHQGZk
+
+### 6. GET RATING HISTORY
+### Get historical ratings with filters
+GET https://kaytop-production.up.railway.app/ratings/history?branch=main-branch&type=MONEY_DISBURSED&period=DAILY&fromDate=2024-01-01&toDate=2024-01-31
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImxhZ29zX2JyYW5jaEBtYWlsc2FjLmNvbSIsInN1YiI6Nywicm9sZSI6ImJyYW5jaF9tYW5hZ2VyIiwiaWF0IjoxNzY0NDE2NzUxLCJleHAiOjE3NjQ0MjAzNTF9.qILsyPnYyc9_loCvXTA_teGVJUe4Hgi1aKsF2fHQGZk
+
+### 7. GET CURRENT PERIOD DATE
+### Get current period string for each period type
+GET https://kaytop-production.up.railway.app/ratings/periods/current?period=DAILY
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImxhZ29zX2JyYW5jaEBtYWlsc2FjLmNvbSIsInN1YiI6Nywicm9sZSI6ImJyYW5jaF9tYW5hZ2VyIiwiaWF0IjoxNzY0NDE2NzUxLCJleHAiOjE3NjQ0MjAzNTF9.qILsyPnYyc9_loCvXTA_teGVJUe4Hgi1aKsF2fHQGZk

@@ -10,7 +10,7 @@ export function useMySavingsBalance() {
       balance: string;
       targetAmount: string;
       targetDescription: string;
-      transactions: any[];
+      transactions: Record<string, unknown>[];
     },
     AxiosError<ApiResponseError>
   >({

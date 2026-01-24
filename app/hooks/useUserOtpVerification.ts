@@ -28,8 +28,6 @@ export function useUserOtpVerification(){
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isResending, setIsResending] = useState<boolean>(false);
-
-  const [otp, setOtp] = useLocalStorageState<string | null>(null, "otp");
   const router = useRouter();
 
   const disabled = isLoading || isResending;
@@ -66,7 +64,6 @@ export function useUserOtpVerification(){
     try {
       const response = await AuthService.verifyOtp(payload);
       toast.success(response.message);
-      setOtp(pin);
       // Redirect based on purpose
       if (purpose === Purpose.Email_verification) {
         router.push(ROUTES.User.Auth.LOGIN); // after email verification go to login

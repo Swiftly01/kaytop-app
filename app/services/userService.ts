@@ -1,16 +1,10 @@
 import apiClient from "@/lib/apiClient";
-import apiServer from "@/lib/apiServer";
 import { apiBaseUrl } from "@/lib/config";
 import { AxiosError } from "axios";
 import {
   UploadAvatarResponse,
 } from "../types/settings";
 import { CustomerDataResponse } from "../types/customer";
-
-interface PaginationParams {
-  page?: number;
-  limit?: number;
-}
 
 export class UserService {
   /* ===================== CUSTOMER / USER ===================== */

@@ -101,15 +101,18 @@ class UserAPIService implements UserService {
     try {
       const response = await apiClient.get<User>(API_ENDPOINTS.ADMIN.USER_BY_ID(id));
 
+      // Extract data from Axios response
+      const data = response.data || response;
+
       // Backend returns direct data format, not wrapped in success/data
-      if (response && typeof response === 'object') {
+      if (data && typeof data === 'object') {
         // Check if it's wrapped in success/data format
-        if ((response as any).success && (response as any).data) {
-          return (response as any).data;
+        if ((data as any).success && (data as any).data) {
+          return (data as any).data;
         }
         // Check if it's direct data format (has user fields)
-        else if ((response as any).id || (response as any).email || (response as any).firstName) {
-          return response as unknown as User;
+        else if ((data as any).id || (data as any).email || (data as any).firstName) {
+          return data as unknown as User;
         }
       }
 
@@ -265,7 +268,7 @@ class UserAPIService implements UserService {
           return this.createPaginatedResponse(data.users, data.total || data.users.length, params);
         }
         // Check if it's wrapped in success/data format
-        else if (isSuccessResponse(data)) {
+        else if (isSuccessResponse({ data } as any)) {
           return data.data;
         }
         // Check if it's direct array format (users list)
@@ -285,7 +288,7 @@ class UserAPIService implements UserService {
       console.error('[getUsersByBranch] No format matched - throwing error');
       console.error('[getUsersByBranch] Response structure:', JSON.stringify(data, null, 2));
       throw new Error('Failed to fetch users by branch - invalid response format');
-    } catch (error: any) {
+    } catch (error: Error & { response?: { status?: number }; status?: number }) {
       // Handle 404 errors gracefully (branch might not have users)
       if (error?.response?.status === 404 || error?.status === 404) {
         console.warn(`[getUsersByBranch] Branch "${branch}" not found or has no users (404)`);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import FilterControls from '@/app/_components/ui/FilterControls';
 import { StatisticsCard, StatSection } from '@/app/_components/ui/StatisticsCard';
@@ -11,12 +11,17 @@ import { Checkbox } from '@/app/_components/ui/Checkbox';
 import EditCreditOfficerModal from '@/app/_components/ui/EditCreditOfficerModal';
 import DeleteConfirmationModal from '@/app/_components/ui/DeleteConfirmationModal';
 import { useToast } from '@/app/hooks/useToast';
+import { useStrictModeEffect } from '@/app/hooks/useStrictModeEffect';
 import { ToastContainer } from '@/app/_components/ui/ToastContainer';
 import { unifiedUserService } from '@/lib/services/unifiedUser';
+import { userService } from '@/lib/services/users';
 import { dashboardService } from '@/lib/services/dashboard';
+import { accurateDashboardService } from '@/lib/services/accurateDashboard';
 import { extractValue } from '@/lib/utils/dataExtraction';
+import { formatDate } from '@/lib/utils';
 import type { User } from '@/lib/api/types';
 import type { TimePeriod } from '@/app/_components/ui/FilterControls';
+import { debugCreditOfficersDiscrepancy } from '@/lib/utils/debugCreditOfficers';
 
 interface CreditOfficer {
   id: string;
@@ -36,17 +41,13 @@ const transformUserToCreditOfficer = (user: User): CreditOfficer => ({
   status: user.verificationStatus === 'verified' ? 'Active' : 'Inactive',
   phone: user.mobileNumber,
   email: user.email,
-  dateJoined: new Date(user.createdAt).toLocaleDateString('en-US', { 
-    year: 'numeric', 
-    month: 'short', 
-    day: '2-digit' 
-  })
+  dateJoined: formatDate(user.createdAt) || 'N/A'
 });
 
 export default function CreditOfficersPage() {
   const router = useRouter();
   const { toasts, removeToast, success, error } = useToast();
-  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('last_30_days');
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedOfficers, setSelectedOfficers] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -68,51 +69,201 @@ export default function CreditOfficersPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [officerToDelete, setOfficerToDelete] = useState<{ id: string; name: string } | null>(null);
 
-  // Fetch credit officers data from API
-  const fetchCreditOfficersData = async (searchTerm?: string) => {
+  // Fetch credit officers data from API with caching and deduplication
+  const fetchCreditOfficersData = useCallback(async (searchTerm?: string) => {
     try {
       setIsLoading(true);
 
-      // Fetch staff members (credit officers)
-      const staffData = await unifiedUserService.getUsers({ role: 'credit_officer' });
-      let creditOfficers = staffData.data
-        .filter((user: User) => user.role === 'credit_officer')
-        .map(transformUserToCreditOfficer);
+      // Create cache key based on search term and filters
+      const cacheKey = JSON.stringify({
+        searchTerm: searchTerm || '',
+        selectedPeriod,
+        dateRange: dateRange ? { from: dateRange.from, to: dateRange.to } : null
+      });
 
-      // Apply search filter if provided
-      if (searchTerm && searchTerm.trim()) {
-        const query = searchTerm.toLowerCase();
-        creditOfficers = creditOfficers.filter(officer => 
-          officer.name.toLowerCase().includes(query) ||
-          officer.idNumber.includes(query) ||
-          officer.email.toLowerCase().includes(query) ||
-          officer.phone.includes(query)
-        );
-      }
+      // Only clear cache on explicit refresh, not on every fetch
+      // This prevents race conditions and data loss
 
-      setCreditOfficersData(creditOfficers);
+      // Create new request
+      console.log('Fetching fresh credit officers data...');
+      const fetchPromise = (async () => {
+        // Fetch staff members (credit officers) with multiple strategies to handle backend limitations
+        // NOTE: Backend /admin/users endpoint doesn't support role filtering via query params
+        console.log('Attempting to fetch credit officers with multiple strategies...');
+        
+        let creditOfficers: CreditOfficer[] = [];
+        
+        try {
+          // Strategy 1: Use the same approach as the dashboard stats - fetch all users and filter client-side
+          // This ensures consistency between stats card and table data
+          console.log('Strategy 1: Fetching all users and filtering by role on frontend (same as stats card)');
+          const allUsersData = await unifiedUserService.getUsers({ 
+            limit: 1000  // Same as dashboard stats - no role filter, we'll filter client-side
+          });
+          
+          // Filter for credit officers client-side (same logic as accurate dashboard service)
+          creditOfficers = allUsersData.data
+            .filter((user: User) => {
+              const role = user.role?.toLowerCase() || '';
+              return role === 'credit_officer' || 
+                     role === 'creditofficer' || 
+                     role === 'credit officer' ||
+                     role === 'co' ||
+                     role.includes('credit');
+            })
+            .map(transformUserToCreditOfficer);
+            
+          console.log(`Strategy 1 result: ${creditOfficers.length} credit officers found`);
+          console.log(`🔄 [CreditOfficersPage] Using same data source as stats card (limit=1000, client-side filtering)`);
+          
+          // Strategy 2: If no results, try fetching from /admin/staff/my-staff
+          if (creditOfficers.length === 0) {
+            console.log('Strategy 2: Fetching from /admin/staff/my-staff endpoint');
+            try {
+              // Use the user service to get staff members
+              const staffData = await userService.getMyStaff();
+              
+              const staffCreditOfficers = staffData
+                .filter((user: User) => {
+                  const role = user.role?.toLowerCase() || '';
+                  return role === 'credit_officer' || 
+                         role === 'creditofficer' || 
+                         role === 'credit officer' ||
+                         role === 'co' ||
+                         role.includes('credit');
+                })
+                .map(transformUserToCreditOfficer);
+                
+              creditOfficers = [...creditOfficers, ...staffCreditOfficers];
+              console.log(`Strategy 2 result: ${staffCreditOfficers.length} additional credit officers found`);
+            } catch (staffError) {
+              console.warn('Strategy 2 failed:', staffError);
+            }
+          }
+          
+          // Strategy 3: If still no results, try different role variations
+          if (creditOfficers.length === 0) {
+            console.log('Strategy 3: Trying different role variations');
+            const roleVariations = ['creditofficer', 'credit officer', 'co', 'loan_officer'];
+            
+            for (const roleVariation of roleVariations) {
+              try {
+                const variantData = await unifiedUserService.getUsers({ 
+                  role: roleVariation,
+                  limit: 100
+                });
+                
+                const variantCreditOfficers = variantData.data
+                  .filter((user: User) => {
+                    const role = user.role?.toLowerCase() || '';
+                    return role === roleVariation.toLowerCase();
+                  })
+                  .map(transformUserToCreditOfficer);
+                  
+                creditOfficers = [...creditOfficers, ...variantCreditOfficers];
+                console.log(`Strategy 3 (${roleVariation}): ${variantCreditOfficers.length} credit officers found`);
+                
+                if (variantCreditOfficers.length > 0) break; // Stop if we found some
+              } catch (variantError) {
+                console.warn(`Strategy 3 (${roleVariation}) failed:`, variantError);
+              }
+            }
+          }
+          
+          // Remove duplicates based on ID
+          creditOfficers = creditOfficers.filter((officer, index, self) => 
+            index === self.findIndex(o => o.id === officer.id)
+          );
+          
+          console.log(`Final result: ${creditOfficers.length} unique credit officers`);
+          
+        } catch (error) {
+          console.error('Error fetching credit officers:', error);
+          // Fallback: return empty array but don't throw
+          creditOfficers = [];
+        }
 
-      // Fetch dashboard statistics for credit officers count
-      const dashboardData = await dashboardService.getKPIs();
-      
-      // Ensure we have valid data before creating stats
-      if (!dashboardData || !dashboardData.creditOfficers) {
-        console.error('Invalid dashboard data:', dashboardData);
-        setCreditOfficersStatistics([]);
-        return;
-      }
-      
-      const creditOfficerData = dashboardData.creditOfficers;
-      const stats: StatSection[] = [
-        {
-          label: 'Total Credit Officers',
-          value: extractValue(creditOfficerData.value, 0),
-          change: extractValue(creditOfficerData.change, 0),
-          changeLabel: extractValue(creditOfficerData.changeLabel, 'No change this month'),
-          isCurrency: extractValue(creditOfficerData.isCurrency, false),
-        },
-      ];
-      setCreditOfficersStatistics(stats);
+        // Log final result
+        if (creditOfficers.length === 0) {
+          console.log('🔧 [CreditOfficersPage] No credit officers found in backend');
+        }
+
+        // Apply search filter if provided
+        if (searchTerm && searchTerm.trim()) {
+          const query = searchTerm.toLowerCase();
+          creditOfficers = creditOfficers.filter(officer =>
+            officer.name.toLowerCase().includes(query) ||
+            officer.idNumber.includes(query) ||
+            officer.email.toLowerCase().includes(query) ||
+            officer.phone.includes(query)
+          );
+        }
+
+        // Apply time period and date range filters
+        if (selectedPeriod || dateRange) {
+          const { filterByTimePeriod, filterByDateRange } = await import('@/lib/utils/dateFilters');
+
+          if (selectedPeriod && selectedPeriod !== 'custom') {
+            // Apply preset time period filter - using dateJoined field
+            creditOfficers = filterByTimePeriod(
+              creditOfficers.map(co => ({ ...co, createdAt: co.dateJoined })),
+              'createdAt',
+              selectedPeriod
+            );
+          } else if (dateRange) {
+            // Apply custom date range filter
+            creditOfficers = filterByDateRange(
+              creditOfficers.map(co => ({ ...co, createdAt: co.dateJoined })),
+              'createdAt',
+              dateRange
+            );
+          }
+        }
+
+        // Fetch dashboard statistics (use cached data to avoid clearing)
+        const dashboardData = await dashboardService.getKPIs();
+
+        // Ensure we have valid data before creating stats
+        let statistics: StatSection[] = [];
+        
+        // Use actual credit officers count from the table data instead of dashboard data
+        // This ensures the stats card and table always show the same numbers
+        const actualCreditOfficersCount = creditOfficers.length;
+        
+        console.log(`🔄 [CreditOfficersPage] Synchronizing stats with table data:`);
+        console.log(`   - Table shows: ${actualCreditOfficersCount} credit officers`);
+        console.log(`   - Stats will show: ${actualCreditOfficersCount} credit officers`);
+        
+        if (dashboardData && dashboardData.creditOfficers) {
+          const creditOfficerData = dashboardData.creditOfficers;
+          statistics = [
+            {
+              label: 'Total Credit Officers',
+              value: actualCreditOfficersCount, // Use actual count from table data
+              change: extractValue(creditOfficerData.change, 0),
+              changeLabel: extractValue(creditOfficerData.changeLabel, 'No change this month'),
+              isCurrency: extractValue(creditOfficerData.isCurrency, false),
+            },
+          ];
+        } else {
+          // Fallback to actual count if dashboard data is not available
+          statistics = [
+            {
+              label: 'Total Credit Officers',
+              value: actualCreditOfficersCount,
+              change: 0,
+              changeLabel: 'No change this month',
+              isCurrency: false,
+            },
+          ];
+        }
+
+        return { creditOfficers, statistics };
+      })();
+
+      const result = await fetchPromise;
+      setCreditOfficersData(result.creditOfficers);
+      setCreditOfficersStatistics(result.statistics);
 
     } catch (err) {
       console.error('Failed to fetch credit officers data:', err);
@@ -120,31 +271,72 @@ export default function CreditOfficersPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [selectedPeriod, dateRange, error]);
 
-  // Load initial data
+  // Handle search with debouncing and memoization
+  const debouncedSearch = useMemo(() => {
+    let timeoutId: NodeJS.Timeout;
+    return (searchTerm: string) => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        fetchCreditOfficersData(searchTerm);
+      }, 300);
+    };
+  }, [fetchCreditOfficersData]);
+
+  // Load initial data with proper effect handling
+  const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
+  
   useEffect(() => {
-    fetchCreditOfficersData();
-  }, []);
+    if (!hasInitiallyLoaded) {
+      console.log('Initial credit officers data fetch');
+      fetchCreditOfficersData();
+      setHasInitiallyLoaded(true);
+    }
+  }, [fetchCreditOfficersData, hasInitiallyLoaded]);
 
   // Handle search with debouncing
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      fetchCreditOfficersData(searchQuery);
-    }, 300);
+    if (searchQuery.trim()) {
+      debouncedSearch(searchQuery);
+    }
+  }, [searchQuery, debouncedSearch]);
 
-    return () => clearTimeout(timeoutId);
-  }, [searchQuery]);
+  // Refresh data when filters change
+  useEffect(() => {
+    if (hasInitiallyLoaded) { // Only run after initial load
+      fetchCreditOfficersData();
+    }
+  }, [selectedPeriod, dateRange, fetchCreditOfficersData, hasInitiallyLoaded]);
 
-  const handlePeriodChange = (period: TimePeriod) => {
+  // Add window focus listener to refresh data when user returns to tab
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log('Window focused - refreshing credit officers data');
+      fetchCreditOfficersData();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [fetchCreditOfficersData]);
+
+  const handlePeriodChange = useCallback((period: TimePeriod) => {
     setSelectedPeriod(period);
-    console.log('Time period changed:', period);
-  };
+    // Clear custom date range when selecting a preset period
+    if (period !== 'custom') {
+      setDateRange(undefined);
+    }
+    // Data will be refetched automatically due to useEffect dependency
+  }, []);
 
-  const handleDateRangeChange = (range: DateRange | undefined) => {
+  const handleDateRangeChange = useCallback((range: DateRange | undefined) => {
     setDateRange(range);
-    console.log('Date range changed:', range);
-  };
+    // When a custom date range is selected, set period to 'custom'
+    if (range) {
+      setSelectedPeriod('custom');
+    }
+    // Data will be refetched automatically due to useEffect dependency
+  }, []);
 
   const handleFilterClick = () => {
     console.log('Filter clicked');
@@ -182,26 +374,54 @@ export default function CreditOfficersPage() {
   const handleSave = async (updatedOfficer: CreditOfficer) => {
     try {
       setIsLoading(true);
-      
+
       // Transform CreditOfficer back to User format for API
+      const nameParts = updatedOfficer.name.trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+
       const updateData = {
-        firstName: updatedOfficer.name.split(' ')[0],
-        lastName: updatedOfficer.name.split(' ').slice(1).join(' '),
+        firstName,
+        lastName,
         email: updatedOfficer.email,
-        mobileNumber: updatedOfficer.phone,
+        mobileNumber: updatedOfficer.phone, // Map phone to mobileNumber
+        // Note: Status is handled via verificationStatus, but the API might not support updating it
+        // We'll focus on the core fields that are definitely supported
       };
 
+      console.log('Updating credit officer with data:', updateData);
+
       await unifiedUserService.updateUser(updatedOfficer.id, updateData);
-      
+
       // Refresh the data
       await fetchCreditOfficersData();
-      
+
       success(`Credit Officer "${updatedOfficer.name}" updated successfully!`);
       setEditModalOpen(false);
       setSelectedOfficer(null);
     } catch (err) {
       console.error('Failed to update credit officer:', err);
-      error('Failed to update credit officer. Please try again.');
+      
+      // Provide more helpful error messages based on the error type
+      let errorMessage = 'Failed to update credit officer. Please try again.';
+      
+      if (err instanceof Error) {
+        console.error('Error details:', err.message);
+        
+        if (err.message.includes('500')) {
+          errorMessage = 'Server error: The update failed due to a backend issue. This might be a temporary problem - please try again in a few moments, or contact support if the issue persists.';
+        } else if (err.message.includes('400')) {
+          errorMessage = 'Validation error: Please check that all required fields are filled correctly and try again.';
+        } else if (err.message.includes('401')) {
+          errorMessage = 'Authentication error: Please log out and log back in, then try again.';
+        } else if (err.message.includes('403')) {
+          errorMessage = 'Permission error: You may not have permission to update this user. Please contact your administrator.';
+        } else if (err.message.includes('404')) {
+          errorMessage = 'User not found: This credit officer may have been deleted. Please refresh the page and try again.';
+        }
+      }
+      
+      error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -216,12 +436,12 @@ export default function CreditOfficersPage() {
     if (officerToDelete) {
       try {
         setIsLoading(true);
-        
+
         await unifiedUserService.deleteUser(officerToDelete.id);
-        
+
         // Refresh the data
         await fetchCreditOfficersData();
-        
+
         success(`Credit Officer "${officerToDelete.name}" deleted successfully!`);
         setDeleteModalOpen(false);
         setOfficerToDelete(null);
@@ -337,7 +557,68 @@ export default function CreditOfficersPage() {
                       boxShadow: '0px 1px 3px rgba(16, 24, 40, 0.1), 0px 1px 2px rgba(16, 24, 40, 0.06)',
                     }}
                   >
-                    <table className="w-full">
+                    {paginatedOfficers.length === 0 ? (
+                      <div className="p-12 text-center">
+                        <div className="mb-4">
+                          <svg
+                            className="mx-auto h-12 w-12 text-gray-400"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            aria-hidden="true"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                            />
+                          </svg>
+                        </div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">No Credit Officers Found</h3>
+                        <p className="text-gray-500 mb-4">
+                          {searchQuery 
+                            ? `No credit officers match your search "${searchQuery}".`
+                            : "No credit officers were found in the system. This may be because:"
+                          }
+                        </p>
+                        {!searchQuery && (
+                          <div className="text-sm text-gray-600 mb-4 space-y-1">
+                            <p>• The backend doesn't have users with credit officer roles</p>
+                            <p>• Role information is not being returned by the API</p>
+                            <p>• Credit officers use different role names than expected</p>
+                          </div>
+                        )}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              // Clear all caches to ensure fresh data
+                              unifiedUserService.clearCache();
+                              accurateDashboardService.clearCache();
+                              fetchCreditOfficersData();
+                            }}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                          >
+                            Refresh Data
+                          </button>
+                          <button
+                            onClick={() => {
+                              debugCreditOfficersDiscrepancy().then(result => {
+                                console.log('Debug completed:', result);
+                                alert(`Debug completed! Check console for details.\nTable: ${result.tableCount}, Card: ${result.cardCount}`);
+                              }).catch(error => {
+                                console.error('Debug failed:', error);
+                                alert('Debug failed - check console for details');
+                              });
+                            }}
+                            className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors"
+                          >
+                            Debug Discrepancy
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <table className="w-full">
                       <thead>
                         <tr style={{ backgroundColor: 'var(--bg-gray-50)', borderBottom: '1px solid var(--color-border-gray-200)' }}>
                           <th className="px-6 py-3 text-left">
@@ -514,6 +795,7 @@ export default function CreditOfficersPage() {
                         ))}
                       </tbody>
                     </table>
+                    )}
                   </div>
 
                   {/* Pagination */}

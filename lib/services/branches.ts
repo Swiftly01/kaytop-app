@@ -115,8 +115,6 @@ class BranchAPIService implements BranchService {
             const branchUsers = await userService.getUsersByBranch(branchName, { page: 1, limit: 1000 });
             
             const usersData = branchUsers?.data || [];
-            const creditOfficers = usersData.filter(user => user.role === 'credit_officer');
-            const customers = usersData.filter(user => user.role === 'customer');
             
             // Create branch ID from name (consistent with frontend routing)
             const branchId = branchName.toLowerCase().replace(/\s+/g, '-');
@@ -216,7 +214,7 @@ class BranchAPIService implements BranchService {
       const totalCustomers = customers.length;
       
       // Get dashboard KPIs for growth calculations
-      let growthMetrics = {
+      const growthMetrics = {
         creditOfficersGrowth: 0,
         customersGrowth: 0,
         activeLoansGrowth: 0,
@@ -322,7 +320,7 @@ class BranchAPIService implements BranchService {
         return response.data;
       }
 
-      throw new Error((response.data as any).message || 'Failed to create branch');
+      throw new Error((response.data as { message?: string }).message || 'Failed to create branch');
     } catch (error) {
       console.error('Branch creation error:', error);
       throw error;
@@ -337,7 +335,7 @@ class BranchAPIService implements BranchService {
         return response.data;
       }
 
-      throw new Error((response.data as any).message || 'Failed to update branch');
+      throw new Error((response.data as { message?: string }).message || 'Failed to update branch');
     } catch (error) {
       console.error('Branch update error:', error);
       throw error;
@@ -349,7 +347,7 @@ class BranchAPIService implements BranchService {
       const response = await apiClient.delete(`/admin/branches/${id}`);
 
       if (isFailureResponse(response)) {
-        throw new Error((response.data as any).message || 'Failed to delete branch');
+        throw new Error((response.data as { message?: string }).message || 'Failed to delete branch');
       }
     } catch (error) {
       console.error('Branch deletion error:', error);
@@ -365,7 +363,7 @@ class BranchAPIService implements BranchService {
         return response.data;
       }
 
-      throw new Error((response.data as any).message || 'Failed to fetch branch statistics');
+      throw new Error((response.data as { message?: string }).message || 'Failed to fetch branch statistics');
     } catch (error) {
       console.error('Branch statistics fetch error:', error);
       throw error;
@@ -392,7 +390,7 @@ class BranchAPIService implements BranchService {
         return response.data;
       }
 
-      throw new Error((response.data as any).message || 'Failed to fetch branches by state');
+      throw new Error((response.data as { message?: string }).message || 'Failed to fetch branches by state');
     } catch (error) {
       console.error('Branches by state fetch error:', error);
       throw error;
@@ -419,7 +417,7 @@ class BranchAPIService implements BranchService {
         return response.data;
       }
 
-      throw new Error((response.data as any).message || 'Failed to fetch branches by region');
+      throw new Error((response.data as { message?: string }).message || 'Failed to fetch branches by region');
     } catch (error) {
       console.error('Branches by region fetch error:', error);
       throw error;

@@ -79,14 +79,15 @@ export function useOptimisticReportsUpdates(
     // Update all relevant query caches
     queryClient.setQueriesData(
       { queryKey: ['reports'] },
-      (oldData: any) => {
+      (oldData: unknown) => {
         if (!oldData) return oldData;
 
+        const data = oldData as { data?: Report[]; [key: string]: unknown };
         // Handle paginated response
-        if (oldData.data && Array.isArray(oldData.data)) {
+        if (data.data && Array.isArray(data.data)) {
           return {
-            ...oldData,
-            data: oldData.data.map((report: Report) =>
+            ...data,
+            data: data.data.map((report: Report) =>
               report.id === reportId
                 ? { ...report, ...optimisticData }
                 : report
@@ -116,21 +117,22 @@ export function useOptimisticReportsUpdates(
   const revertOptimisticUpdate = useCallback((reportId: string, originalData: Report) => {
     queryClient.setQueriesData(
       { queryKey: ['reports'] },
-      (oldData: any) => {
+      (oldData: unknown) => {
         if (!oldData) return oldData;
 
+        const data = oldData as { data?: Report[]; id?: string; [key: string]: unknown };
         // Handle paginated response
-        if (oldData.data && Array.isArray(oldData.data)) {
+        if (data.data && Array.isArray(data.data)) {
           return {
-            ...oldData,
-            data: oldData.data.map((report: Report) =>
+            ...data,
+            data: data.data.map((report: Report) =>
               report.id === reportId ? originalData : report
             ),
           };
         }
 
         // Handle single report
-        if (oldData.id === reportId) {
+        if (data.id === reportId) {
           return originalData;
         }
 
@@ -342,16 +344,21 @@ export function useOptimisticReportsUpdates(
     // For delete, we remove from cache optimistically
     queryClient.setQueriesData(
       { queryKey: ['reports'] },
-      (oldData: any) => {
+      (oldData: unknown) => {
         if (!oldData) return oldData;
 
-        if (oldData.data && Array.isArray(oldData.data)) {
+        const data = oldData as { 
+          data?: Report[]; 
+          pagination?: { total: number; [key: string]: unknown }; 
+          [key: string]: unknown 
+        };
+        if (data.data && Array.isArray(data.data)) {
           return {
-            ...oldData,
-            data: oldData.data.filter((report: Report) => report.id !== reportId),
+            ...data,
+            data: data.data.filter((report: Report) => report.id !== reportId),
             pagination: {
-              ...oldData.pagination,
-              total: oldData.pagination.total - 1,
+              ...data.pagination,
+              total: (data.pagination?.total || 0) - 1,
             },
           };
         }

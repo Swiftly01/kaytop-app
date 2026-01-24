@@ -16,7 +16,7 @@ export interface ErrorHandlerOptions {
 export interface ErrorContext {
   endpoint?: string;
   method?: string;
-  requestData?: any;
+  requestData?: Record<string, unknown>;
   userId?: string;
   timestamp?: string;
 }
@@ -99,13 +99,13 @@ export class UnifiedAPIErrorHandler {
     }
 
     if (error.status === 400 && error.details?.validation) {
-      return error.details.validation.map((v: any) => v.message || 'Validation error');
+      return error.details.validation.map((v: { message?: string }) => v.message || 'Validation error');
     }
 
     if (error.status === 422 && error.details?.errors) {
       // Handle Laravel-style validation errors
       const errors: string[] = [];
-      Object.values(error.details.errors).forEach((fieldErrors: any) => {
+      Object.values(error.details.errors).forEach((fieldErrors: string | string[]) => {
         if (Array.isArray(fieldErrors)) {
           errors.push(...fieldErrors);
         }
@@ -119,7 +119,7 @@ export class UnifiedAPIErrorHandler {
   /**
    * Handle general API errors
    */
-  static handleApiError(error: any, options: ErrorHandlerOptions = {}): string {
+  static handleApiError(error: Error & { status?: number; details?: Record<string, unknown> }, options: ErrorHandlerOptions = {}): string {
     const { logError = true } = options;
 
     if (logError) {
@@ -162,7 +162,7 @@ export class UnifiedAPIErrorHandler {
   /**
    * Create user-friendly error message
    */
-  static createUserFriendlyMessage(error: any): string {
+  static createUserFriendlyMessage(error: Error | string | { message?: string; status?: number }): string {
     // Extract meaningful error message from different error formats
     if (typeof error === 'string') {
       return error;
@@ -186,7 +186,7 @@ export class UnifiedAPIErrorHandler {
   /**
    * Determine if error is retryable
    */
-  static isRetryableError(error: any): boolean {
+  static isRetryableError(error: Error & { type?: string; status?: number }): boolean {
     if (error.type === 'network') {
       return true;
     }
@@ -202,7 +202,7 @@ export class UnifiedAPIErrorHandler {
   /**
    * Log error with enhanced context for debugging and monitoring
    */
-  static logErrorWithContext(error: any, context: ErrorContext): void {
+  static logErrorWithContext(error: Error & { suppressLog?: boolean }, context: ErrorContext): void {
     // Check if error logging is suppressed for this error
     if (error?.suppressLog) {
       return;
@@ -222,11 +222,11 @@ export class UnifiedAPIErrorHandler {
         ...Object.getOwnPropertyNames(safeError).reduce((acc, key) => {
           try {
             acc[key] = safeError[key];
-          } catch (e) {
+          } catch {
             acc[key] = 'Unable to serialize';
           }
           return acc;
-        }, {} as any),
+        }, {} as Record<string, unknown>),
         // Include details if available
         details: safeError.details || null,
         // Include response data if available
@@ -271,7 +271,7 @@ export class UnifiedAPIErrorHandler {
   /**
    * Send error to tracking service (placeholder for production implementation)
    */
-  private static sendToErrorTracking(errorLog: any): void {
+  private static sendToErrorTracking(errorLog: Record<string, unknown>): void {
     if (!API_CONFIG.ENABLE_ERROR_TRACKING) {
       return;
     }
@@ -303,7 +303,7 @@ export class UnifiedAPIErrorHandler {
       baseDelay?: number;
       maxDelay?: number;
       jitter?: boolean;
-      retryCondition?: (error: any) => boolean;
+      retryCondition?: (error: Error) => boolean;
     } = {}
   ): Promise<T> {
     const {
@@ -314,7 +314,7 @@ export class UnifiedAPIErrorHandler {
       retryCondition = this.isRetryableError
     } = options;
 
-    let lastError: any;
+    let lastError: Error;
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {

@@ -18,7 +18,7 @@ export interface ConcurrentUpdateConfig {
 export interface UpdateQueue {
   id: string;
   type: 'approve' | 'decline' | 'update' | 'delete';
-  data: any;
+  data: Record<string, unknown>;
   timestamp: number;
   retryCount: number;
   status: 'pending' | 'processing' | 'completed' | 'failed';
@@ -94,7 +94,7 @@ export function useConcurrentReportsUpdates(
   const queueUpdate = useCallback((
     reportId: string,
     type: UpdateQueue['type'],
-    data: any
+    data: Record<string, unknown>
   ): string => {
     const updateId = `${type}_${reportId}_${Date.now()}`;
     

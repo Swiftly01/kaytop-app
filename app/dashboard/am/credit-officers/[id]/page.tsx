@@ -4,6 +4,7 @@ import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/app/hooks/useToast';
 import { ToastContainer } from '@/app/_components/ui/ToastContainer';
+import { formatDate } from '@/lib/utils';
 import CreditOfficerInfoCard from '@/app/_components/ui/CreditOfficerInfoCard';
 import CreditOfficerTabs from '@/app/_components/ui/CreditOfficerTabs';
 import CollectionsTable from '@/app/_components/ui/CollectionsTable';
@@ -11,6 +12,10 @@ import LoansDisbursedTable from '@/app/_components/ui/LoansDisbursedTable';
 import Pagination from '@/app/_components/ui/Pagination';
 import { StatisticsCard, StatSection } from '@/app/_components/ui/StatisticsCard';
 import { PageSkeleton } from '@/app/_components/ui/Skeleton';
+import { userService } from '@/lib/services/users';
+import { loanService } from '@/lib/services/loans';
+import { savingsService } from '@/lib/services/savings';
+import type { User, Loan, Transaction } from '@/lib/api/types';
 
 // TypeScript Interfaces
 interface CreditOfficerDetails {
@@ -26,15 +31,18 @@ interface CreditOfficerDetails {
 
 interface CollectionTransaction {
   id: string;
-  customerName: string;
+  transactionId: string;
+  customerName?: string;
   amount: number;
   date: string;
   status: 'Completed' | 'Pending' | 'Failed';
-  loanId: string;
+  loanId?: string;
+  type: 'Deposit' | 'Withdrawal' | 'Transfer';
 }
 
 interface DisbursedLoan {
   id: string;
+  loanId: string;
   customerName: string;
   amount: number;
   date: string;
@@ -63,109 +71,169 @@ export default function AMCreditOfficerDetailsPage({ params }: { params: Promise
   const [creditOfficerStatistics, setCreditOfficerStatistics] = useState<StatSection[]>([]);
   const [apiError, setApiError] = useState<string | null>(null);
 
+  // Transform User to CreditOfficerDetails
+  const transformUserToCreditOfficerDetails = (user: User): CreditOfficerDetails => ({
+    id: String(user.id),
+    name: `${user.firstName} ${user.lastName}`,
+    coId: `CO${String(user.id).slice(-3).padStart(3, '0')}`,
+    dateJoined: new Date(user.createdAt).toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: '2-digit' 
+    }),
+    branch: user.branch || 'Not assigned',
+    phone: user.mobileNumber || 'Not provided',
+    email: user.email,
+    status: user.isActive ? 'Active' : 'Inactive'
+  });
+
+  // Transform Transaction to CollectionTransaction
+  const transformTransactionToCollection = (transaction: Transaction, customerName: string): CollectionTransaction => ({
+    id: String(transaction.id),
+    transactionId: String(transaction.id).slice(-8).toUpperCase(),
+    customerName,
+    amount: transaction.amount,
+    date: new Date(transaction.createdAt).toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: '2-digit' 
+    }),
+    status: transaction.status === 'approved' ? 'Completed' : 
+            transaction.status === 'rejected' ? 'Failed' : 'Pending',
+    loanId: transaction.loanId ? String(transaction.loanId) : undefined,
+    type: transaction.type === 'deposit' ? 'Deposit' : 
+          transaction.type === 'withdrawal' ? 'Withdrawal' : 'Transfer'
+  });
+
+  // Transform Loan to DisbursedLoan
+  const transformLoanToDisbursed = (loan: Loan, customerName: string): DisbursedLoan => ({
+    id: String(loan.id),
+    loanId: String(loan.id).slice(-8).toUpperCase(),
+    customerName,
+    amount: loan.amount,
+    date: new Date(loan.createdAt).toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: '2-digit' 
+    }),
+    status: loan.status === 'active' ? 'Active' : 
+            loan.status === 'completed' ? 'Completed' : 'Defaulted',
+    term: loan.repaymentPeriod ? `${loan.repaymentPeriod} months` : 'N/A',
+    interest: loan.interestRate || 0,
+    nextRepayment: loan.nextRepaymentDate ? new Date(loan.nextRepaymentDate).toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: '2-digit' 
+    }) : 'N/A',
+    creditOfficerId: id
+  });
+
   // Fetch credit officer data
   const fetchCreditOfficerData = async () => {
     try {
       setIsLoading(true);
       setApiError(null);
 
-      // Mock credit officer details - in real implementation, this would call AM API
-      const mockOfficerDetails: CreditOfficerDetails = {
-        id: id,
-        name: 'John Doe',
-        coId: `CO${id.padStart(3, '0')}`,
-        dateJoined: 'Jan 15, 2024',
-        branch: 'Ikeja Branch',
-        phone: '+234 801 234 5678',
-        email: 'john.doe@example.com',
-        status: 'Active'
-      };
-      setCreditOfficer(mockOfficerDetails);
+      // Fetch credit officer details
+      const user = await userService.getUserById(id);
+      if (user.role !== 'credit_officer') {
+        throw new Error('User is not a credit officer');
+      }
 
-      // Mock collections data
-      const mockCollections: CollectionTransaction[] = [
-        {
-          id: '1',
-          customerName: 'Alice Johnson',
-          amount: 50000,
-          date: '2024-12-20',
-          status: 'Completed',
-          loanId: 'LN001'
-        },
-        {
-          id: '2',
-          customerName: 'Bob Smith',
-          amount: 25000,
-          date: '2024-12-19',
-          status: 'Pending',
-          loanId: 'LN002'
-        },
-        {
-          id: '3',
-          customerName: 'Carol Williams',
-          amount: 75000,
-          date: '2024-12-18',
-          status: 'Completed',
-          loanId: 'LN003'
-        }
-      ];
-      setCollectionsData(mockCollections);
+      const officerDetails = transformUserToCreditOfficerDetails(user);
+      setCreditOfficer(officerDetails);
 
-      // Mock loans disbursed data
-      const mockLoans: DisbursedLoan[] = [
-        {
-          id: '1',
-          customerName: 'David Brown',
-          amount: 200000,
-          date: '2024-12-15',
-          status: 'Active',
-          term: '12 months',
-          interest: 15,
-          nextRepayment: '2024-12-25',
-          creditOfficerId: id
-        },
-        {
-          id: '2',
-          customerName: 'Eva Davis',
-          amount: 150000,
-          date: '2024-12-10',
-          status: 'Active',
-          term: '6 months',
-          interest: 12,
-          nextRepayment: '2024-12-28',
-          creditOfficerId: id
-        }
-      ];
-      setLoansData(mockLoans);
+      // Fetch all loans and filter by credit officer
+      const allLoans = await loanService.getAllLoans();
+      // Note: Backend may not have direct credit officer assignment fields
+      // We'll use all loans for now and let the credit officer manage them
+      const creditOfficerLoans = allLoans; // Use all loans since we don't have direct filtering
 
-      // Mock statistics
+      // Transform loans to disbursed loans format
+      const transformedLoans = await Promise.all(
+        creditOfficerLoans.map(async (loan: Loan) => {
+          let customerName = 'Unknown Customer';
+          try {
+            if (loan.customerId) {
+              const customer = await userService.getUserById(String(loan.customerId));
+              customerName = `${customer.firstName} ${customer.lastName}`;
+            }
+          } catch (err) {
+            console.warn('Failed to fetch customer name for loan:', loan.id);
+          }
+          
+          return transformLoanToDisbursed(loan, customerName);
+        })
+      );
+      setLoansData(transformedLoans);
+
+      // Fetch all savings transactions and filter by credit officer
+      let transformedCollections: CollectionTransaction[] = [];
+      try {
+        const allSavingsTransactions = await savingsService.getAllSavingsTransactions();
+        // Note: Backend may not have direct credit officer assignment fields
+        // We'll use all transactions for now and let the credit officer manage them
+        const creditOfficerTransactions = allSavingsTransactions; // Use all transactions since we don't have direct filtering
+
+        // Transform transactions to collections format
+        transformedCollections = await Promise.all(
+          creditOfficerTransactions.map(async (transaction: Transaction) => {
+            let customerName = 'Unknown Customer';
+            try {
+              // Note: Transaction type doesn't have customerId, we'll use a placeholder
+              customerName = `Customer ${transaction.id}`;
+            } catch (err) {
+              console.warn('Failed to fetch customer name for transaction:', transaction.id);
+            }
+            
+            return transformTransactionToCollection(transaction, customerName);
+          })
+        );
+        setCollectionsData(transformedCollections);
+      } catch (err) {
+        console.warn('Failed to fetch savings transactions, using empty array:', err);
+        setCollectionsData([]);
+      }
+
+      // Calculate real statistics from fetched data
+      const uniqueCustomers = new Set([
+        ...transformedLoans.map(loan => loan.customerName),
+        ...transformedCollections.map(col => col.customerName).filter(Boolean)
+      ]).size;
+
+      const activeLoans = transformedLoans.filter(loan => loan.status === 'Active').length;
+      const totalCollections = transformedCollections.reduce((sum, col) => sum + col.amount, 0);
+      const completedCollections = transformedCollections.filter(col => col.status === 'Completed').length;
+      const collectionRate = transformedCollections.length > 0 ? 
+        (completedCollections / transformedCollections.length) * 100 : 0;
+
       const stats: StatSection[] = [
         {
           label: 'Total Collections',
-          value: mockCollections.reduce((sum, col) => sum + col.amount, 0),
-          change: 12.5,
-          changeLabel: '+12.5% this month',
+          value: totalCollections,
+          change: 0, // Would need historical data for change calculation
+          changeLabel: 'Total amount collected',
           isCurrency: true,
         },
         {
           label: 'Loans Disbursed',
-          value: mockLoans.length,
-          change: 8.3,
-          changeLabel: '+8.3% this month',
+          value: transformedLoans.length,
+          change: 0,
+          changeLabel: 'Total loans processed',
           isCurrency: false,
         },
         {
           label: 'Active Customers',
-          value: new Set([...mockCollections.map(c => c.customerName), ...mockLoans.map(l => l.customerName)]).size,
-          change: 5.7,
-          changeLabel: '+5.7% this month',
+          value: uniqueCustomers,
+          change: 0,
+          changeLabel: 'Unique customers managed',
           isCurrency: false,
         },
         {
           label: 'Collection Rate',
-          value: 95.2,
-          change: 2.1,
-          changeLabel: '+2.1% this month',
+          value: Math.round(collectionRate * 10) / 10, // Round to 1 decimal place
+          change: 0,
+          changeLabel: 'Success rate percentage',
           isCurrency: false,
         },
       ];

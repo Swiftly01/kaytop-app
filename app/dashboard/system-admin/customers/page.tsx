@@ -10,9 +10,12 @@ import { ToastContainer } from '@/app/_components/ui/ToastContainer';
 import { useToast } from '@/app/hooks/useToast';
 import Pagination from '@/app/_components/ui/Pagination';
 import { StatisticsCardSkeleton, TableSkeleton } from '@/app/_components/ui/Skeleton';
+import { PAGINATION_LIMIT } from '@/lib/config';
 import { unifiedUserService } from '@/lib/services/unifiedUser';
 import { dashboardService } from '@/lib/services/dashboard';
 import { extractValue } from '@/lib/utils/dataExtraction';
+import { formatDate } from '@/lib/utils';
+import { formatCustomerDate } from '@/lib/dateUtils';
 import type { User } from '@/lib/api/types';
 import { DateRange } from 'react-day-picker';
 import type { TimePeriod } from '@/app/_components/ui/FilterControls';
@@ -35,19 +38,16 @@ const transformUserToCustomer = (user: User): Customer => ({
   email: user.email,
   phoneNumber: user.mobileNumber,
   status: user.verificationStatus === 'verified' ? 'Active' : 'Scheduled',
-  dateJoined: new Date(user.createdAt).toLocaleDateString('en-US', { 
-    year: 'numeric', 
-    month: 'short', 
-    day: '2-digit' 
-  })
+  dateJoined: formatCustomerDate(user.createdAt)
 });
 
 export default function CustomersPage() {
   const { toasts, removeToast, success, error } = useToast();
-  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('last_30_days');
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(PAGINATION_LIMIT);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
@@ -71,47 +71,48 @@ export default function CustomersPage() {
   const [totalCustomers, setTotalCustomers] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
 
-  const itemsPerPage = 10;
-
-  // Fetch all users and filter customers on frontend
+  // Fetch users using the /admin/users endpoint with client-side role filtering
   const fetchCustomersData = async (page: number = 1, filters?: CustomerAdvancedFilters) => {
     try {
       setIsLoading(true);
       setApiError(null);
 
-      // Fetch all users and filter customers on frontend
-      const allUsersResponse = await unifiedUserService.getUsers({
-        page: 1,
-        limit: 1000, // Get all users to filter on frontend
+      // Since /admin/users doesn't support role filtering, we need to fetch more data
+      // and filter client-side. We'll fetch a larger page size to account for filtering.
+      const fetchLimit = itemsPerPage * 5; // Fetch 5x more to account for role filtering
+      
+      const usersResponse = await unifiedUserService.getAllUsers({
+        page: 1, // Always fetch from page 1 since we're filtering client-side
+        limit: Math.max(fetchLimit, 100), // Minimum 100 to ensure we get enough customers
         ...(filters?.branch && { branch: filters.branch }),
         ...(filters?.region && { state: filters.region }),
       });
-      
-      console.log('🔍 System Admin - Fetched users response:', allUsersResponse);
-      console.log(`📊 Total users fetched: ${allUsersResponse.data.length}`);
-      
+
+      console.log('🔍 System Admin - Fetched users response from /admin/users:', usersResponse);
+      console.log(`📊 Total users fetched: ${usersResponse.data.length}`);
+
       // Debug: Log role distribution
       const roleDistribution: Record<string, number> = {};
-      allUsersResponse.data.forEach(user => {
+      usersResponse.data.forEach(user => {
         const role = user.role || 'undefined';
         roleDistribution[role] = (roleDistribution[role] || 0) + 1;
       });
       console.log('👥 Role distribution:', roleDistribution);
-      
-      // Frontend filtering: Only show users with role 'customer'
-      const customerUsers = allUsersResponse.data.filter(user => {
+
+      // Client-side filtering: Only show users with role 'customer'
+      const customerUsers = usersResponse.data.filter(user => {
         const isCustomer = user.role === 'customer';
         if (isCustomer) {
           console.log('✅ Found customer user:', user);
         }
         return isCustomer;
       });
-      
+
       console.log(`🎯 Filtered customers: ${customerUsers.length}`);
-      
+
       // Apply additional frontend filters if needed
       let filteredCustomers = customerUsers;
-      
+
       if (filters?.status) {
         filteredCustomers = filteredCustomers.filter(user => {
           const status = user.verificationStatus === 'verified' ? 'Active' : 'Scheduled';
@@ -119,27 +120,43 @@ export default function CustomersPage() {
         });
       }
 
+      // Apply time period and date range filters
+      if (selectedPeriod || dateRange) {
+        const { filterByTimePeriod, filterByDateRange } = await import('@/lib/utils/dateFilters');
+
+        if (selectedPeriod && selectedPeriod !== 'custom') {
+          // Apply preset time period filter
+          filteredCustomers = filterByTimePeriod(filteredCustomers, 'createdAt', selectedPeriod);
+        } else if (dateRange) {
+          // Apply custom date range filter
+          filteredCustomers = filterByDateRange(filteredCustomers, 'createdAt', dateRange);
+        }
+      }
+
       // Transform to customer format
       const transformedCustomers = filteredCustomers.map(transformUserToCustomer);
-      
-      // Frontend pagination
+
+      // Client-side pagination
       const totalCustomers = transformedCustomers.length;
       const totalPages = Math.ceil(totalCustomers / itemsPerPage);
       const startIndex = (page - 1) * itemsPerPage;
       const paginatedCustomers = transformedCustomers.slice(startIndex, startIndex + itemsPerPage);
-      
+
       setCustomers(paginatedCustomers);
       setTotalCustomers(totalCustomers);
       setTotalPages(totalPages);
 
+      console.log(`🎯 Final customers displayed: ${paginatedCustomers.length}`);
+      console.log(`📊 Total customers in system: ${totalCustomers}`);
+
       // Fetch dashboard statistics for active loans (keep this from dashboard)
       const dashboardData = await dashboardService.getKPIs();
-      
-      // Use actual filtered customer count instead of dashboard proxy
+
+      // Use client-side total customer count
       const stats: StatSection[] = [
         {
           label: 'Total Customers',
-          value: totalCustomers, // Use actual filtered customer count
+          value: totalCustomers, // Use client-side filtered total
           change: 0, // TODO: Calculate actual change when we have historical data
           changeLabel: 'No change data available',
           isCurrency: false,
@@ -173,16 +190,28 @@ export default function CustomersPage() {
     if (!isLoading) {
       fetchCustomersData(currentPage, advancedFilters);
     }
-  }, [currentPage]);
+  }, [currentPage, itemsPerPage]);
 
   const handlePeriodChange = (period: TimePeriod) => {
     setSelectedPeriod(period);
-    // TODO: Filter data based on period
+    // Clear custom date range when selecting a preset period
+    if (period !== 'custom') {
+      setDateRange(undefined);
+    }
+    // Refetch data with the new period filter
+    fetchCustomersData(1, advancedFilters);
+    setCurrentPage(1);
   };
 
   const handleDateRangeChange = (range: DateRange | undefined) => {
     setDateRange(range);
-    // TODO: Filter data based on date range
+    // When a custom date range is selected, set period to 'custom'
+    if (range) {
+      setSelectedPeriod('custom');
+    }
+    // Refetch data with the new date range
+    fetchCustomersData(1, advancedFilters);
+    setCurrentPage(1);
   };
 
   const handleFilterClick = () => {
@@ -215,7 +244,7 @@ export default function CustomersPage() {
   const handleSaveCustomer = async (updatedCustomer: Customer) => {
     try {
       setIsLoading(true);
-      
+
       // Transform Customer back to User format for API
       const updateData = {
         firstName: updatedCustomer.name.split(' ')[0],
@@ -225,10 +254,10 @@ export default function CustomersPage() {
       };
 
       await unifiedUserService.updateUser(updatedCustomer.id, updateData);
-      
+
       // Refresh the data
       await fetchCustomersData(currentPage, advancedFilters);
-      
+
       success(`Customer "${updatedCustomer.name}" updated successfully!`);
       setEditModalOpen(false);
       setSelectedCustomer(null);
@@ -240,13 +269,18 @@ export default function CustomersPage() {
     }
   };
 
-  // Pagination info (server-side pagination)
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = Math.min(startIndex + itemsPerPage, totalCustomers);
+  // Pagination info (client-side pagination)
+  const startIndex = (currentPage - 1) * itemsPerPage + 1;
+  const endIndex = Math.min(currentPage * itemsPerPage, totalCustomers);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleItemsPerPageChange = (items: number) => {
+    setItemsPerPage(items);
+    setCurrentPage(1); // Reset to first page when changing items per page
   };
 
   return (
@@ -265,7 +299,7 @@ export default function CustomersPage() {
                   marginBottom: '8px'
                 }}
               >
-                Overview
+                Customer Overview
               </h1>
               <p
                 className="font-medium"
@@ -276,7 +310,7 @@ export default function CustomersPage() {
                   opacity: 0.5
                 }}
               >
-                Igando Branch
+                All Customers
               </p>
               {/* Breadcrumb line */}
               <div
@@ -297,7 +331,7 @@ export default function CustomersPage() {
                 onDateRangeChange={handleDateRangeChange}
                 onFilter={handleFilterClick}
               />
-              
+
               {/* Active Filters Indicator */}
               {Object.values(advancedFilters).some(value => value !== '') && (
                 <div className="mt-4 flex items-center gap-2">
@@ -417,19 +451,31 @@ export default function CustomersPage() {
                   />
 
                   {/* Pagination Controls */}
-                  <div className="mt-4 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-[#475467]">
-                        Showing {startIndex + 1}-{endIndex} of {totalCustomers} results
-                      </span>
-                    </div>
+                  {totalCustomers > 0 && (
+                    <div className="mt-4 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-[#475467]">
+                          Showing {startIndex}-{endIndex} of {totalCustomers} results
+                        </span>
+                        <select
+                          value={itemsPerPage}
+                          onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                          className="px-3 py-1.5 text-sm border border-[#D0D5DD] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:border-[#7F56D9]"
+                          aria-label="Items per page"
+                        >
+                          <option value={10}>10 per page</option>
+                          <option value={25}>25 per page</option>
+                          <option value={50}>50 per page</option>
+                        </select>
+                      </div>
 
-                    <Pagination
-                      totalPages={totalPages}
-                      page={currentPage}
-                      onPageChange={handlePageChange}
-                    />
-                  </div>
+                      <Pagination
+                        totalPages={totalPages}
+                        page={currentPage}
+                        onPageChange={handlePageChange}
+                      />
+                    </div>
+                  )}
                 </>
               )}
             </div>

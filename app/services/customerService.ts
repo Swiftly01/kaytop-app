@@ -4,7 +4,6 @@ import { AxiosError } from "axios";
 import {
   CustomerApiResponse,
   CustomerData,
-  CustomerDataResponse,
   CustomerListResponse,
   CustomerSavingsResponse,
 } from "../types/customer";

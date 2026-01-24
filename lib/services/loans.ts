@@ -12,18 +12,42 @@ import type {
   LoanSummary,
   DisbursementSummary,
 } from '../api/types';
-import { isSuccessResponse, isFailureResponse } from '../utils/responseHelpers';
+import { isSuccessResponse } from '../utils/responseHelpers';
 
 export interface LoanService {
   createLoan(customerId: string, data: CreateLoanData): Promise<Loan>;
   disburseLoan(loanId: string, proof: File): Promise<Loan>;
-  recordRepayment(loanId: string, data: RepaymentData): Promise<any>;
+  recordRepayment(loanId: string, data: RepaymentData): Promise<Loan>;
   getLoanSummary(customerId: string): Promise<LoanSummary>;
   getDisbursementSummary(customerId: string): Promise<DisbursementSummary>;
   getCustomerLoans(customerId: string): Promise<Loan[]>;
+  getAllLoans(): Promise<Loan[]>;
 }
 
 class LoanAPIService implements LoanService {
+  // Type guard for loan-like objects
+  private isLoanLike(obj: unknown): obj is Record<string, unknown> & { id?: unknown; loanId?: unknown; customerId?: unknown } {
+    return typeof obj === 'object' && obj !== null && 
+           ('id' in obj || 'loanId' in obj || 'customerId' in obj);
+  }
+
+  // Type guard for repayment-like objects
+  private isRepaymentLike(obj: unknown): obj is Record<string, unknown> & { id?: unknown; amount?: unknown; loanId?: unknown } {
+    return typeof obj === 'object' && obj !== null && 
+           ('id' in obj || 'amount' in obj || 'loanId' in obj);
+  }
+
+  // Type guard for loan summary-like objects
+  private isLoanSummaryLike(obj: unknown): obj is Record<string, unknown> & { totalLoans?: unknown; activeLoans?: unknown } {
+    return typeof obj === 'object' && obj !== null && 
+           ('totalLoans' in obj || 'activeLoans' in obj);
+  }
+
+  // Type guard for disbursement summary-like objects
+  private isDisbursementSummaryLike(obj: unknown): obj is Record<string, unknown> & { totalDisbursed?: unknown; pendingDisbursements?: unknown } {
+    return typeof obj === 'object' && obj !== null && 
+           ('totalDisbursed' in obj || 'pendingDisbursements' in obj);
+  }
   async createLoan(customerId: string, data: CreateLoanData): Promise<Loan> {
     try {
       const response = await apiClient.post<Loan>(
@@ -38,7 +62,7 @@ class LoanAPIService implements LoanService {
           return response.data;
         }
         // Check if it's direct data format (has loan fields)
-        else if ((response as any).id || (response as any).loanId || (response as any).customerId) {
+        else if (this.isLoanLike(response)) {
           return response as unknown as Loan;
         }
       }
@@ -72,7 +96,7 @@ class LoanAPIService implements LoanService {
           return response.data;
         }
         // Check if it's direct data format (has loan fields)
-        else if ((response as any).id || (response as any).loanId || (response as any).customerId) {
+        else if (this.isLoanLike(response)) {
           return response as unknown as Loan;
         }
       }
@@ -108,8 +132,8 @@ class LoanAPIService implements LoanService {
           return response.data;
         }
         // Check if it's direct data format (has repayment fields)
-        else if ((response as any).id || (response as any).amount || (response as any).loanId) {
-          return response as any;
+        else if (this.isRepaymentLike(response)) {
+          return response as unknown as Loan;
         }
       }
 
@@ -216,6 +240,32 @@ class LoanAPIService implements LoanService {
       throw new Error('Failed to fetch loan repayments - invalid response format');
     } catch (error) {
       console.error('Loan repayments fetch error:', error);
+      throw error;
+    }
+  }
+
+  async getAllLoans(): Promise<Loan[]> {
+    try {
+      const response = await apiClient.get<any>(API_ENDPOINTS.LOANS.ALL);
+
+      // Extract data from Axios response
+      const data = response.data || response;
+
+      // Backend returns direct data format, not wrapped in success/data
+      if (data && typeof data === 'object') {
+        // Check if it's wrapped in success/data format
+        if ((data as any).success && (data as any).data) {
+          return (data as any).data;
+        }
+        // Check if it's direct array format (loans list)
+        else if (Array.isArray(data)) {
+          return data;
+        }
+      }
+
+      throw new Error('Failed to fetch all loans - invalid response format');
+    } catch (error) {
+      console.error('All loans fetch error:', error);
       throw error;
     }
   }

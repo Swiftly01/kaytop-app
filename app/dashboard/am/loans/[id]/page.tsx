@@ -308,9 +308,9 @@ export default function AMLoanDetailsPage({ params }: PageProps) {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left Column - Main Details */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Loan Overview */}
+              {/* Overview */}
               <div className="bg-white border border-[#EAECF0] rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-[#101828] mb-4">Loan Overview</h3>
+                <h3 className="text-lg font-semibold text-[#101828] mb-4">Overview</h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   <div>
                     <p className="text-sm text-[#667085]">Loan Amount</p>

@@ -77,10 +77,11 @@ class ActivityLogsAPIService implements ActivityLogsService {
       }
 
       throw new Error('Failed to fetch activity logs - invalid response format');
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorObj = error as { status?: number; message?: string };
       // If it's a 404 error, provide helpful guidance and return empty data
       // Relaxed check: 404 status OR "Cannot GET" message (common express 404 body)
-      if (error?.status === 404 || error?.message?.includes('Cannot GET')) {
+      if (errorObj?.status === 404 || errorObj?.message?.includes('Cannot GET')) {
         console.warn('⚠️ Activity Logs endpoint not found (404). Returning empty data.');
 
         // Return empty data instead of throwing to prevent UI crash
@@ -173,17 +174,18 @@ class ActivityLogsAPIService implements ActivityLogsService {
       }
 
       throw new Error('Failed to fetch user activity logs - invalid response format');
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorObj = error as { status?: number; message?: string };
       console.error('User activity logs fetch error:', {
-        error: error.message,
-        status: error.status,
+        error: errorObj.message,
+        status: errorObj.status,
         userId,
         endpoint: API_ENDPOINTS.ACTIVITY_LOGS.BY_USER(userId),
         filters
       });
 
       // If endpoint returns 404, it might not be implemented yet
-      if (error.status === 404) {
+      if (errorObj.status === 404) {
         console.warn(`⚠️ User activity logs endpoint not found (404) for user ${userId}. Returning empty result.`);
         return {
           data: [],

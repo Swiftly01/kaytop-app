@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import React from "react";
 import Sidebar from "@/app/_components/layouts/dashboard/Sidebar";
 import Navbar from "@/app/_components/layouts/dashboard/Navbar";
+import QueryProvider from "@/app/_components/ui/QueryProvider";
 import { AccountManagerGuard } from "@/app/components/AuthGuard";
 import { MenuItem } from "@/app/types/routes";
 
@@ -44,11 +45,6 @@ const amMenuItems: MenuItem[] = [
     link: "/dashboard/am/loans",
   },
   {
-    label: "Savings",
-    icon: "/savings.svg",
-    link: "/dashboard/am/savings",
-  },
-  {
     label: "Reports",
     icon: "/report.svg",
     link: "/dashboard/am/reports",
@@ -68,17 +64,19 @@ export default function AccountManagerLayout({
   return (
     <div className="bg-[#F4F6FA] min-h-screen">
       <AccountManagerGuard>
-        <Navbar />
-        <div className="drawer lg:drawer-open" style={{ paddingTop: '70px' }}>
-          <input
-            id="my-drawer-4"
-            type="checkbox"
-            className="drawer-toggle lg:hidden"
-            aria-label="Toggle navigation drawer"
-          />
-          <Sidebar items={amMenuItems} />
-          {children}
-        </div>
+        <QueryProvider>
+          <Navbar />
+          <div className="drawer lg:drawer-open" style={{ paddingTop: '70px' }}>
+            <input
+              id="my-drawer-4"
+              type="checkbox"
+              className="drawer-toggle lg:hidden"
+              aria-label="Toggle navigation drawer"
+            />
+            <Sidebar items={amMenuItems} />
+            {children}
+          </div>
+        </QueryProvider>
       </AccountManagerGuard>
     </div>
   );

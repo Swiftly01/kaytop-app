@@ -1,29 +1,33 @@
-export function formatDate(date: string | Date): string {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
+import dayjs from 'dayjs';
+
+export function formatDate(date: string | Date | null | undefined): string {
+  if (!date) return 'N/A';
   
-  if (isNaN(dateObj.getTime())) {
+  try {
+    const dateObj = dayjs(date);
+    
+    if (!dateObj.isValid()) {
+      return 'Invalid Date';
+    }
+    
+    return dateObj.format('MMM DD, YYYY');
+  } catch {
     return 'Invalid Date';
   }
-  
-  return new Intl.DateTimeFormat('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  }).format(dateObj);
 }
 
-export function formatDateTime(date: string | Date): string {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
+export function formatDateTime(date: string | Date | null | undefined): string {
+  if (!date) return 'N/A';
   
-  if (isNaN(dateObj.getTime())) {
+  try {
+    const dateObj = dayjs(date);
+    
+    if (!dateObj.isValid()) {
+      return 'Invalid Date';
+    }
+    
+    return dateObj.format('MMM DD, YYYY h:mm A');
+  } catch {
     return 'Invalid Date';
   }
-  
-  return new Intl.DateTimeFormat('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(dateObj);
 }

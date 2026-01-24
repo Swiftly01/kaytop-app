@@ -26,7 +26,7 @@ import type { BulkLoansFilters, LoanStatistics } from '@/lib/api/types';
 
 // Mock branch context - in production, this would come from route params or session
 const BRANCH_ID = 'igando-branch';
-const BRANCH_NAME = 'Igando Branch';
+const BRANCH_NAME = 'Report Overview';
 
 type TabId = 'all' | 'active' | 'completed' | 'missed';
 import type { TimePeriod } from '@/app/_components/ui/FilterControls';
@@ -96,7 +96,7 @@ const transformBulkLoanToLoanData = (loan: any): LoanData => {
 export default function LoansPage() {
   // State management
   const { toasts, removeToast, success, error: showError } = useToast();
-  
+
   // API data state
   const [allLoans, setAllLoans] = useState<LoanData[]>([]);
   const [loanStatistics, setLoanStatistics] = useState<LoanStatistics | null>(null);
@@ -184,7 +184,7 @@ export default function LoansPage() {
 
       // Transform loans data
       const transformedLoans = loansResponse.loans.map(transformBulkLoanToLoanData);
-      
+
       setAllLoans(transformedLoans);
       setTotalLoans(loansResponse.pagination.total);
       setLoanStatistics(statisticsResponse);
@@ -199,7 +199,7 @@ export default function LoansPage() {
   };
 
   // Additional state variables (moved from below)
-  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('last_30_days');
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedLoans, setSelectedLoans] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -234,7 +234,7 @@ export default function LoansPage() {
 
   // Tab configuration
   const tabs = [
-    { id: 'all', label: 'All Loans' },
+    { id: 'all', label: 'Loan Overview' },
     { id: 'active', label: 'Active' },
     { id: 'completed', label: 'Completed' },
     { id: 'missed', label: 'Missed Payments' }
@@ -246,7 +246,7 @@ export default function LoansPage() {
   // Convert API statistics to display format
   const statistics = useMemo((): LocalLoanStatistics => {
     if (!loanStatistics) return { totalLoans: { count: 0, growth: 0 }, activeLoans: { count: 0, growth: 0 }, completedLoans: { count: 0, growth: 0 } };
-    
+
     return {
       totalLoans: { count: loanStatistics.totalLoans.count, growth: loanStatistics.totalLoans.growth },
       activeLoans: { count: loanStatistics.activeLoans.count, growth: loanStatistics.activeLoans.growth },
@@ -295,6 +295,10 @@ export default function LoansPage() {
 
   const handlePeriodChange = (period: TimePeriod) => {
     setSelectedPeriod(period);
+    // Clear custom date range when selecting a preset period
+    if (period !== 'custom') {
+      setDateRange(undefined);
+    }
     setCurrentPage(1);
     setSelectedLoans([]);
     setError(null);
@@ -302,6 +306,10 @@ export default function LoansPage() {
 
   const handleDateRangeChange = (range: DateRange | undefined) => {
     setDateRange(range);
+    // When a custom date range is selected, set period to 'custom'
+    if (range) {
+      setSelectedPeriod('custom');
+    }
     setCurrentPage(1);
     setSelectedLoans([]);
     setError(null);
@@ -314,11 +322,11 @@ export default function LoansPage() {
   const handleApplyFilters = (filters: DashboardFilters) => {
     setAppliedFilters(filters);
     setCurrentPage(1);
-    
-    const activeCount = 
-      filters.loanStatus.length + 
+
+    const activeCount =
+      filters.loanStatus.length +
       (filters.amountRange.min > 0 || filters.amountRange.max < 1000000 ? 1 : 0);
-    
+
     if (activeCount > 0) {
       success(`${activeCount} filter${activeCount > 1 ? 's' : ''} applied successfully!`);
     }
@@ -369,10 +377,10 @@ export default function LoansPage() {
       try {
         // In a real implementation, you would call a delete API
         // await loanService.deleteLoan(selectedLoanForDelete);
-        
+
         // For now, just remove from local state
         setAllLoans(prev => prev.filter(loan => loan.id !== selectedLoanForDelete));
-        
+
         success('Loan deleted successfully!');
         setSelectedLoanForDelete(null);
       } catch (err) {
@@ -386,12 +394,12 @@ export default function LoansPage() {
     try {
       // In a real implementation, you would call an update API
       // await loanService.updateLoan(updatedLoan.id, updatedLoan);
-      
+
       // For now, just update local state
-      setAllLoans(prev => prev.map(loan => 
+      setAllLoans(prev => prev.map(loan =>
         loan.id === updatedLoan.id ? { ...loan, ...updatedLoan } : loan
       ));
-      
+
       success('Loan updated successfully!');
       setSelectedLoanForEdit(null);
     } catch (err) {
@@ -407,7 +415,7 @@ export default function LoansPage() {
           <div>
             {/* Error Message */}
             {error && (
-              <div 
+              <div
                 className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg"
                 role="alert"
                 aria-live="polite"
@@ -420,7 +428,7 @@ export default function LoansPage() {
 
             {/* Page Header */}
             <div style={{ marginBottom: '48px' }}>
-              <h1 
+              <h1
                 className="font-bold"
                 style={{
                   fontSize: '24px',
@@ -432,7 +440,7 @@ export default function LoansPage() {
               >
                 Overview
               </h1>
-              <p 
+              <p
                 className="font-medium"
                 style={{
                   fontSize: '16px',
@@ -442,8 +450,17 @@ export default function LoansPage() {
                   fontFamily: "'Open Sauce Sans', sans-serif"
                 }}
               >
-                {BRANCH_NAME || 'No branch selected'}
+                Loan Overview
               </p>
+              {/* Breadcrumb line */}
+              <div
+                style={{
+                  width: '18px',
+                  height: '2px',
+                  background: '#000000',
+                  marginTop: '8px'
+                }}
+              />
             </div>
 
             {/* Filter Controls */}
@@ -502,12 +519,12 @@ export default function LoansPage() {
               {isLoading ? (
                 <TableSkeleton rows={ITEMS_PER_PAGE} />
               ) : allLoans.length === 0 ? (
-                <div 
+                <div
                   className="bg-white rounded-[12px] border border-[#EAECF0] p-12 text-center"
                   role="status"
                   aria-live="polite"
                 >
-                  <p 
+                  <p
                     className="text-base text-[#475467]"
                     style={{ fontFamily: "'Open Sauce Sans', sans-serif" }}
                   >
@@ -529,7 +546,7 @@ export default function LoansPage() {
                   {totalPages > 1 && (
                     <div className="mt-4 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span 
+                        <span
                           className="text-sm text-[#475467]"
                           style={{ fontFamily: "'Open Sauce Sans', sans-serif" }}
                         >

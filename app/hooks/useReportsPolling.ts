@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef } from 'react';
 import { reportsService } from '@/lib/services/reports';
 import { useBackgroundRefresh } from './useBackgroundRefresh';
-import type { ReportFilters, PaginatedResponse, Report, ReportStatistics } from '@/lib/api/types';
+import type { ReportFilters } from '@/lib/api/types';
 
 export interface ReportsPollingConfig {
   enabled?: boolean;
@@ -106,7 +106,7 @@ export function useReportsPolling(
     
     // Polling controls
     isPolling: finalConfig.enabled && !reportsQuery.isPaused,
-    lastUpdate: lastUpdateRef.current,
+    getLastUpdate: () => lastUpdateRef.current,
     
     // Manual controls
     refresh: refreshReportsData,
@@ -206,7 +206,7 @@ export function useCoordinatedReportsPolling(
       reportsPolling.refresh(),
       dashboardPolling.refresh(),
     ]);
-  }, [reportsPolling.refresh, dashboardPolling.refresh]);
+  }, [reportsPolling, dashboardPolling]);
 
   return {
     // Reports data
@@ -221,7 +221,7 @@ export function useCoordinatedReportsPolling(
     
     // Combined status
     isPolling: reportsPolling.isPolling || dashboardPolling.isPolling,
-    lastUpdate: reportsPolling.lastUpdate,
+    getLastUpdate: reportsPolling.getLastUpdate,
     
     // Combined controls
     refresh: refreshAll,

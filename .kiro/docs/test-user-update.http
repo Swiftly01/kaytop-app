@@ -1,0 +1,46 @@
+@baseUrl = https://kaytop-production.up.railway.app
+@systemAdminToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFkbWluQGtheXRvcC5jb20iLCJzdWIiOjEsInJvbGUiOiJzeXN0ZW1fYWRtaW4iLCJpYXQiOjE3Mzc2MzE4NzV9.Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8
+
+### First, get a user to see the current structure
+GET {{baseUrl}}/admin/users/8
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+### Test update with minimal data (what the frontend is sending)
+PATCH {{baseUrl}}/admin/users/8
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+{
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "johnomotosho2001@gmail.com",
+  "mobileNumber": "1234567890"
+}
+
+### Test update with additional fields that might be required
+PATCH {{baseUrl}}/admin/users/8
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+{
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "johnomotosho2001@gmail.com",
+  "mobileNumber": "1234567890",
+  "branch": "Main Branch",
+  "state": "Lagos"
+}
+
+### Test update with status field (might be required)
+PATCH {{baseUrl}}/admin/users/8
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+{
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "johnomotosho2001@gmail.com",
+  "mobileNumber": "1234567890",
+  "verificationStatus": "verified"
+}

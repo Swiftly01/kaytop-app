@@ -8,7 +8,6 @@ import apiClient from '@/lib/apiClient';
 import { API_ENDPOINTS } from '../api/config';
 import { branchPerformanceService } from './branchPerformance';
 import { accurateDashboardService } from './accurateDashboard';
-import { reportsService } from './reports';
 import type {
   DashboardParams,
   DashboardKPIs,
@@ -16,8 +15,9 @@ import type {
   StatisticValue,
   BranchPerformance,
   ReportStatistics,
+  ReportFilters,
 } from '../api/types';
-import { isSuccessResponse, isFailureResponse } from '../utils/responseHelpers';
+import { isSuccessResponse } from '../utils/responseHelpers';
 
 export interface DashboardService {
   getKPIs(params?: DashboardParams): Promise<DashboardKPIs>;
@@ -148,7 +148,7 @@ class DashboardAPIService implements DashboardService {
         return response.data;
       }
 
-      throw new Error((response.data as any).message || 'Failed to fetch loan statistics');
+      throw new Error((response.data as { message?: string }).message || 'Failed to fetch loan statistics');
     } catch (error) {
       console.error('Loan statistics fetch error:', error);
       throw error;
@@ -157,86 +157,37 @@ class DashboardAPIService implements DashboardService {
 
   /**
    * Get report statistics for dashboard KPIs
-   * Uses dashboard KPI endpoint instead of reports statistics endpoint to avoid validation errors
+   * Uses the reports service to calculate statistics from existing /reports endpoint
+   * since dedicated statistics endpoints don't exist in the backend
    */
   async getReportStatistics(params: DashboardParams = {}): Promise<ReportStatistics> {
     try {
       console.log('🔍 Dashboard getReportStatistics called with params:', params);
       
-      // Use the dedicated reports dashboard stats endpoint
-      const queryParams = new URLSearchParams();
+      // Import the reports service to calculate statistics from existing data
+      const { reportsService } = await import('./reports');
+      
+      // Convert dashboard params to reports service filters
+      const filters: Pick<ReportFilters, 'dateFrom' | 'dateTo' | 'branchId'> = {};
       
       if (params.startDate) {
-        queryParams.append('startDate', params.startDate);
+        filters.dateFrom = params.startDate;
       }
       
       if (params.endDate) {
-        queryParams.append('endDate', params.endDate);
+        filters.dateTo = params.endDate;
       }
       
       if (params.branch) {
-        queryParams.append('branch', params.branch);
+        filters.branchId = params.branch;
       }
 
-      const url = `${API_ENDPOINTS.REPORTS.DASHBOARD_STATS}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-      console.log('🌐 Fetching report statistics from dedicated endpoint:', url);
+      console.log('🔍 Calling reports service with filters:', filters);
       
-      const response = await apiClient.get<any>(url);
+      // Use the reports service to calculate statistics from actual report data
+      const reportStats = await reportsService.getReportStatistics(filters);
       
-      console.log('🔍 Raw reports dashboard stats response:', JSON.stringify(response, null, 2));
-      
-      // Extract report statistics from the response
-      let reportStats: ReportStatistics;
-      
-      if (response && response.data) {
-        const data = response.data;
-        
-        console.log('🔍 Extracted data object:', JSON.stringify(data, null, 2));
-        
-        // Backend returns: totalPending, totalApproved, totalDeclined
-        // Calculate total reports from the sum of all statuses
-        const totalCount = (data.totalPending || 0) + (data.totalApproved || 0) + (data.totalDeclined || 0);
-        
-        // The endpoint returns report statistics in a different format
-        // Transform to match the expected ReportStatistics interface
-        reportStats = {
-          totalReports: {
-            count: data.totalReports?.count || data.total || totalCount,
-            growth: data.totalReports?.growth || data.totalGrowth || 0
-          },
-          submittedReports: {
-            // Backend doesn't distinguish between submitted and pending
-            count: data.submittedReports?.count || data.submitted || 0,
-            growth: data.submittedReports?.growth || data.submittedGrowth || 0
-          },
-          pendingReports: {
-            count: data.pendingReports?.count || data.pending || data.totalPending || 0,
-            growth: data.pendingReports?.growth || data.pendingGrowth || 0
-          },
-          approvedReports: {
-            count: data.approvedReports?.count || data.approved || data.totalApproved || 0,
-            growth: data.approvedReports?.growth || data.approvedGrowth || 0
-          },
-          missedReports: {
-            // Backend doesn't have missed reports, use declined as a proxy or 0
-            count: data.missedReports?.count || data.missed || data.totalDeclined || 0,
-            growth: data.missedReports?.growth || data.missedGrowth || 0
-          }
-        };
-        
-        console.log('🔍 Constructed reportStats:', JSON.stringify(reportStats, null, 2));
-      } else {
-        // Fallback to default values if no data is available
-        reportStats = {
-          totalReports: { count: 0, growth: 0 },
-          submittedReports: { count: 0, growth: 0 },
-          pendingReports: { count: 0, growth: 0 },
-          approvedReports: { count: 0, growth: 0 },
-          missedReports: { count: 0, growth: 0 },
-        };
-      }
-      
-      console.log('✅ Successfully fetched report statistics:', reportStats);
+      console.log('✅ Successfully fetched report statistics from reports service:', reportStats);
       return reportStats;
       
     } catch (error) {
@@ -261,70 +212,70 @@ class DashboardAPIService implements DashboardService {
   /**
    * Transform backend dashboard data to frontend format
    */
-  private transformDashboardData(backendData: any): DashboardKPIs {
+  private transformDashboardData(backendData: Record<string, unknown>): DashboardKPIs {
     return {
       branches: this.transformStatisticValue(
-        backendData.totalBranches || backendData.branches,
-        backendData.branchesGrowth || 0,
+        (backendData.totalBranches as number) || (backendData.branches as number),
+        (backendData.branchesGrowth as number) || 0,
         'branches'
       ),
       creditOfficers: this.transformStatisticValue(
-        backendData.totalCreditOfficers || backendData.creditOfficers,
-        backendData.creditOfficersGrowth || 0,
+        (backendData.totalCreditOfficers as number) || (backendData.creditOfficers as number),
+        (backendData.creditOfficersGrowth as number) || 0,
         'credit officers'
       ),
       customers: this.transformStatisticValue(
-        backendData.totalCustomers || backendData.customers,
-        backendData.customersGrowth || 0,
+        (backendData.totalCustomers as number) || (backendData.customers as number),
+        (backendData.customersGrowth as number) || 0,
         'customers'
       ),
       loansProcessed: this.transformStatisticValue(
-        backendData.loansProcessed || backendData.totalLoans,
-        backendData.loansProcessedGrowth || backendData.loansGrowth || 0,
+        (backendData.loansProcessed as number) || (backendData.totalLoans as number),
+        (backendData.loansProcessedGrowth as number) || (backendData.loansGrowth as number) || 0,
         'loans processed'
       ),
       loanAmounts: this.transformStatisticValue(
-        backendData.totalLoanAmount || backendData.loanAmounts,
-        backendData.loanAmountGrowth || backendData.loanAmountsGrowth || 0,
+        (backendData.totalLoanAmount as number) || (backendData.loanAmounts as number),
+        (backendData.loanAmountGrowth as number) || (backendData.loanAmountsGrowth as number) || 0,
         'loan amount',
         true // isCurrency
       ),
       activeLoans: this.transformStatisticValue(
-        backendData.activeLoans,
-        backendData.activeLoansGrowth || 0,
+        backendData.activeLoans as number,
+        (backendData.activeLoansGrowth as number) || 0,
         'active loans'
       ),
       missedPayments: this.transformStatisticValue(
-        backendData.missedPayments,
-        backendData.missedPaymentsGrowth || 0,
+        backendData.missedPayments as number,
+        (backendData.missedPaymentsGrowth as number) || 0,
         'missed payments'
       ),
       bestPerformingBranches: this.transformBranchPerformance(
-        backendData.bestPerformingBranches || backendData.topBranches || []
+        (backendData.bestPerformingBranches as unknown[]) || (backendData.topBranches as unknown[]) || []
       ),
       worstPerformingBranches: this.transformBranchPerformance(
-        backendData.worstPerformingBranches || backendData.bottomBranches || []
+        (backendData.worstPerformingBranches as unknown[]) || (backendData.bottomBranches as unknown[]) || []
       ),
       
       // Report statistics KPIs (using mock data since backend doesn't provide these yet)
       totalReports: this.transformStatisticValue(
-        backendData.totalReports || 0,
-        backendData.totalReportsGrowth || 0,
+        (backendData.totalReports as number) || 0,
+        (backendData.totalReportsGrowth as number) || 0,
         'total reports'
       ),
       pendingReports: this.transformStatisticValue(
-        backendData.pendingReports || 0,
-        backendData.pendingReportsGrowth || 0,
+        (backendData.pendingReports as number) || 0,
+        (backendData.pendingReportsGrowth as number) || 0,
         'pending reports'
       ),
       approvedReports: this.transformStatisticValue(
-        backendData.approvedReports || 0,
-        backendData.approvedReportsGrowth || 0,
+        (backendData.approvedReports as number) || 0,
+        (backendData.approvedReportsGrowth as number) || 0,
         'approved reports'
       ),
       missedReports: this.transformStatisticValue(
-        backendData.missedReports || 0,
-        backendData.missedReportsGrowth || 0,
+        (backendData.missedReports as number) || 0,
+        (backendData.missedReportsGrowth as number) || 0,
         'missed reports'
       ),
     };
@@ -363,16 +314,19 @@ class DashboardAPIService implements DashboardService {
   /**
    * Transform branch performance data
    */
-  private transformBranchPerformance(branches: any[]): BranchPerformance[] {
+  private transformBranchPerformance(branches: unknown[]): BranchPerformance[] {
     if (!Array.isArray(branches)) {
       return [];
     }
 
-    return branches.map(branch => ({
-      name: branch.name || branch.branchName || 'Unknown Branch',
-      activeLoans: branch.activeLoans || branch.loans || 0,
-      amount: branch.amount || branch.totalAmount || branch.loanAmount || 0,
-    }));
+    return branches.map(branch => {
+      const branchObj = branch as Record<string, unknown>;
+      return {
+        name: (branchObj.name as string) || (branchObj.branchName as string) || 'Unknown Branch',
+        activeLoans: (branchObj.activeLoans as number) || (branchObj.loans as number) || 0,
+        amount: (branchObj.amount as number) || (branchObj.totalAmount as number) || (branchObj.loanAmount as number) || 0,
+      };
+    });
   }
 }
 

@@ -6,7 +6,7 @@
 import apiClient from '@/lib/apiClient';
 import { API_ENDPOINTS, API_CONFIG } from '../api/config';
 import type { AdminProfile } from '../api/types';
-import { isSuccessResponse, isFailureResponse, extractResponseData } from '../utils/responseHelpers';
+import { isSuccessResponse } from '../utils/responseHelpers';
 import { DataTransformers } from '../api/transformers';
 
 export interface UserProfileData {
@@ -61,7 +61,7 @@ class UserProfileAPIService implements UserProfileService {
   /**
    * Helper to map AdminProfile to UserProfileData
    */
-  private mapToUserProfileData(data: any): UserProfileData {
+  private mapToUserProfileData(data: Record<string, unknown>): UserProfileData {
     // 1. Use DataTransformers for initial robust mapping
     const profile = DataTransformers.transformAdminProfile(data);
 
@@ -111,7 +111,7 @@ class UserProfileAPIService implements UserProfileService {
       }
 
       return this.mapToUserProfileData(profileData);
-    } catch (error: any) {
+    } catch (error: Error & { response?: { status?: number }; status?: number }) {
       // Suppress 401 errors during server-side rendering (expected when no auth token)
       const is401 = error?.response?.status === 401 || error?.status === 401;
       const isServerSide = typeof window === 'undefined';

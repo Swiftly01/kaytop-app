@@ -193,13 +193,17 @@ export default function CreditOfficersTable({ data, onEdit, onDelete }: CreditOf
                 </td>
 
                 {/* Phone Cell */}
-                <td className="px-6 py-4 text-sm text-gray-600">
-                  {officer.phone}
+                <td className="px-6 py-4 text-sm text-gray-600" style={{ maxWidth: '150px' }}>
+                  <div className="truncate" title={officer.phone}>
+                    {officer.phone}
+                  </div>
                 </td>
 
                 {/* Email Cell */}
-                <td className="px-6 py-4 text-sm text-gray-600">
-                  {officer.email}
+                <td className="px-6 py-4 text-sm text-gray-600" style={{ maxWidth: '200px' }}>
+                  <div className="truncate" title={officer.email}>
+                    {officer.email}
+                  </div>
                 </td>
 
                 {/* Date Joined Cell */}

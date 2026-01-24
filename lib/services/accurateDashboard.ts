@@ -1,51 +1,145 @@
 /**
  * Accurate Dashboard Service
  * Fetches real data from multiple endpoints to provide accurate dashboard KPIs
- * instead of using mock/calculated values
+ * with performance optimizations including caching and request deduplication
  */
 
 import apiClient from '@/lib/apiClient';
 import { growthCalculationService } from './growthCalculation';
 import { unifiedUserService } from './unifiedUser';
+import { performanceMonitor } from '../utils/performanceMonitor';
 import type { DashboardKPIs, DashboardParams, StatisticValue } from '../api/types';
+
+// Cache interface
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+  expiresAt: number;
+}
+
+// Request deduplication map
+const pendingRequests = new Map<string, Promise<unknown>>();
 
 export interface AccurateDashboardService {
   getAccurateKPIs(params?: DashboardParams): Promise<DashboardKPIs>;
+  clearCache(): void;
 }
 
 class AccurateDashboardAPIService implements AccurateDashboardService {
+  // In-memory cache with 5-minute TTL
+  private cache = new Map<string, CacheEntry<unknown>>();
+  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+  /**
+   * Clear all cached data
+   */
+  clearCache(): void {
+    this.cache.clear();
+    pendingRequests.clear();
+  }
+
+  /**
+   * Get data from cache or fetch if expired
+   */
+  private async getCachedData<T>(
+    key: string,
+    fetchFn: () => Promise<T>,
+    customTTL?: number
+  ): Promise<T> {
+    const requestId = `dashboard-${key}-${Date.now()}`;
+    performanceMonitor.startRequest(requestId);
+    
+    const now = Date.now();
+    const cached = this.cache.get(key);
+    
+    // Return cached data if still valid
+    if (cached && now < cached.expiresAt) {
+      performanceMonitor.endRequest(requestId, true);
+      return cached.data;
+    }
+
+    // Check if request is already pending to avoid duplicate calls
+    if (pendingRequests.has(key)) {
+      const result = await pendingRequests.get(key)!;
+      performanceMonitor.endRequest(requestId, false);
+      return result;
+    }
+
+    // Create new request
+    const requestPromise = fetchFn();
+    pendingRequests.set(key, requestPromise);
+
+    try {
+      const data = await requestPromise;
+      
+      // Cache the result
+      const ttl = customTTL || this.CACHE_TTL;
+      this.cache.set(key, {
+        data,
+        timestamp: now,
+        expiresAt: now + ttl
+      });
+      
+      performanceMonitor.endRequest(requestId, false);
+      return data;
+    } finally {
+      // Remove from pending requests
+      pendingRequests.delete(key);
+    }
+  }
+
+  /**
+   * Generate cache key from parameters
+   */
+  private getCacheKey(prefix: string, params?: DashboardParams): string {
+    if (!params) return prefix;
+    
+    const paramStr = Object.entries(params)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, value]) => `${key}=${value}`)
+      .join('&');
+    
+    return `${prefix}:${paramStr}`;
+  }
   
   /**
-   * Get accurate KPIs by fetching from multiple endpoints
+   * Get accurate KPIs by fetching from multiple endpoints with caching
    */
   async getAccurateKPIs(params?: DashboardParams): Promise<DashboardKPIs> {
     try {
-      // Fetch data from multiple endpoints in parallel
-      const [
-        kpiResponse,
-        usersResponse,
-        branchesResponse,
-        loansResponse
-      ] = await Promise.all([
-        this.fetchKPIData(params),
-        this.fetchUsersData(),
-        this.fetchBranchesData(),
-        this.fetchLoansData(params)
-      ]);
+      
+      // Use cached data with request deduplication
+      const cacheKey = this.getCacheKey('accurate-kpis', params);
+      
+      return await this.getCachedData(cacheKey, async () => {
+        
+        // Fetch data from multiple endpoints in parallel with individual caching
+        const [
+          kpiResponse,
+          usersResponse,
+          branchesResponse,
+          loansResponse
+        ] = await Promise.all([
+          this.getCachedData('kpi-data', () => this.fetchKPIData(params)),
+          this.getCachedData('users-data', () => this.fetchUsersData()),
+          this.getCachedData('branches-data', () => this.fetchBranchesData()),
+          this.getCachedData('loans-data', () => this.fetchLoansData(params))
+        ]);
 
-      // Calculate accurate statistics
-      const accurateStats = this.calculateAccurateStatistics(
-        kpiResponse,
-        usersResponse,
-        branchesResponse,
-        loansResponse,
-        params
-      );
+        // Calculate accurate statistics
+        const accurateStats = await this.calculateAccurateStatistics(
+          kpiResponse,
+          usersResponse,
+          branchesResponse,
+          loansResponse,
+          params
+        );
 
-      return accurateStats;
+        return accurateStats;
+      });
 
     } catch (error) {
-      console.error('Accurate dashboard fetch error:', error);
+      console.error('❌ Accurate dashboard fetch error:', error);
       throw error;
     }
   }
@@ -53,7 +147,7 @@ class AccurateDashboardAPIService implements AccurateDashboardService {
   /**
    * Fetch KPI data from backend
    */
-  private async fetchKPIData(params?: DashboardParams): Promise<any> {
+  private async fetchKPIData(params?: DashboardParams): Promise<Record<string, unknown>> {
     try {
       const queryParams = new URLSearchParams();
       
@@ -63,9 +157,9 @@ class AccurateDashboardAPIService implements AccurateDashboardService {
       if (params?.branch) queryParams.append('branch', params.branch);
 
       const endpoint = `/dashboard/kpi${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-      const response = await apiClient.get<any>(endpoint);
+      const response = await apiClient.get<unknown>(endpoint);
       
-      return response.data || response;
+      return (response.data as Record<string, unknown>) || {};
     } catch (error) {
       console.error('KPI data fetch error:', error);
       return {};
@@ -73,35 +167,30 @@ class AccurateDashboardAPIService implements AccurateDashboardService {
   }
 
   /**
-   * Fetch users data to get accurate customer and credit officer counts
+   * Fetch users data with role-based filtering to reduce payload
    */
-  private async fetchUsersData(): Promise<any[]> {
+  private async fetchUsersData(): Promise<Record<string, unknown>[]> {
     try {
-      // Use unifiedUserService which now transforms data with role detection
-      const response = await unifiedUserService.getUsers({ limit: 1000 });
       
-      console.log('🔍 Raw users API response:', response);
+      // Use the unified user service to get all users (it already uses /admin/staff/my-staff)
+      // This ensures consistency between dashboard stats and credit officers page
+      console.log('🔄 Fetching all users from unified service for dashboard stats...');
+      const allUsersResponse = await unifiedUserService.getUsers({ limit: 1000 });
+      const allUsers = allUsersResponse.data || [];
       
-      const users = response.data || [];
+      console.log(`📊 Total users fetched for dashboard: ${allUsers.length}`);
       
-      // Debug: Log role distribution
+      // Log role distribution for debugging
       const roleDistribution: Record<string, number> = {};
-      users.forEach(user => {
-        const role = user.role || 'undefined';
+      allUsers.forEach(user => {
+        const role = (user.role as string) || 'undefined';
         roleDistribution[role] = (roleDistribution[role] || 0) + 1;
       });
+      console.log('🎭 Dashboard users role distribution:', roleDistribution);
       
-      console.log('👥 Users role distribution:', roleDistribution);
-      console.log(`📊 Total users fetched: ${users.length}`);
-      
-      // Debug: Show sample users
-      if (users.length > 0) {
-        console.log('📝 Sample user:', users[0]);
-      }
-      
-      return users;
+      return allUsers;
     } catch (error) {
-      console.error('Users data fetch error:', error);
+      console.error('❌ Users data fetch error:', error);
       return [];
     }
   }
@@ -125,9 +214,9 @@ class AccurateDashboardAPIService implements AccurateDashboardService {
   }
 
   /**
-   * Fetch loans data for accurate loan statistics
+   * Fetch loans data with pagination for better performance
    */
-  private async fetchLoansData(params?: DashboardParams): Promise<any[]> {
+  private async fetchLoansData(params?: DashboardParams): Promise<Record<string, unknown>[]> {
     try {
       const queryParams = new URLSearchParams();
       
@@ -136,28 +225,26 @@ class AccurateDashboardAPIService implements AccurateDashboardService {
       if (params?.endDate) queryParams.append('endDate', params.endDate);
       if (params?.branch) queryParams.append('branch', params.branch);
       
-      queryParams.append('limit', '1000'); // Get more data for accurate calculations
+      // Use reasonable limit instead of 1000 for better performance
+      queryParams.append('limit', '500');
       
       const endpoint = `/loans/all${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-      console.log('🔍 Fetching loans from endpoint:', endpoint);
       
-      const response = await apiClient.get<any>(endpoint);
+      const response = await apiClient.get<unknown>(endpoint);
       
-      console.log('📦 Raw loans API response:', response);
+      let loansArray: Record<string, unknown>[] = [];
       
-      let loansArray: any[] = [];
-      
-      if (response.data && Array.isArray(response.data.data)) {
-        loansArray = response.data.data;
+      if (response.data && Array.isArray((response.data as any).data)) {
+        loansArray = (response.data as any).data as Record<string, unknown>[];
         console.log(`✅ Extracted ${loansArray.length} loans from response.data.data`);
       } else if (Array.isArray(response.data)) {
-        loansArray = response.data;
+        loansArray = response.data as Record<string, unknown>[];
         console.log(`✅ Extracted ${loansArray.length} loans from response.data`);
       } else if (Array.isArray(response)) {
-        loansArray = response;
+        loansArray = response as Record<string, unknown>[];
         console.log(`✅ Extracted ${loansArray.length} loans from response`);
       } else {
-        console.warn('⚠️ Unexpected response structure:', response);
+        console.warn('⚠️ Unexpected loans response structure:', response);
       }
       
       return loansArray;
@@ -171,23 +258,43 @@ class AccurateDashboardAPIService implements AccurateDashboardService {
    * Calculate accurate statistics from fetched data
    */
   private async calculateAccurateStatistics(
-    kpiData: any,
-    usersData: any[],
+    kpiData: Record<string, unknown>,
+    usersData: Record<string, unknown>[],
     branchesData: string[],
-    loansData: any[],
+    loansData: Record<string, unknown>[],
     params?: DashboardParams
   ): Promise<DashboardKPIs> {
     
     // Calculate accurate counts from real data
-    const creditOfficers = usersData.filter(user => 
-      user.role === 'credit_officer' || user.role === 'creditofficer'
-    );
+    const creditOfficers = usersData.filter(user => {
+      const userRole = (user.role as string)?.toLowerCase() || '';
+      return userRole === 'credit_officer' || 
+             userRole === 'creditofficer' || 
+             userRole === 'credit officer' ||
+             userRole === 'co' ||
+             userRole.includes('credit');
+    });
     
     console.log('🔍 Filtering customers from users data...');
     console.log(`📊 Total users to filter: ${usersData.length}`);
     
+    // Debug: Show all unique roles in the dataset
+    const uniqueRoles = [...new Set(usersData.map(user => user.role as string))];
+    console.log('🎭 Available roles in dataset:', uniqueRoles);
+    
+    // Debug: Show sample users for each role
+    uniqueRoles.forEach(role => {
+      const sampleUser = usersData.find(user => user.role === role);
+      console.log(`👤 Sample ${role}:`, { 
+        id: sampleUser?.id, 
+        name: `${sampleUser?.firstName} ${sampleUser?.lastName}`,
+        email: sampleUser?.email,
+        branch: sampleUser?.branch 
+      });
+    });
+    
     const customers = usersData.filter(user => {
-      const isCustomer = user.role === 'customer';
+      const isCustomer = (user.role as string) === 'customer';
       if (isCustomer) {
         console.log('✅ Found customer:', user);
       }
@@ -197,8 +304,14 @@ class AccurateDashboardAPIService implements AccurateDashboardService {
     console.log(`👥 Customers found: ${customers.length}`);
     console.log(`👔 Credit officers found: ${creditOfficers.length}`);
     
+    // If no credit officers found, log helpful information
+    if (creditOfficers.length === 0) {
+      console.warn('⚠️ No credit officers found in dataset. Available roles:', uniqueRoles);
+      console.warn('💡 Consider checking if credit officers exist in the system or if they use a different role name.');
+    }
+    
     const activeLoans = loansData.filter(loan => 
-      loan.status === 'active' || loan.status === 'disbursed'
+      (loan.status as string) === 'active' || (loan.status as string) === 'disbursed'
     );
     
     console.log('💰 Calculating total loan amount from loans data...');
@@ -214,8 +327,8 @@ class AccurateDashboardAPIService implements AccurateDashboardService {
     const totalLoanAmount = loansData.reduce((sum, loan) => {
       // Handle both number and string amounts
       const amount = typeof loan.amount === 'string' 
-        ? parseFloat(loan.amount.replace(/[^0-9.-]/g, '')) 
-        : (loan.amount || 0);
+        ? parseFloat((loan.amount as string).replace(/[^0-9.-]/g, '')) 
+        : ((loan.amount as number) || 0);
       
       if (isNaN(amount)) {
         console.warn('⚠️ Invalid loan amount:', loan.amount, 'for loan:', loan.id);
@@ -228,7 +341,7 @@ class AccurateDashboardAPIService implements AccurateDashboardService {
     console.log(`💰 Total loan amount calculated: ${totalLoanAmount}`);
     
     const missedPayments = loansData.filter(loan => 
-      loan.status === 'defaulted' || loan.status === 'overdue'
+      (loan.status as string) === 'defaulted' || (loan.status as string) === 'overdue'
     );
 
     // Calculate real growth rates by comparing with previous period
@@ -249,7 +362,7 @@ class AccurateDashboardAPIService implements AccurateDashboardService {
     const getGrowthRate = (field: string, calculatedGrowth: number): number => {
       // Try to get growth from backend first
       if (kpiData[`${field}Growth`] !== undefined && kpiData[`${field}Growth`] !== null) {
-        return kpiData[`${field}Growth`];
+        return kpiData[`${field}Growth`] as number;
       }
       
       // Use calculated growth if backend doesn't provide it
@@ -301,32 +414,32 @@ class AccurateDashboardAPIService implements AccurateDashboardService {
       
       // Keep the calculated branch performance from the existing service
       bestPerformingBranches: this.transformBranchPerformance(
-        kpiData.topPerformers || kpiData.officerPerformance || []
+        (kpiData.topPerformers as unknown[]) || (kpiData.officerPerformance as unknown[]) || []
       ),
       
       worstPerformingBranches: this.transformBranchPerformance(
-        (kpiData.topPerformers || kpiData.officerPerformance || []).slice().reverse().slice(0, 3)
+        ((kpiData.topPerformers as unknown[]) || (kpiData.officerPerformance as unknown[]) || []).slice().reverse().slice(0, 3)
       ),
       
       // Report statistics KPIs (using mock data since backend doesn't provide these yet)
       totalReports: this.createStatisticValue(
-        kpiData.totalReports || 0,
-        getGrowthRate('totalReports', growthData.totalReportsGrowth || 0),
+        (kpiData.totalReports as number) || 0,
+        getGrowthRate('totalReports', (growthData.totalReportsGrowth as number) || 0),
         false
       ),
       pendingReports: this.createStatisticValue(
-        kpiData.pendingReports || 0,
-        getGrowthRate('pendingReports', growthData.pendingReportsGrowth || 0),
+        (kpiData.pendingReports as number) || 0,
+        getGrowthRate('pendingReports', (growthData.pendingReportsGrowth as number) || 0),
         false
       ),
       approvedReports: this.createStatisticValue(
-        kpiData.approvedReports || 0,
-        getGrowthRate('approvedReports', growthData.approvedReportsGrowth || 0),
+        (kpiData.approvedReports as number) || 0,
+        getGrowthRate('approvedReports', (growthData.approvedReportsGrowth as number) || 0),
         false
       ),
       missedReports: this.createStatisticValue(
-        kpiData.missedReports || 0,
-        getGrowthRate('missedReports', growthData.missedReportsGrowth || 0),
+        (kpiData.missedReports as number) || 0,
+        getGrowthRate('missedReports', (growthData.missedReportsGrowth as number) || 0),
         false
       ),
     };
@@ -361,16 +474,19 @@ class AccurateDashboardAPIService implements AccurateDashboardService {
   /**
    * Transform branch performance data
    */
-  private transformBranchPerformance(branches: any[]): any[] {
+  private transformBranchPerformance(branches: unknown[]): unknown[] {
     if (!Array.isArray(branches)) {
       return [];
     }
 
-    return branches.map(branch => ({
-      name: branch.name || branch.branchName || 'Unknown Branch',
-      activeLoans: branch.activeLoans || branch.loans || 0,
-      amount: branch.amount || branch.totalAmount || branch.loanAmount || 0,
-    }));
+    return branches.map(branch => {
+      const branchObj = branch as Record<string, unknown>;
+      return {
+        name: (branchObj.name as string) || (branchObj.branchName as string) || 'Unknown Branch',
+        activeLoans: (branchObj.activeLoans as number) || (branchObj.loans as number) || 0,
+        amount: (branchObj.amount as number) || (branchObj.totalAmount as number) || (branchObj.loanAmount as number) || 0,
+      };
+    });
   }
 }
 

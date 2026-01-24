@@ -40,7 +40,7 @@ class GrowthCalculationAPIService implements GrowthCalculationService {
   /**
    * Calculate growth for all metrics at once
    */
-  async calculateGrowthForAllMetrics(currentMetrics: any, params?: DashboardParams): Promise<any> {
+  async calculateGrowthForAllMetrics(currentMetrics: Record<string, number>, params?: DashboardParams): Promise<Record<string, number>> {
     try {
       // Calculate growth for each metric in parallel
       const [
@@ -201,12 +201,12 @@ class GrowthCalculationAPIService implements GrowthCalculationService {
   /**
    * Get previous period branch count
    */
-  private async getPreviousBranchCount(params: DashboardParams): Promise<number> {
+  private async getPreviousBranchCount(): Promise<number> {
     try {
       const response = await apiClient.get<string[]>('/users/branches');
       const branches = Array.isArray(response.data) ? response.data : [];
       return branches.length;
-    } catch (error) {
+    } catch {
       return 0;
     }
   }
@@ -214,7 +214,7 @@ class GrowthCalculationAPIService implements GrowthCalculationService {
   /**
    * Get previous period credit officer count
    */
-  private async getPreviousCreditOfficerCount(params: DashboardParams): Promise<number> {
+  private async getPreviousCreditOfficerCount(): Promise<number> {
     try {
       // Use unifiedUserService which applies DataTransformers
       const response = await unifiedUserService.getUsers({ limit: 1000 });
@@ -225,7 +225,7 @@ class GrowthCalculationAPIService implements GrowthCalculationService {
       );
       
       return creditOfficers.length;
-    } catch (error) {
+    } catch {
       return 0;
     }
   }
@@ -233,7 +233,7 @@ class GrowthCalculationAPIService implements GrowthCalculationService {
   /**
    * Get previous period customer count
    */
-  private async getPreviousCustomerCount(params: DashboardParams): Promise<number> {
+  private async getPreviousCustomerCount(): Promise<number> {
     try {
       // Use unifiedUserService which applies DataTransformers
       const response = await unifiedUserService.getUsers({ limit: 1000 });
@@ -242,7 +242,7 @@ class GrowthCalculationAPIService implements GrowthCalculationService {
       const customers = users.filter(user => user.role === 'customer');
       
       return customers.length;
-    } catch (error) {
+    } catch {
       return 0;
     }
   }
@@ -257,11 +257,18 @@ class GrowthCalculationAPIService implements GrowthCalculationService {
       if (params.endDate) queryParams.append('endDate', params.endDate);
       queryParams.append('limit', '1000');
       
-      const response = await apiClient.get<any>(`/loans/all?${queryParams.toString()}`);
-      const loans = response.data?.data || response.data || [];
+      const response = await apiClient.get<{ data?: Record<string, unknown>[] } | Record<string, unknown>[]>(`/loans/all?${queryParams.toString()}`);
+      const responseData = response.data;
+      let loans: Record<string, unknown>[] = [];
+      
+      if (Array.isArray(responseData)) {
+        loans = responseData;
+      } else if (responseData && typeof responseData === 'object' && 'data' in responseData) {
+        loans = (responseData.data as Record<string, unknown>[]) || [];
+      }
       
       return loans.length;
-    } catch (error) {
+    } catch {
       return 0;
     }
   }
@@ -276,15 +283,22 @@ class GrowthCalculationAPIService implements GrowthCalculationService {
       if (params.endDate) queryParams.append('endDate', params.endDate);
       queryParams.append('limit', '1000');
       
-      const response = await apiClient.get<any>(`/loans/all?${queryParams.toString()}`);
-      const loans = response.data?.data || response.data || [];
+      const response = await apiClient.get<{ data?: Record<string, unknown>[] } | Record<string, unknown>[]>(`/loans/all?${queryParams.toString()}`);
+      const responseData = response.data;
+      let loans: Record<string, unknown>[] = [];
       
-      const totalAmount = loans.reduce((sum: number, loan: any) => 
-        sum + (parseFloat(loan.amount) || 0), 0
+      if (Array.isArray(responseData)) {
+        loans = responseData;
+      } else if (responseData && typeof responseData === 'object' && 'data' in responseData) {
+        loans = (responseData.data as Record<string, unknown>[]) || [];
+      }
+      
+      const totalAmount = loans.reduce((sum: number, loan: Record<string, unknown>) => 
+        sum + (parseFloat((loan.amount as string) || '0') || 0), 0
       );
       
       return totalAmount;
-    } catch (error) {
+    } catch {
       return 0;
     }
   }
@@ -299,15 +313,22 @@ class GrowthCalculationAPIService implements GrowthCalculationService {
       if (params.endDate) queryParams.append('endDate', params.endDate);
       queryParams.append('limit', '1000');
       
-      const response = await apiClient.get<any>(`/loans/all?${queryParams.toString()}`);
-      const loans = response.data?.data || response.data || [];
+      const response = await apiClient.get<{ data?: Record<string, unknown>[] } | Record<string, unknown>[]>(`/loans/all?${queryParams.toString()}`);
+      const responseData = response.data;
+      let loans: Record<string, unknown>[] = [];
       
-      const activeLoans = loans.filter((loan: any) => 
-        loan.status === 'active' || loan.status === 'disbursed'
+      if (Array.isArray(responseData)) {
+        loans = responseData;
+      } else if (responseData && typeof responseData === 'object' && 'data' in responseData) {
+        loans = (responseData.data as Record<string, unknown>[]) || [];
+      }
+      
+      const activeLoans = loans.filter((loan: Record<string, unknown>) => 
+        (loan.status as string) === 'active' || (loan.status as string) === 'disbursed'
       );
       
       return activeLoans.length;
-    } catch (error) {
+    } catch {
       return 0;
     }
   }
@@ -322,11 +343,18 @@ class GrowthCalculationAPIService implements GrowthCalculationService {
       if (params.endDate) queryParams.append('endDate', params.endDate);
       queryParams.append('limit', '1000');
       
-      const response = await apiClient.get<any>(`/loans/missed?${queryParams.toString()}`);
-      const missedLoans = response.data?.data || response.data || [];
+      const response = await apiClient.get<{ data?: Record<string, unknown>[] } | Record<string, unknown>[]>(`/loans/missed?${queryParams.toString()}`);
+      const responseData = response.data;
+      let missedLoans: Record<string, unknown>[] = [];
+      
+      if (Array.isArray(responseData)) {
+        missedLoans = responseData;
+      } else if (responseData && typeof responseData === 'object' && 'data' in responseData) {
+        missedLoans = (responseData.data as Record<string, unknown>[]) || [];
+      }
       
       return missedLoans.length;
-    } catch (error) {
+    } catch {
       return 0;
     }
   }
