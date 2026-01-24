@@ -25,6 +25,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
+  getBmReportMetrics,
   getReportMetrics,
   isReportType,
   REPORT_TYPE_OPTIONS,
@@ -51,12 +52,15 @@ export default function ReportClient() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [reportType, setReportType] = useState<ReportType | undefined>();
   const { isLoading, error, data } = useDashboardQuery();
-  const metricData = data?.reportStats ? getReportMetrics({
-    totalReports: data.reportStats.totalReports,
-    missedReports: data.reportStats.totalPending,
-    totalReportsGrowth: 0, // TODO: Add growth calculation when available
-    missedReportsGrowth: 0, // TODO: Add growth calculation when available
-  }) : [];
+  // const metricData = data?.reportStats ? getReportMetrics({
+  //   totalReports: data.reportStats.totalReports,
+  //   missedReports: data.reportStats.totalPending,
+  //   totalReportsGrowth: 0, // TODO: Add growth calculation when available
+  //   missedReportsGrowth: 0, // TODO: Add growth calculation when available
+  // }) : [];
+
+  const metricData = data ? getBmReportMetrics({ data }) : [];
+
 
   const branch = data?.branch;
 
