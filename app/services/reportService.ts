@@ -2,12 +2,15 @@ import apiClient from "@/lib/apiClient";
 import { apiBaseUrl } from "@/lib/config";
 import {
   ApproveFormData,
+  GenerateReportPostFormData,
+  GenerateReportResponse,
   ReportApiResponse,
   ReportById,
   ReportByIdResponse,
   ReportResponse,
   ReportStatus,
   ReportType,
+  SubmitHqReportFormData
 } from "../types/report";
 
 //page=1&limit=20&status=pending&branch=Lagos%20Island&type=monthly
@@ -22,6 +25,11 @@ interface QueryParamsProps {
 
 interface ApproveReportProps {
   data: ApproveFormData;
+  reportId: number;
+}
+
+interface SubmitReportHqProps {
+  data: SubmitHqReportFormData;
   reportId: number;
 }
 
@@ -43,7 +51,7 @@ export class ReportService {
           branch,
           type,
         },
-      }
+      },
     );
 
     // console.log(response);
@@ -62,7 +70,7 @@ export class ReportService {
 
   static async getReportsById(reportId: number): Promise<ReportByIdResponse> {
     const response = await apiClient.get<ReportById>(
-      `${apiBaseUrl}/reports/${reportId}`
+      `${apiBaseUrl}/reports/${reportId}`,
     );
     // console.log(response);
     return {
@@ -70,10 +78,32 @@ export class ReportService {
     };
   }
 
+  static async generateReport(
+    data: GenerateReportPostFormData,
+  ): Promise<GenerateReportResponse> {
+    const response = await apiClient.post(
+      `${apiBaseUrl}/reports/branch/aggregate`,
+      data,
+    );
+
+    //  console.log(response);
+    return response;
+  }
+
+  static async submitReportToHq({ reportId, data }: SubmitReportHqProps) {
+     const response = apiClient.post(
+      `${apiBaseUrl}/reports/branch/${reportId}/submit-to-hq`,
+      data,
+    );
+
+   // console.log(response);
+    return response;
+  }
+
   static async approveReport({ data, reportId }: ApproveReportProps) {
     const response = await apiClient.put(
       `${apiBaseUrl}/reports/${reportId}/approve`,
-      data
+      data,
     );
 
     console.log(response);
@@ -83,7 +113,7 @@ export class ReportService {
   static async declineReport({ data, reportId }: ApproveReportProps) {
     const response = await apiClient.put(
       `${apiBaseUrl}/reports/${reportId}/decline`,
-      { declineReason: data.remarks }
+      { declineReason: data.remarks },
     );
 
     console.log(response);
