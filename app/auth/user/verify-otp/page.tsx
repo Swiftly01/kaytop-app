@@ -8,6 +8,7 @@ export const metadata = {
 }
 
 export default function page() { 
+  return(
  <Suspense
           fallback={
             <div className="flex items-center justify-center h-[70vh]">
@@ -17,4 +18,5 @@ export default function page() {
         >
           <VerifyOtpClient />
         </Suspense>
+  )
 }

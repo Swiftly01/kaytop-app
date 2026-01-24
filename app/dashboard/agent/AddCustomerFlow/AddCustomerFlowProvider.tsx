@@ -128,6 +128,8 @@ export function AddCustomerFlowProvider({ children }: { children: ReactNode }) {
   formData.append("lastName", data.lastName);
   formData.append("email", data.email);
   formData.append("mobileNumber", data.mobileNumber);
+  formData.append("state", data.state);
+  formData.append("branch", data.branch);
 
   if (data.profilePicture) {
     formData.append("profilePicture", data.profilePicture);
@@ -152,6 +154,8 @@ export function AddCustomerFlowProvider({ children }: { children: ReactNode }) {
   formData.append("guarantorName", data.guarantorName);
   formData.append("guarantorRelationship", data.guarantorRelationship);
   formData.append("guarantorPhone", data.guarantorPhone);
+  formData.append("guarantorAddress", data.guarantorAddress);
+  formData.append("guarantorEmail", data.guarantorEmail);
 
   if (data.guarantorPicture) {
     formData.append("guarantorPicture", data.guarantorPicture);
