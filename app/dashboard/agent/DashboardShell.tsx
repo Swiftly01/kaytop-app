@@ -108,6 +108,16 @@ const isActive = (href: string) => {
                 >
                   Loans
                 </Link>
+                <Link
+                  href="/dashboard/agent/reports"
+                  className={`px-3 py-1 rounded-md transition
+                ${isActive("/dashboard/agent/reports")
+                    ? "bg-white text-[#3b0f6b]"
+                    : "hover:bg-white/10"}
+                `}
+                >
+                  Reports
+                </Link>
               </nav>
             </div>
 
@@ -201,6 +211,16 @@ const isActive = (href: string) => {
     `}
           >
             Loans
+          </Link>
+          <Link
+            href="/dashboard/agent/reports"
+            className={`px-3 py-2 rounded transition
+      ${isActive("/dashboard/agent/reports")
+        ? "bg-[#3b0f6b] text-white"
+        : "hover:bg-gray-100"}
+    `}
+          >
+            Reports
           </Link>
         </nav>
       </aside>

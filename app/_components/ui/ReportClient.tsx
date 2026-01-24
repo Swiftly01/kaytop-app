@@ -4,7 +4,7 @@ import { useReport } from "@/app/dashboard/bm/queries/reports/useReport";
 import useReportById from "@/app/dashboard/bm/queries/reports/useReportById";
 import { usePageChange } from "@/app/hooks/usePageChange";
 import { PaginationKey } from "@/app/types/dashboard";
-import { GenerateReportFormData, ReportType } from "@/app/types/report";
+import { ReportType } from "@/app/types/report";
 import {
   Select,
   SelectContent,

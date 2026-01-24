@@ -81,10 +81,10 @@ export default function UserLoanTable({
                 <td className="p-4"> {loan?.dueDate
                     ? new Date(loan.dueDate).toDateString()
                     : "—"}</td>
-                <td className="p-4 flex gap-3 justify-end">
+                {/* <td className="p-4 flex gap-3 justify-end">
                   <Trash2 size={16} className="text-slate-400 cursor-pointer" />
                   <Pencil size={16} className="text-slate-400 cursor-pointer" />
-                </td>
+                </td> */}
               </tr>
             );
           })}

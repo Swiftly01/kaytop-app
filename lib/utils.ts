@@ -11,6 +11,7 @@ import { MenuItem, Routes } from "@/app/types/routes";
 import { clsx, type ClassValue } from "clsx";
 import dayjs from "dayjs";
 import { twMerge } from "tailwind-merge";
+import { User } from "./api/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -294,17 +295,17 @@ export function getBmReportMetrics({
   return [
     {
       title: "Total Reports",
-      value: data?.reportStats.totalReports.toString(),
+      value: data?.reportStats?.totalReports?.toString(),
       border: false,
     },
     {
       title: "Total Approved",
-      value: data?.reportStats.totalApproved.toString(),
+      value: data?.reportStats?.totalApproved?.toString(),
       border: true,
     },
     {
       title: "Total Declined",
-      value: data?.reportStats.totalDeclined.toString(),
+      value: data?.reportStats?.totalDeclined?.toString(),
       border: true,
     },
   ];
@@ -513,6 +514,11 @@ interface ReportData {
   status?: string;
   createdAt?: string;
   updatedAt?: string;
+  startDate?: string;
+  endDate?: string;
+  reportDate?: string;
+  submittedAt?: string;
+  submittedBy?: User;
   [key: string]: unknown;
 }
 
@@ -523,6 +529,11 @@ interface LoanReportData {
   completedLoans?: number;
   overdueLoans?: number;
   averageAmount?: string | number;
+  remarks?: string;
+  declineReason?: string;
+  totalSavingsProcessed?: number;
+  totalRecollections?: number;
+  totalLoansDisbursed?: number;
   [key: string]: unknown;
 }
 
