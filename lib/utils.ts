@@ -6,12 +6,7 @@ import {
   LoanDetailsApiResponse,
   SavingsProgressResponse,
 } from "@/app/types/loan";
-import {
-  ReportById,
-  ReportByIdResponse,
-  ReportStatus,
-  ReportType,
-} from "@/app/types/report";
+import { ReportStatus } from "@/app/types/report";
 import { MenuItem, Routes } from "@/app/types/routes";
 import { clsx, type ClassValue } from "clsx";
 import dayjs from "dayjs";
@@ -24,11 +19,17 @@ export function cn(...inputs: ClassValue[]) {
 export const ROUTES: Routes = {
   Auth: {
     LOGIN: "/auth/login",
-    VERIFY_OTP: "/auth/verify-otp",
     FORGOT_PASSWORD: "/auth/forgot-password",
+    VERIFY_OTP: "/auth/verify-otp",
     RESET_PASSWORD: "/auth/reset-password",
   },
   Bm: {
+    Auth: {
+      LOGIN: "/auth/bm/login",
+      VERIFY_OTP: "/auth/bm/verify-otp",
+      FORGOT_PASSWORD: "/auth/bm/forgot-password",
+      RESET_PASSWORD: "/auth/bm/reset-password",
+    },
     DASHBOARD: "/dashboard/bm",
     CREDIT: "/dashboard/bm/credit",
     CUSTOMERS: "/dashboard/bm/customer",
@@ -39,11 +40,11 @@ export const ROUTES: Routes = {
   User: {
     Auth: {
       LOGIN: "/auth/user/login",
-      VERIFY_OTP: "/auth/user/verify-otp",
       FORGOT_PASSWORD: "/auth/user/forgot-password",
+      VERIFY_OTP: "/auth/user/verify-otp",
       RESET_PASSWORD: "/auth/user/reset-password",
     },
-  }
+  },
 };
 
 export function formatDate(date?: string | Date | null) {
@@ -72,23 +73,32 @@ interface DashboardMetrics {
   loansProcessedThisPeriod: number;
   loanValueThisPeriod: number;
   activeLoans: number;
+  // Report statistics
+  totalReports?: number;
+  pendingReports?: number;
+  approvedReports?: number;
+  missedReports?: number;
+  totalReportsGrowth?: number;
+  pendingReportsGrowth?: number;
+  approvedReportsGrowth?: number;
+  missedReportsGrowth?: number;
 }
 
 interface DashboardMetricsInput {
   data?: DashboardMetrics;
 }
 
-interface DashboardReportMetrics {
-  data?: DashboardKpi;
-}
-
 interface BranchLoanMetrics extends DashboardMetrics {
   totalLoans: number;
-  overdueLoans: number;
 }
 
 interface BranchLoanMetricsInput {
   data?: BranchLoanMetrics;
+}
+
+
+interface DashboardReportMetrics {
+  data?: DashboardKpi;
 }
 
 export function getDashboardMetrics({ data }: DashboardMetricsInput): {
@@ -128,9 +138,25 @@ export function getDashboardMetrics({ data }: DashboardMetricsInput): {
         border: false,
       },
       {
-        title: "Missed Payment",
-        value: "N/A",
-        border: false,
+        title: "Total Reports",
+        value: data?.totalReports?.toString() || "N/A",
+        change: data?.totalReportsGrowth ? `${data.totalReportsGrowth >= 0 ? '+' : ''}${data.totalReportsGrowth}% this month` : undefined,
+        changeColor: data?.totalReportsGrowth && data.totalReportsGrowth >= 0 ? "green" : "red",
+        border: true,
+      },
+      {
+        title: "Pending Reports",
+        value: data?.pendingReports?.toString() || "N/A",
+        change: data?.pendingReportsGrowth ? `${data.pendingReportsGrowth >= 0 ? '+' : ''}${data.pendingReportsGrowth}% this month` : undefined,
+        changeColor: data?.pendingReportsGrowth && data.pendingReportsGrowth >= 0 ? "green" : "red",
+        border: true,
+      },
+      {
+        title: "Missed Reports",
+        value: data?.missedReports?.toString() || "N/A",
+        change: data?.missedReportsGrowth ? `${data.missedReportsGrowth >= 0 ? '+' : ''}${data.missedReportsGrowth}% this month` : undefined,
+        changeColor: data?.missedReportsGrowth && data.missedReportsGrowth >= 0 ? "red" : "green", // Inverted: less missed reports is good
+        border: true,
       },
     ],
   };
@@ -239,28 +265,6 @@ export function getBranchLoanMetrics({
   ];
 }
 
-export function getUserBranchLoanMetrics({
-  data,
-}: BranchLoanMetricsInput): MetricProps[] {
-  return [
-    {
-      title: "Total Loans",
-      value: data?.totalLoans.toString(),
-      border: false,
-    },
-    {
-      title: "Active Loans",
-      value: data?.activeLoans.toString(),
-      border: true,
-    },
-    {
-      title: "Missed Loans",
-      value: data?.overdueLoans.toString(),
-      border: true,
-    }
-  ];
-}
-
 export function getCustomerMetrics({
   data,
 }: DashboardMetricsInput): MetricProps[] {
@@ -278,7 +282,9 @@ export function getCustomerMetrics({
   ];
 }
 
-export function getReportMetrics({
+
+
+export function getBmReportMetrics({
   data,
 }: DashboardReportMetrics): MetricProps[] {
   return [
@@ -330,24 +336,12 @@ export function mapLoanDetailsData(
   ];
 }
 
-export function mapUserLoanDetailsData(
-  data: LoanDetailsApiResponse
-): SummaryProps[] {
-  return [
-    { label: "Loan Id", value: data.loanDetails.id },
-    { label: "Borrower", value: (data.customerDetails.firstName + " " + data.customerDetails.lastName) },
-  ];
-}
-
 export function mapOtherLoanDetailsData(
   data: LoanDetailsApiResponse
 ): SummaryProps[] {
   return [
-    {
-      label: "Amount borrowed",
-      value: formatCurrency(Number(data.loanDetails.amount)),
-    },
-    { label: "Date disbursed", value: formatDate(data.loanDetails.createdAt) },
+    { label: "Amount borrowed", value: formatCurrency(Number(data.loanDetails.amount)) },
+    { label: "Date disbursed", value:formatDate(data.loanDetails.createdAt) },
   ];
 }
 
@@ -355,122 +349,182 @@ export function mapLoanIntrestData(
   data: LoanDetailsApiResponse
 ): SummaryProps[] {
   return [
-    { label: "Intrest Rate", value: `${data.loanDetails.interestRate}%` },
-     { label: "Loan status", value:  data.loanDetails.status.toUpperCase() },
+    { label: "Intrest Rate", value: data.loanDetails.interestRate },
+    { label: "Loan status", value:data.loanDetails.status },
   ];
 }
 
-export function mapReportDetails(data: ReportById): SummaryProps[] {
+
+
+// Helper function to generate report metrics from real data
+export function getReportMetrics(reportStats?: {
+  totalReports: number;
+  missedReports: number;
+  totalReportsGrowth: number;
+  missedReportsGrowth: number;
+}): MetricProps[] {
   return [
-    { label: "Report Id", value: `ReportId ${data.id}` },
-    { label: "Credit Officer", value: data.submittedBy.role.replace("_", " ") },
-    { label: "Branch", value: data.branch },
-  ];
-}
-
-export function mapReportLoanDetails(data: ReportById): SummaryProps[] {
-  return [
     {
-      label: "Loans Disbursed",
-      value: formatCurrency(Number(data.totalLoansDisbursed)),
+      title: "Total Reports",
+      value: reportStats?.totalReports?.toString() || "0",
+      change: reportStats?.totalReportsGrowth ? `${reportStats.totalReportsGrowth >= 0 ? '+' : ''}${reportStats.totalReportsGrowth}% this month` : undefined,
+      changeColor: reportStats?.totalReportsGrowth && reportStats.totalReportsGrowth >= 0 ? "green" : "red",
+      border: false,
     },
     {
-      label: " Loans Recollections",
-      value: formatCurrency(Number(data.totalRecollections)),
-    },
-    {
-      label: "Savings Collected",
-      value: formatCurrency(Number(data.totalSavingsProcessed)),
-    },
-    {
-      label: "Repayments Collected",
-      value: formatCurrency(Number(data.totalRecollections)),
-    },
-    {
-      label: "Date Sent",
-      value: formatDate(data.reportDate),
-    },
-    {
-      label: "Start Date",
-      value: data.startDate,
-    },
-    {
-      label: "Description",
-      value: data.description,
-    },
-    {
-      label: "Title",
-      value: data.title,
-    },
-    {
-      label: "Branch",
-      value: data.branch,
+      title: "Missed Reports",
+      value: reportStats?.missedReports?.toString() || "0",
+      change: reportStats?.missedReportsGrowth ? `${reportStats.missedReportsGrowth >= 0 ? '+' : ''}${reportStats.missedReportsGrowth}% this month` : undefined,
+      changeColor: reportStats?.missedReportsGrowth && reportStats.missedReportsGrowth >= 0 ? "red" : "green", // Inverted: less missed reports is good
+      border: true,
     },
   ];
 }
 
-//Type predicate
-export function isReportStatus(value: string): value is ReportStatus {
-  return Object.values(ReportStatus).includes(value as ReportStatus);
-}
+// Deprecated: Use getReportMetrics() with real data instead
+export const reports: MetricProps[] = [
+  {
+    title: "Total Reports",
+    value: "42,094",
+    change: "+6% this month",
+    changeColor: "green",
+    border: false,
+  },
+  {
+    title: "Missed Reports",
+    value: "15,350",
+    change: "+6% this month",
+    changeColor: "green",
+    border: true,
+  },
+];
 
-export function isReportType(value: string | null): value is ReportType {
-  return (
-    typeof value === "string" &&
-    REPORT_TYPE_OPTIONS.some((option) => option.value === value)
-  );
-}
+export const loans: MetricProps[] = [
+  {
+    title: "Total Loans",
+    value: "42,094",
+    change: "+6% this month",
+    changeColor: "green",
+    border: false,
+  },
+  {
+    title: "Active Loans",
+    value: "15,350",
+    change: "+6% this month",
+    changeColor: "green",
+    border: true,
+  },
 
-export const REPORT_TYPE_OPTIONS: { value: ReportType; label: string }[] = [
+  {
+    title: "Completed  Loans",
+    value: "15,350",
+    change: "+6% this month",
+    changeColor: "green",
+    border: true,
+  },
+];
+
+export const customer: MetricProps[] = [
+  {
+    title: "Total Customers",
+    value: "42,094",
+    change: "+6% this month",
+    changeColor: "green",
+    border: false,
+  },
+  {
+    title: "Active Loans",
+    value: "15,350",
+    change: "+6% this month",
+    changeColor: "green",
+    border: true,
+  },
+];
+
+export const creditOficcer: MetricProps[] = [
+  {
+    title: "Total Credit Officers",
+    value: "42,094",
+    change: "+6% this month",
+    changeColor: "green",
+    border: false,
+  },
+];
+
+export const data: MetricProps[] = [
+  {
+    title: "All Customers",
+    value: "42,094",
+    change: "+6% this month",
+    changeColor: "green",
+    border: false,
+  },
+  {
+    title: "All CO's",
+    value: "15,350",
+    change: "+6% this month",
+    changeColor: "green",
+    border: true,
+  },
+  {
+    title: "Loans Processed",
+    value: "28,350",
+    change: "-26% this month",
+    changeColor: "red",
+    border: true,
+  },
+  {
+    title: "Loan Amount",
+    value: "₦50,350.00",
+    change: "+40% this month",
+    changeColor: "green",
+    border: true,
+  },
+];
+// Report type validation and options
+export const REPORT_TYPE_OPTIONS = [
   { value: "daily", label: "Daily" },
   { value: "weekly", label: "Weekly" },
   { value: "monthly", label: "Monthly" },
   { value: "quarterly", label: "Quarterly" },
   { value: "annual", label: "Annual" },
   { value: "custom", label: "Custom" },
-];
+] as const;
 
-// const status = getEnumParam(
-//   searchParams.get("status"),
-//   Object.values(ReportStatus),
-//   ReportStatus.PENDING
-// );
+export function isReportType(value: string | null): value is "daily" | "weekly" | "monthly" | "quarterly" | "annual" | "custom" {
+  return value !== null && ["daily", "weekly", "monthly", "quarterly", "annual", "custom"].includes(value);
+}
 
-// export function getEnumParam<T extends string>(
-//   value: string | null,
-//   allowed: readonly T[],
-//   fallback: T
-// ): T {
-//   return value && allowed.includes(value as T) ? (value as T) : fallback;
-// }
+export function isReportStatus(value: string | null): value is ReportStatus {
+  return value !== null && ["pending", "approved", "declined", "draft", "submitted", "forwarded"].includes(value);
+}
+// Report mapping functions
+export function mapReportDetails(data: any): SummaryProps[] {
+  if (!data) return [];
+  return [
+    { label: "Report ID", value: data.id?.toString() || "N/A" },
+    { label: "Title", value: data.title || "N/A" },
+    { label: "Description", value: data.description || "N/A" },
+    { label: "Branch", value: data.branch || "N/A" },
+    { label: "State", value: data.state || "N/A" },
+    { label: "Type", value: data.type || "N/A" },
+    { label: "Status", value: data.status || "N/A" },
+    { label: "Start Date", value: data.startDate ? formatDate(data.startDate) : "N/A" },
+    { label: "End Date", value: data.endDate ? formatDate(data.endDate) : "N/A" },
+    { label: "Report Date", value: data.reportDate ? formatDate(data.reportDate) : "N/A" },
+    { label: "Submitted At", value: data.submittedAt ? formatDate(data.submittedAt) : "N/A" },
+    { label: "Submitted By", value: data.submittedBy ? `${data.submittedBy.firstName} ${data.submittedBy.lastName}` : "N/A" },
+  ];
+}
 
-// export const data: MetricProps[] = [
-//   {
-//     title: "All Customers",
-//     value: "42,094",
-//     change: "+6% this month",
-//     changeColor: "green",
-//     border: false,
-//   },
-//   {
-//     title: "All CO's",
-//     value: "15,350",
-//     change: "+6% this month",
-//     changeColor: "green",
-//     border: true,
-//   },
-//   {
-//     title: "Loans Processed",
-//     value: "28,350",
-//     change: "-26% this month",
-//     changeColor: "red",
-//     border: true,
-//   },
-//   {
-//     title: "Loan Amount",
-//     value: "₦50,350.00",
-//     change: "+40% this month",
-//     changeColor: "green",
-//     border: true,
-//   },
-// ];
+export function mapReportLoanDetails(data: any): SummaryProps[] {
+  if (!data) return [];
+  return [
+    { label: "Total Loans Processed", value: data.totalLoansProcessed?.toString() || "0" },
+    { label: "Total Loans Disbursed", value: data.totalLoansDisbursed || "₦0.00" },
+    { label: "Total Recollections", value: data.totalRecollections || "₦0.00" },
+    { label: "Total Savings Processed", value: data.totalSavingsProcessed || "₦0.00" },
+    { label: "Remarks", value: data.remarks || "No remarks" },
+    { label: "Decline Reason", value: data.declineReason || "N/A" },
+  ];
+}

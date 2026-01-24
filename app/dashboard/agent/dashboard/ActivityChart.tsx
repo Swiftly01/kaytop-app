@@ -23,12 +23,18 @@ function generateBarData(kpi?: DashboardKpi) {
   // Generate simulated monthly data based on totals
   const baseValue = kpi?.totalDisbursedValue ? kpi.totalDisbursedValue / 12 / 1000 : 100;
   
-  return months.map((name, index) => ({
-    name,
-    disbursed: Math.round(baseValue * (0.7 + Math.random() * 0.6)),
-    repaid: Math.round(baseValue * 0.6 * (0.7 + Math.random() * 0.6)),
-    savings: Math.round(baseValue * 0.4 * (0.7 + Math.random() * 0.6)),
-  }));
+  return months.map((name, index) => {
+    // Use deterministic values based on month index instead of Math.random()
+    const monthVariation = 0.7 + (index % 3) * 0.2; // Creates variation: 0.7, 0.9, 1.1
+    const seasonalFactor = 1 + Math.sin((index / 12) * 2 * Math.PI) * 0.3; // Seasonal variation
+    
+    return {
+      name,
+      disbursed: Math.round(baseValue * monthVariation * seasonalFactor),
+      repaid: Math.round(baseValue * 0.6 * monthVariation * seasonalFactor),
+      savings: Math.round(baseValue * 0.4 * monthVariation * seasonalFactor),
+    };
+  });
 }
 
 // Generate donut chart data

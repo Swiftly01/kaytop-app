@@ -54,13 +54,37 @@ export default function LoginForm() {
       const isVerified = response.isVerified;
       auth(accessToken, role);
       setCookie(accessToken, role);
-       if (!isVerified) {
-      toast.success("Your account is under review");
-      router.push("/review");
-      return;
-    }
-      toast.success("You have logged in successfuly");
-      router.push(ROUTES.Bm.DASHBOARD);
+      
+      if (!isVerified) {
+        toast.success("Your account is under review");
+        router.push("/review");
+        return;
+      }
+      
+      toast.success("You have logged in successfully");
+      
+      // Redirect based on user role
+      switch (role) {
+        case 'system_admin':
+          router.push('/dashboard/system-admin');
+          break;
+        case 'account_manager':
+          router.push('/dashboard/am');
+          break;
+        case 'branch_manager':
+          router.push(ROUTES.Bm.DASHBOARD);
+          break;
+        case 'credit_officer':
+          router.push('/dashboard/agent');
+          break;
+        case 'customer':
+          router.push('/dashboard/customer');
+          break;
+        default:
+          // Fallback to customer dashboard for user login
+          router.push('/dashboard/customer');
+          break;
+      }
     } catch (error: AxiosError | unknown) {
       const err = error as AxiosError;
 
@@ -77,6 +101,7 @@ export default function LoginForm() {
           type="email"
           placeholder="Enter your email"
           id="email"
+          autoComplete="email"
           disabled={isSubmitting}
           {...register("email")}
           className="mt-1"
@@ -90,6 +115,7 @@ export default function LoginForm() {
           type="password"
           placeholder="Enter your password"
           id="password"
+          autoComplete="current-password"
           disabled={isSubmitting}
           {...register("password")}
           className="mt-1"

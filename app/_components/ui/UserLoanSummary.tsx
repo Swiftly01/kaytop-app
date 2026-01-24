@@ -3,7 +3,6 @@ import {
   mapLoanDetailsData,
   mapLoanIntrestData,
   mapOtherLoanDetailsData,
-  mapUserLoanDetailsData,
 } from "@/lib/utils";
 import SummaryCard from "./SummaryCard";
 import SpinnerLg from "./SpinnerLg";
@@ -23,7 +22,7 @@ export default function UserLoanSummary({
   error,
   loanDetails,
 }: LoanSummaryProps) {
-  const loanSummary = loanDetails ? mapUserLoanDetailsData(loanDetails.data) : [];
+  const loanSummary = loanDetails ? mapLoanDetailsData(loanDetails.data) : [];
   const loanOtherDetails = loanDetails
     ? mapOtherLoanDetailsData(loanDetails.data)
     : [];

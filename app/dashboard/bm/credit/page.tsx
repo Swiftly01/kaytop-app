@@ -6,7 +6,6 @@ export const metadata = {
   title: "Credit officer",
 };
 
-
 export default function page() {
   return (
     <div className="drawer-content">

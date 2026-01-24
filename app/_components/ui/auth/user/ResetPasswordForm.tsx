@@ -112,6 +112,7 @@ export default function ResetPasswordForm(): JSX.Element {
                 type="password"
                 placeholder="Enter your password"
                 id="new_password"
+                autoComplete="new-password"
                 disabled={isReseting}
                 {...register("newPassword")}
               />

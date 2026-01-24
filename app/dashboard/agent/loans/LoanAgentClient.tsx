@@ -5,7 +5,7 @@ import { MoreVertical, Calendar, Filter, Pencil, Trash2, X } from "lucide-react"
 import { LoanService } from "@/app/services/loanService";
 import { DashboardService } from "@/app/services/dashboardService";
 import { useDashboardQuery } from "../../bm/queries/kpi/useDashboardQuery";
-import { getBranchLoanMetrics, getUserBranchLoanMetrics } from "@/lib/utils";
+import { getBranchLoanMetrics } from "@/lib/utils";
 import { useBranchLoans } from "../../bm/queries/loan/useBranchLoans";
 import { usePageChange } from "@/app/hooks/usePageChange";
 import { PaginationKey } from "@/app/types/dashboard";
@@ -43,7 +43,7 @@ const [selectedLoanId, setSelectedLoanId] = useState<number | null>(null);
  const { isLoading, error, data } = useDashboardQuery();
   const [status, setStatus] = useState<undefined | string>();
 
-  const metricData = getUserBranchLoanMetrics({ data });
+  const metricData = getBranchLoanMetrics({ data });
   const {
     isLoading: isLoadingLoan,
     error: branchLoanError,

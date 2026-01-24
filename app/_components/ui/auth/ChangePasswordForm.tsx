@@ -58,6 +58,7 @@ export default function ChangePasswordForm() {
           type="password"
           placeholder="*********"
           id="current_password"
+          autoComplete="current-password"
           disabled={isSubmitting}
           {...register("currentPassword")}
         />
@@ -74,6 +75,7 @@ export default function ChangePasswordForm() {
           type="password"
           placeholder="*********"
           id="new_password"
+          autoComplete="new-password"
           disabled={isSubmitting}
           {...register("newPassword")}
         />{" "}
@@ -91,6 +93,7 @@ export default function ChangePasswordForm() {
           type="password"
           placeholder="*********"
           id="confirm_password"
+          autoComplete="new-password"
           disabled={isSubmitting}
           {...register("confirmNewPassword")}
         />{" "}

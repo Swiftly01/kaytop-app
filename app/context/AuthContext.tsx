@@ -1,14 +1,15 @@
 "use client";
-import { createContext, useContext } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { useLocalStorageState } from "../hooks/useLocalStorage";
 import { removeAuthCookies, setAuthCookies } from "@/lib/authCookies";
 
 
 interface AuthContextType {
-  session: { token: string } | null;
+  session: { token: string; role: string } | null;
   login: (token: string, role: string) => void;
   logOut: () => void;
   setCookie: (token: string, role: string) => void;
+  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,6 +23,18 @@ function AuthProvider({
     token: string;
     role: string;
   } | null>(null, "auth_session");
+  
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Handle hydration by waiting for client-side mount
+  useEffect(() => {
+    // Small delay to ensure localStorage has been read
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 0);
+    
+    return () => clearTimeout(timer);
+  }, []);
 
   const login = (token: string, role: string): void => {
     setSession({ token, role });
@@ -37,7 +50,7 @@ function AuthProvider({
   };
 
   return (
-    <AuthContext.Provider value={{ session, login, logOut, setCookie }}>
+    <AuthContext.Provider value={{ session, login, logOut, setCookie, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

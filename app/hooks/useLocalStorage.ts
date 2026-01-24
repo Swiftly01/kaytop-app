@@ -2,21 +2,27 @@
 import { useEffect, useState } from "react";
 
 export function useLocalStorageState<T>(initialState: T, key: string) {
-  const [value, setValue] = useState(function () {
-    if (typeof window === "undefined") return initialState;
-    const storedValue = localStorage.getItem(key);
+  const [value, setValue] = useState<T | null>(initialState);
+  const [isHydrated, setIsHydrated] = useState(false);
 
-    return storedValue ? JSON.parse(storedValue) : initialState;
-  });
+  useEffect(() => {
+    // Only run on client-side after hydration
+    setIsHydrated(true);
+    const storedValue = localStorage.getItem(key);
+    if (storedValue) {
+      setValue(JSON.parse(storedValue));
+    }
+  }, [key]);
 
   useEffect(
     function () {
+      if (!isHydrated) return; // Don't update localStorage until hydrated
       if (value === null || value === undefined) {
         return localStorage.removeItem(key);
       }
       localStorage.setItem(key, JSON.stringify(value));
     },
-    [value, key]
+    [value, key, isHydrated]
   );
 
   const remove = () => {
