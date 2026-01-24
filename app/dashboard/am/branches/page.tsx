@@ -655,40 +655,38 @@ export default function AMBranchesPage() {
 
             {/* Filter Controls */}
             <div style={{ marginBottom: '56px' }}>
-              <div className="flex items-center justify-between">
-                <FilterControls
-                  selectedPeriod={selectedPeriod}
-                  onPeriodChange={handlePeriodChange}
-                  onDateRangeChange={handleDateRangeChange}
-                  onFilter={handleFilterClick}
-                />
-                
-                {/* Calculate Ratings Button - Only show for leaderboard tab */}
-                {activeTab === 'leaderboard' && (
-                  <button
-                    onClick={handleCalculateRatings}
-                    disabled={isCalculatingRatings}
-                    className={`inline-flex items-center gap-2 px-3 sm:px-4 py-2.5 border rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 flex-1 sm:flex-initial justify-center focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap ${
-                      isCalculatingRatings
-                        ? 'bg-gray-50 border-[#D0D5DD] text-gray-400 cursor-not-allowed'
-                        : 'bg-white border-[#D0D5DD] text-[#344054] hover:bg-gray-50 active:bg-gray-100'
-                    }`}
-                    style={{
-                      boxShadow: '0px 1px 2px rgba(16, 24, 40, 0.05)',
-                    }}
-                    aria-label="Calculate performance ratings"
-                  >
-                    {isCalculatingRatings ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
-                        Calculating...
-                      </>
-                    ) : (
-                      'Calculate Ratings'
-                    )}
-                  </button>
-                )}
-              </div>
+              <FilterControls
+                selectedPeriod={selectedPeriod}
+                onPeriodChange={handlePeriodChange}
+                onDateRangeChange={handleDateRangeChange}
+                onFilter={handleFilterClick}
+                additionalButtons={
+                  activeTab === 'leaderboard' ? (
+                    <button
+                      onClick={handleCalculateRatings}
+                      disabled={isCalculatingRatings}
+                      className={`inline-flex items-center gap-2 px-3 sm:px-4 py-2.5 border rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 flex-1 sm:flex-initial justify-center focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap ${
+                        isCalculatingRatings
+                          ? 'bg-gray-50 border-[#D0D5DD] text-gray-400 cursor-not-allowed'
+                          : 'bg-white border-[#D0D5DD] text-[#344054] hover:bg-gray-50 active:bg-gray-100'
+                      }`}
+                      style={{
+                        boxShadow: '0px 1px 2px rgba(16, 24, 40, 0.05)',
+                      }}
+                      aria-label="Calculate performance ratings"
+                    >
+                      {isCalculatingRatings ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                          Calculating...
+                        </>
+                      ) : (
+                        'Calculate Ratings'
+                      )}
+                    </button>
+                  ) : null
+                }
+              />
             </div>
 
             {/* Statistics Card */}

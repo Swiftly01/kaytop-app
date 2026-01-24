@@ -13,6 +13,7 @@ interface FilterControlsProps {
   onPeriodChange?: (period: TimePeriod) => void;
   onDateRangeChange?: (range: DateRange | undefined) => void;
   onFilter?: () => void;
+  additionalButtons?: React.ReactNode;
 }
 
 export default function FilterControls({
@@ -20,6 +21,7 @@ export default function FilterControls({
   onPeriodChange,
   onDateRangeChange,
   onFilter,
+  additionalButtons,
 }: FilterControlsProps) {
   const [activePeriod, setActivePeriod] = useState<TimePeriod>(selectedPeriod);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -149,6 +151,9 @@ export default function FilterControls({
           <FilterIcon className="w-4 h-4 sm:w-5 sm:h-5" color="#344054" />
           Filters
         </button>
+
+        {/* Additional Buttons */}
+        {additionalButtons}
       </div>
     </div>
   );
