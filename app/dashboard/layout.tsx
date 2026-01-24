@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import React from "react";
+import { Toaster } from "react-hot-toast";
 
 export const metadata: Metadata = {
   title: {

@@ -46,7 +46,11 @@ export default function LoanSetupStep({
 
   const fetchLoanStatus = async (customerId: number) => {
     const loans = await CustomerService.getBranchCustomerLoan(customerId);
-    return loans.some((l) => l.status === "active");
+    // return loans.some((l) => l.status === "active");
+    return loans.some((l) =>
+  ["active", "disbursed", "overdue"].includes(l.status)
+);
+
   };
 
   const checkLoanStatus = async () => {
@@ -57,12 +61,14 @@ export default function LoanSetupStep({
       const hasActiveLoan = await fetchLoanStatus(customerId);
       setHasLoan(hasActiveLoan);
       setChecked(true);
-    } catch (err) {
-      toast.error("Failed to check loan status");
-    } finally {
-      setCheckingLoan(false);
-    }
-  };
+    } catch (error: any) {
+        const message =
+          error?.response?.data?.message || "Failed to check loan status";
+        toast.error(message);
+      }finally {
+            setCheckingLoan(false);
+          }
+        };
 
   const handleContinue = async () => {
     if (!customerId || amount <= 0) return;
