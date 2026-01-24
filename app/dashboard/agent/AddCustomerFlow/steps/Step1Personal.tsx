@@ -110,7 +110,11 @@ export default function Step1Personal() {
   <label className="text-sm font-medium">Branch</label>
   <Select
     value={data.branch}
-    onValueChange={(value) => updateField("branch", value)}
+    // onValueChange={(value) => updateField("branch", value)}
+    onValueChange={(value) => {
+    console.log("Branch selected:", value);
+    updateField("branch", value);
+  }}
   >
     <SelectTrigger>
       <SelectValue placeholder="Select branch" />
@@ -130,7 +134,11 @@ export default function Step1Personal() {
   <label className="text-sm font-medium">State</label>
   <Select
     value={data.state}
-    onValueChange={(value) => updateField("state", value)}
+    // onValueChange={(value) => updateField("state", value)}
+    onValueChange={(value) => {
+    console.log("State selected:", value);
+    updateField("state", value);
+  }}
   >
     <SelectTrigger>
       <SelectValue placeholder="Select state" />
