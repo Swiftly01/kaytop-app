@@ -286,8 +286,9 @@ class UserAPIService implements UserService {
 
   async updateUserRole(id: string, role: string): Promise<User> {
     try {
-      // Try the dedicated role update endpoint first
-      const response = await apiClient.patch<User>(API_ENDPOINTS.ADMIN.UPDATE_ROLE(id), { role });
+      // Try the general user update endpoint first (more likely to work)
+      console.log(`Updating user ${id} role to ${role} using general endpoint`);
+      const response = await apiClient.patch<User>(API_ENDPOINTS.ADMIN.UPDATE_USER(id), { role });
 
       // Handle different response formats from backend
       let userData: any = null;
@@ -312,19 +313,20 @@ class UserAPIService implements UserService {
       }
 
       if (userData) {
+        console.log('User role updated successfully via general endpoint:', userData);
         return userData as User;
       }
 
       throw new Error('Failed to update user role - invalid response format');
-    } catch (roleEndpointError: any) {
-      console.error('User role update error:', roleEndpointError);
+    } catch (generalEndpointError: any) {
+      console.error('User role update via general endpoint failed:', generalEndpointError);
       
-      // If the dedicated role endpoint returns 404, try the regular user update endpoint
-      if (roleEndpointError?.response?.status === 404 || roleEndpointError?.status === 404) {
-        console.warn('Role update endpoint not found, trying regular user update endpoint');
+      // If the general endpoint fails, try the dedicated role endpoint as fallback
+      if (generalEndpointError?.response?.status === 404 || generalEndpointError?.status === 404) {
+        console.warn('General user update endpoint not found, trying dedicated role update endpoint');
         
         try {
-          const response = await apiClient.patch<User>(API_ENDPOINTS.ADMIN.UPDATE_USER(id), { role });
+          const response = await apiClient.patch<User>(API_ENDPOINTS.ADMIN.UPDATE_ROLE(id), { role });
 
           // Handle different response formats from backend
           let userData: any = null;
@@ -349,17 +351,19 @@ class UserAPIService implements UserService {
           }
 
           if (userData) {
+            console.log('User role updated successfully via dedicated endpoint:', userData);
             return userData as User;
           }
 
-          throw new Error('Failed to update user role via user update endpoint - invalid response format');
-        } catch (fallbackError: any) {
-          console.error('User role update via fallback endpoint failed:', fallbackError);
-          throw fallbackError;
+          throw new Error('Failed to update user role via dedicated endpoint - invalid response format');
+        } catch (roleEndpointError: any) {
+          console.error('User role update via dedicated endpoint also failed:', roleEndpointError);
+          throw roleEndpointError;
         }
       }
-      
-      throw roleEndpointError;
+
+      // If it's not a 404, throw the original error
+      throw generalEndpointError;
     }
   }
 
