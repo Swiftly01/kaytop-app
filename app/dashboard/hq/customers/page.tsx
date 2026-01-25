@@ -41,7 +41,7 @@ const transformUserToCustomer = (user: User): Customer => ({
   dateJoined: formatCustomerDate(user.createdAt)
 });
 
-export default function AMCustomersPage() {
+export default function CustomersPage() {
   const { toasts, removeToast, success, error } = useToast();
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
@@ -80,7 +80,7 @@ export default function AMCustomersPage() {
       // Since /admin/users doesn't support role filtering, we need to fetch more data
       // and filter client-side. We'll fetch a larger page size to account for filtering.
       const fetchLimit = itemsPerPage * 5; // Fetch 5x more to account for role filtering
-      
+
       const usersResponse = await unifiedUserService.getAllUsers({
         page: 1, // Always fetch from page 1 since we're filtering client-side
         limit: Math.max(fetchLimit, 100), // Minimum 100 to ensure we get enough customers
@@ -88,7 +88,7 @@ export default function AMCustomersPage() {
         ...(filters?.region && { state: filters.region }),
       });
 
-      console.log('🔍 AM - Fetched users response from /admin/users:', usersResponse);
+      console.log('🔍 HQ Manager - Fetched users response from /admin/users:', usersResponse);
       console.log(`📊 Total users fetched: ${usersResponse.data.length}`);
 
       // Debug: Log role distribution

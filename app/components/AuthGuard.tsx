@@ -19,11 +19,11 @@ interface AuthGuardProps {
 /**
  * Base AuthGuard component
  */
-export function AuthGuard({ 
-  children, 
-  requiredRole, 
-  requiredRoles, 
-  fallbackPath = '/auth/login' 
+export function AuthGuard({
+  children,
+  requiredRole,
+  requiredRoles,
+  fallbackPath = '/auth/login'
 }: AuthGuardProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
@@ -98,9 +98,12 @@ export function BranchManagerGuard({ children }: { children: React.ReactNode }) 
 /**
  * Account Manager Guard
  */
-export function AccountManagerGuard({ children }: { children: React.ReactNode }) {
+/**
+ * HQ Manager Guard
+ */
+export function HQManagerGuard({ children }: { children: React.ReactNode }) {
   return (
-    <AuthGuard requiredRoles={["account_manager", "hq_manager"]} fallbackPath="/auth/login">
+    <AuthGuard requiredRoles={["hq_manager", "account_manager"]} fallbackPath="/auth/login">
       {children}
     </AuthGuard>
   );
@@ -122,7 +125,7 @@ export function CreditOfficerGuard({ children }: { children: React.ReactNode }) 
  */
 export function StaffGuard({ children }: { children: React.ReactNode }) {
   return (
-    <AuthGuard 
+    <AuthGuard
       requiredRoles={['system_admin', 'branch_manager', 'account_manager', 'hq_manager', 'credit_officer']}
       fallbackPath="/auth/login"
     >

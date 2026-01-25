@@ -3,13 +3,13 @@ import React from "react";
 import Sidebar from "@/app/_components/layouts/dashboard/Sidebar";
 import Navbar from "@/app/_components/layouts/dashboard/Navbar";
 import QueryProvider from "@/app/_components/ui/QueryProvider";
-import { AccountManagerGuard } from "@/app/components/AuthGuard";
+import { HQManagerGuard } from "@/app/components/AuthGuard";
 import { MenuItem } from "@/app/types/routes";
 
 export const metadata: Metadata = {
   title: {
     template: "%s | Kaytop App",
-    default: "Welcome / Account Manager Dashboard",
+    default: "Welcome / HQ Manager Dashboard",
   },
   description:
     "Kaytop is a modern multipurpose investment platform that enables users to invest confidently, access financing, and grow wealth with ease.",
@@ -18,52 +18,52 @@ export const metadata: Metadata = {
   },
 };
 
-const amMenuItems: MenuItem[] = [
+const hqMenuItems: MenuItem[] = [
   {
     label: "Dashboard",
     icon: "/dashboard.svg",
-    link: "/dashboard/am",
+    link: "/dashboard/hq",
   },
   {
     label: "Branches",
     icon: "/branches.svg",
-    link: "/dashboard/am/branches",
+    link: "/dashboard/hq/branches",
   },
   {
     label: "Credit Officers",
     icon: "/credit.svg",
-    link: "/dashboard/am/credit-officers",
+    link: "/dashboard/hq/credit-officers",
   },
   {
     label: "Customers",
     icon: "/customer.svg",
-    link: "/dashboard/am/customers",
+    link: "/dashboard/hq/customers",
   },
   {
     label: "Loans",
     icon: "/loans.svg",
-    link: "/dashboard/am/loans",
+    link: "/dashboard/hq/loans",
   },
   {
     label: "Reports",
     icon: "/report.svg",
-    link: "/dashboard/am/reports",
+    link: "/dashboard/hq/reports",
   },
   {
     label: "Settings",
     icon: "/settings.svg",
-    link: "/dashboard/am/settings",
+    link: "/dashboard/hq/settings",
   },
 ];
 
-export default function AccountManagerLayout({
+export default function HQManagerLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
     <div className="bg-[#F4F6FA] min-h-screen">
-      <AccountManagerGuard>
+      <HQManagerGuard>
         <QueryProvider>
           <Navbar />
           <div className="drawer lg:drawer-open" style={{ paddingTop: '70px' }}>
@@ -73,11 +73,11 @@ export default function AccountManagerLayout({
               className="drawer-toggle lg:hidden"
               aria-label="Toggle navigation drawer"
             />
-            <Sidebar items={amMenuItems} />
+            <Sidebar items={hqMenuItems} />
             {children}
           </div>
         </QueryProvider>
-      </AccountManagerGuard>
+      </HQManagerGuard>
     </div>
   );
 }

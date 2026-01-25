@@ -17,16 +17,17 @@ import { DashboardFiltersModal, DashboardFilters } from '@/app/_components/ui/Da
 import { dashboardService } from '@/lib/services/dashboard';
 import type { DashboardKPIs, DashboardParams } from '@/lib/api/types';
 
+import { useDebounce } from "@/app/hooks/useDebounce";
 import {
-  useAMDisbursementsQuery,
-  useAMRecollectionsQuery,
-  useAMSavingsQuery,
-  useAMMissedPaymentsQuery
-} from './queries/useAMQueries';
+  useHQDisbursementsQuery,
+  useHQRecollectionsQuery,
+  useHQSavingsQuery,
+  useHQMissedPaymentsQuery
+} from './queries/useHQQueries';
 
 type TabValue = 'disbursements' | 're-collections' | 'savings' | 'missed-payments';
 
-export default function AccountManagerDashboard() {
+export default function HQManagerDashboard() {
   const { toasts, removeToast, success, error: showError } = useToast();
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [timePeriod, setTimePeriod] = useState<TimePeriod>(null);
@@ -36,6 +37,8 @@ export default function AccountManagerDashboard() {
   const [itemsPerPage] = useState(10);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 400); // 400ms debounce
+
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [showFiltersModal, setShowFiltersModal] = useState(false);
@@ -62,7 +65,7 @@ export default function AccountManagerDashboard() {
       const data = await dashboardService.getKPIs(params);
       setDashboardData(data);
     } catch (error) {
-      console.error('Failed to fetch AM dashboard data:', error);
+      console.error('Failed to fetch HQ dashboard data:', error);
       setDashboardError(error instanceof Error ? error.message : 'Failed to load dashboard data');
       showError('Failed to load dashboard data. Please try again.');
     } finally {
@@ -188,7 +191,7 @@ export default function AccountManagerDashboard() {
     if (!dashboardData) return [];
 
     // Debug: Log the dashboard data structure
-    console.log('🔍 AM Dashboard data structure:', JSON.stringify(dashboardData, null, 2));
+    console.log('🔍 HQ Dashboard data structure:', JSON.stringify(dashboardData, null, 2));
 
     // Helper function to safely extract values from the data structure
     const extractValue = (data: any) => {
@@ -269,11 +272,11 @@ export default function AccountManagerDashboard() {
     ];
   };
 
-  // Real backend data queries
-  const { data: disbursementsData, isLoading: disbursementsLoading, error: disbursementsError } = useAMDisbursementsQuery(currentPage, itemsPerPage);
-  const { data: recollectionsData, isLoading: recollectionsLoading, error: recollectionsError } = useAMRecollectionsQuery(currentPage, itemsPerPage);
-  const { data: savingsData, isLoading: savingsLoading, error: savingsError } = useAMSavingsQuery(currentPage, itemsPerPage);
-  const { data: missedPaymentsData, isLoading: missedPaymentsLoading, error: missedPaymentsError } = useAMMissedPaymentsQuery(currentPage, itemsPerPage);
+  // Real backend data queries with Search
+  const { data: disbursementsData, isLoading: disbursementsLoading, error: disbursementsError } = useHQDisbursementsQuery(currentPage, itemsPerPage, debouncedSearch);
+  const { data: recollectionsData, isLoading: recollectionsLoading, error: recollectionsError } = useHQRecollectionsQuery(currentPage, itemsPerPage, debouncedSearch);
+  const { data: savingsData, isLoading: savingsLoading, error: savingsError } = useHQSavingsQuery(currentPage, itemsPerPage, debouncedSearch);
+  const { data: missedPaymentsData, isLoading: missedPaymentsLoading, error: missedPaymentsError } = useHQMissedPaymentsQuery(currentPage, itemsPerPage, debouncedSearch);
 
   // Handler for sorting
   const handleSort = (column: string) => {
@@ -332,19 +335,11 @@ export default function AccountManagerDashboard() {
   const currentTabData = currentTabInfo.data;
   const tabDataLoading = currentTabInfo.loading;
   const tabDataError = currentTabInfo.error;
-  
+
   // Apply search filter to current tab data
-  let filteredData = searchQuery
-    ? currentTabData.filter(item => {
-      const searchLower = searchQuery.toLowerCase();
-      return (
-        ('loanId' in item && item.loanId && item.loanId.toLowerCase().includes(searchLower)) ||
-        ('accountId' in item && item.accountId && item.accountId.toLowerCase().includes(searchLower)) ||
-        ('name' in item && item.name && item.name.toLowerCase().includes(searchLower)) ||
-        ('status' in item && item.status && item.status.toLowerCase().includes(searchLower))
-      );
-    })
-    : currentTabData;
+  // NOTE: Search is now handled by the backend API via the debouncedSearch query parameter
+  // We don't filter client-side anymore to ensure we see results from all pages
+  let filteredData = currentTabData;
 
   // Apply advanced filters
   if (activeFilters) {
@@ -417,13 +412,13 @@ export default function AccountManagerDashboard() {
           <header>
             <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)', marginBottom: '8px' }}>Overview</h1>
             <p className="text-base font-medium" style={{ color: 'var(--color-text-primary)', opacity: 0.5, marginBottom: '48px' }}>
-              Portfolio Management
+              HQ & Portfolio Management
             </p>
           </header>
 
           {/* Filter Controls */}
           <div style={{ marginBottom: '56px' }}>
-            <FilterControls 
+            <FilterControls
               selectedPeriod={timePeriod}
               onDateRangeChange={handleDateRangeChange}
               onPeriodChange={handleTimePeriodChange}
@@ -551,7 +546,7 @@ export default function AccountManagerDashboard() {
 
           {/* Tab Navigation */}
           <div className="mt-8">
-            <TabNavigation 
+            <TabNavigation
               activeTab={activeTab}
               onTabChange={handleTabChange}
             />
@@ -692,7 +687,7 @@ export default function AccountManagerDashboard() {
           )}
 
           {/* Data Table */}
-          <section 
+          <section
             className="mt-6"
             role="tabpanel"
             id={`${activeTab}-panel`}
@@ -736,15 +731,15 @@ export default function AccountManagerDashboard() {
               </div>
             ) : (
               <>
-                <Table 
-                  data={paginatedData} 
+                <Table
+                  data={paginatedData}
                   tableType={activeTab}
                   sortColumn={sortColumn}
                   sortDirection={sortDirection}
                   onSort={handleSort}
                   onSelectionChange={handleSelectionChange}
                 />
-                
+
                 {/* Pagination Controls */}
                 <div className="mt-4 flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -753,7 +748,7 @@ export default function AccountManagerDashboard() {
                       {searchQuery && <span className="text-[#7F56D9]"> (filtered)</span>}
                     </span>
                   </div>
-                  
+
                   {totalPages > 1 && (
                     <Pagination
                       totalPages={totalPages}

@@ -102,18 +102,21 @@ export interface MissedPaymentRecord {
 }
 
 export interface SystemAdminService {
-  getDisbursements(page?: number, limit?: number): Promise<PaginatedResponse<DisbursementRecord>>;
-  getRecollections(page?: number, limit?: number): Promise<PaginatedResponse<RecollectionRecord>>;
-  getSavings(page?: number, limit?: number): Promise<PaginatedResponse<SavingsRecord>>;
-  getMissedPayments(page?: number, limit?: number): Promise<PaginatedResponse<MissedPaymentRecord>>;
+  getDisbursements(page?: number, limit?: number, search?: string): Promise<PaginatedResponse<DisbursementRecord>>;
+  getRecollections(page?: number, limit?: number, search?: string): Promise<PaginatedResponse<RecollectionRecord>>;
+  getSavings(page?: number, limit?: number, search?: string): Promise<PaginatedResponse<SavingsRecord>>;
+  getMissedPayments(page?: number, limit?: number, search?: string): Promise<PaginatedResponse<MissedPaymentRecord>>;
 }
 
 class SystemAdminAPIService implements SystemAdminService {
-  async getDisbursements(page: number = 1, limit: number = 10): Promise<PaginatedResponse<DisbursementRecord>> {
+  async getDisbursements(page: number = 1, limit: number = 10, search?: string): Promise<PaginatedResponse<DisbursementRecord>> {
     try {
-      const response = await apiClient.get<any>(
-        `${API_ENDPOINTS.LOANS.DISBURSED}?page=${page}&limit=${limit}`
-      );
+      let url = `${API_ENDPOINTS.LOANS.DISBURSED}?page=${page}&limit=${limit}`;
+      if (search) {
+        url += `&search=${encodeURIComponent(search)}`;
+      }
+
+      const response = await apiClient.get<any>(url);
 
       // Backend now handles pagination, expect response with data and pagination
       if (response?.data?.data && response?.data?.pagination) {
@@ -167,11 +170,14 @@ class SystemAdminAPIService implements SystemAdminService {
     }
   }
 
-  async getRecollections(page: number = 1, limit: number = 10): Promise<PaginatedResponse<RecollectionRecord>> {
+  async getRecollections(page: number = 1, limit: number = 10, search?: string): Promise<PaginatedResponse<RecollectionRecord>> {
     try {
-      const response = await apiClient.get<any>(
-        `${API_ENDPOINTS.LOANS.RECOLLECTIONS}?page=${page}&limit=${limit}`
-      );
+      let url = `${API_ENDPOINTS.LOANS.RECOLLECTIONS}?page=${page}&limit=${limit}`;
+      if (search) {
+        url += `&search=${encodeURIComponent(search)}`;
+      }
+
+      const response = await apiClient.get<any>(url);
 
       // Backend now handles pagination, expect response with data and pagination
       if (response?.data?.data && response?.data?.pagination) {
@@ -180,10 +186,8 @@ class SystemAdminAPIService implements SystemAdminService {
           pagination: response.data.pagination
         };
       }
-
-      // Handle various response formats (legacy support)
+      // ... legacy handling ...
       let dataArray: BackendRecollectionData[] = [];
-
       // Check if response is wrapped with success field
       if (isSuccessResponse(response)) {
         if (Array.isArray(response.data.data)) {
@@ -192,6 +196,7 @@ class SystemAdminAPIService implements SystemAdminService {
           dataArray = response.data as BackendRecollectionData[];
         }
       }
+      // ... other checks ...
       // Check if response.data is directly an array
       else if (Array.isArray(response.data)) {
         dataArray = response.data as BackendRecollectionData[];
@@ -211,32 +216,23 @@ class SystemAdminAPIService implements SystemAdminService {
         }
       };
     } catch (error) {
-      console.error('Recollections fetch error:', error);
-      // Return empty data instead of throwing to prevent dashboard from breaking
-      return {
-        data: [],
-        pagination: {
-          page,
-          limit,
-          total: 0,
-          totalPages: 0
-        }
-      };
+      // ... error handling ...
+      return { data: [], pagination: { page, limit, total: 0, totalPages: 0 } };
     }
   }
 
-  async getSavings(page: number = 1, limit: number = 10): Promise<PaginatedResponse<SavingsRecord>> {
+  async getSavings(page: number = 1, limit: number = 10, search?: string): Promise<PaginatedResponse<SavingsRecord>> {
     try {
-      console.log('🔍 getSavings - Starting request:', {
-        endpoint: `${API_ENDPOINTS.SAVINGS.ALL_ACCOUNTS}?page=${page}&limit=${limit}`,
-        page,
-        limit
-      });
+      let url = `${API_ENDPOINTS.SAVINGS.ALL_ACCOUNTS}?page=${page}&limit=${limit}`;
+      if (search) {
+        url += `&search=${encodeURIComponent(search)}`;
+      }
 
-      const response = await apiClient.get<any>(
-        `${API_ENDPOINTS.SAVINGS.ALL_ACCOUNTS}?page=${page}&limit=${limit}`
-      );
+      console.log('🔍 getSavings - Starting request:', { endpoint: url, page, limit, search });
 
+      const response = await apiClient.get<any>(url);
+
+      // ... rest of implementation ...
       console.log('🔍 getSavings - Response received:', response);
 
       // Backend now handles pagination, expect response with data and pagination
@@ -277,31 +273,21 @@ class SystemAdminAPIService implements SystemAdminService {
         }
       };
     } catch (error) {
-      console.error('Savings fetch error:', error);
-      // Return empty data instead of throwing to prevent dashboard from breaking
-      return {
-        data: [],
-        pagination: {
-          page,
-          limit,
-          total: 0,
-          totalPages: 0
-        }
-      };
+      // ...
+      return { data: [], pagination: { page, limit, total: 0, totalPages: 0 } };
     }
   }
 
-  async getMissedPayments(page: number = 1, limit: number = 10): Promise<PaginatedResponse<MissedPaymentRecord>> {
+  async getMissedPayments(page: number = 1, limit: number = 10, search?: string): Promise<PaginatedResponse<MissedPaymentRecord>> {
     try {
-      console.log('🔍 getMissedPayments - Starting request:', {
-        endpoint: `${API_ENDPOINTS.LOANS.MISSED}?page=${page}&limit=${limit}`,
-        page,
-        limit
-      });
+      let url = `${API_ENDPOINTS.LOANS.MISSED}?page=${page}&limit=${limit}`;
+      if (search) {
+        url += `&search=${encodeURIComponent(search)}`;
+      }
 
-      const response = await apiClient.get<any>(
-        `${API_ENDPOINTS.LOANS.MISSED}?page=${page}&limit=${limit}`
-      );
+      console.log('🔍 getMissedPayments - Starting request:', { endpoint: url, page, limit });
+
+      const response = await apiClient.get<any>(url);
 
       console.log('🔍 getMissedPayments - Response received:', response);
       console.log('🔍 getMissedPayments - Response data structure:', {

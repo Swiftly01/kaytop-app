@@ -24,53 +24,53 @@ const menuItems: MenuItem[] = [
     id: 'dashboard',
     label: 'Dashboard',
     icon: DashboardIcon,
-    href: '/dashboard/am',
+    href: '/dashboard/hq',
   },
   {
     id: 'branches',
     label: 'Branches',
     icon: BranchesIcon,
-    href: '/dashboard/am/branches',
+    href: '/dashboard/hq/branches',
   },
   {
     id: 'credit-officers',
     label: 'Credit Officers',
     icon: CreditOfficersIcon,
-    href: '/dashboard/am/credit-officers',
+    href: '/dashboard/hq/credit-officers',
   },
   {
     id: 'customers',
     label: 'Customers',
     icon: CustomersIcon,
-    href: '/dashboard/am/customers',
+    href: '/dashboard/hq/customers',
   },
   {
     id: 'loans',
     label: 'Loans',
     icon: LoansIcon,
-    href: '/dashboard/am/loans',
+    href: '/dashboard/hq/loans',
   },
   {
     id: 'savings',
     label: 'Savings',
     icon: SavingsIcon,
-    href: '/dashboard/am/savings',
+    href: '/dashboard/hq/savings',
   },
   {
     id: 'reports',
     label: 'Reports',
     icon: ReportIcon,
-    href: '/dashboard/am/reports',
+    href: '/dashboard/hq/reports',
   },
   {
     id: 'settings',
     label: 'Settings',
     icon: SettingsIcon,
-    href: '/dashboard/am/settings',
+    href: '/dashboard/hq/settings',
   },
 ];
 
-export default function AMSidebar() {
+export default function HQSidebar() {
   const pathname = usePathname();
 
   const isActive = (href: string) => {

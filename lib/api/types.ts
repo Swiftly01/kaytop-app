@@ -110,8 +110,9 @@ export interface CreateStaffData {
   email: string;
   mobileNumber: string;
   password: string;
-  role: 'credit_officer' | 'branch_manager' | 'account_manager' | 'hq_manager';
+  role: 'credit_officer' | 'branch_manager' | 'account_manager' | 'hq_manager' | 'system_admin';
   branch: string;
+  state: string;
 }
 
 export interface UpdateUserData {

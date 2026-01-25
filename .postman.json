@@ -74,7 +74,7 @@
       "system_admin": "/dashboard/system-admin",
       "branch_manager": "/dashboard/bm", 
       "account_manager": "/dashboard/am",
-      "hq_manager": "/dashboard/am",
+      "hq_manager": "/dashboard/hq",
       "credit_officer": "/dashboard/credit-officer",
       "customer": "/dashboard/customer"
     },
@@ -82,7 +82,7 @@
       "system_admin": "Full access to all dashboards",
       "branch_manager": "Access to BM and AM dashboards",
       "account_manager": "Access to AM dashboard",
-      "hq_manager": "Access to AM dashboard (same as account_manager)",
+      "hq_manager": "Access to HQ dashboard with full management capabilities",
       "credit_officer": "Access to CO dashboard",
       "customer": "Access to customer dashboard only"
     }
