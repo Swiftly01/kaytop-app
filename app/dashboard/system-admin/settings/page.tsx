@@ -549,17 +549,76 @@ export default function SettingsPage() {
 
   const handleSaveUser = async (updatedUserData: RoleUserData) => {
     try {
-      const backendRole = mapFrontendToBackendRole(updatedUserData.role);
+      const originalUser = selectedUser;
+      if (!originalUser) {
+        throw new Error('No original user data available');
+      }
 
-      // Update role
-      await updateUserRoleMutation.mutateAsync({ id: updatedUserData.id, role: backendRole });
+      // Determine what changed
+      const roleChanged = updatedUserData.role !== originalUser.role;
+      const profileChanged = 
+        updatedUserData.name !== originalUser.name ||
+        updatedUserData.email !== originalUser.email;
 
-      success('User role updated successfully!');
+      console.log('🔄 Processing user updates:', {
+        userId: updatedUserData.id,
+        roleChanged,
+        profileChanged,
+        newRole: updatedUserData.role,
+        originalRole: originalUser.role
+      });
+
+      // Handle role change using dedicated endpoint
+      if (roleChanged) {
+        const backendRole = mapFrontendToBackendRole(updatedUserData.role);
+        console.log('🎯 Updating user role via dedicated endpoint:', {
+          userId: updatedUserData.id,
+          role: backendRole
+        });
+        
+        await updateUserRoleMutation.mutateAsync({ 
+          id: updatedUserData.id, 
+          role: backendRole 
+        });
+      }
+
+      // Handle profile changes using general user update endpoint
+      if (profileChanged) {
+        // Parse name into firstName and lastName
+        const nameParts = updatedUserData.name.trim().split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+
+        const profileUpdateData = {
+          firstName,
+          lastName,
+          email: updatedUserData.email
+        };
+
+        console.log('🎯 Updating user profile via general endpoint:', {
+          userId: updatedUserData.id,
+          data: profileUpdateData
+        });
+
+        await updateUserMutation.mutateAsync({
+          id: updatedUserData.id,
+          data: profileUpdateData
+        });
+      }
+
+      success(
+        roleChanged && profileChanged 
+          ? 'User role and profile updated successfully!'
+          : roleChanged 
+            ? 'User role updated successfully!'
+            : 'User profile updated successfully!'
+      );
+      
       setShowEditRoleModal(false);
       setSelectedUser(null);
     } catch (err: any) {
-      console.error('Error updating user role:', err);
-      error(err?.message || 'Failed to update user role');
+      console.error('Error updating user:', err);
+      error(err?.message || 'Failed to update user information');
     }
   };
 
