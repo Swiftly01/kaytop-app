@@ -21,17 +21,18 @@ import { useAuth } from '@/app/context/AuthContext';
 export default function ReportsPage() {
   const { session } = useAuth();
   const { toasts, removeToast, success, error } = useToast();
-  
+
   // Role-based access control
   useEffect(() => {
-    if (session && session.role !== 'system_admin') {
-      error('Access denied. This page is only accessible to System Administrators.');
+    // Should generally be accessible to HQ Managers, Account Managers, and System Admins
+    const allowedRoles = ['system_admin', 'hq_manager', 'account_manager'];
+    if (session && !allowedRoles.includes(session.role)) {
+      error('Access denied. This page is only accessible to Managers.');
       // Redirect to appropriate dashboard based on role
       const roleRedirects = {
         'credit_officer': '/dashboard/co',
         'branch_manager': '/dashboard/bm',
-        'account_manager': '/dashboard/am',
-        'hq_manager': '/dashboard/hq'
+        'customer': '/dashboard/customer'
       };
       const redirectPath = roleRedirects[session.role as keyof typeof roleRedirects] || '/dashboard';
       window.location.href = redirectPath;
@@ -39,17 +40,6 @@ export default function ReportsPage() {
     }
   }, [session, error]);
 
-  // Don't render the page if user doesn't have proper access
-  if (session && session.role !== 'system_admin') {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
-          <p className="text-gray-600">This page is only accessible to System Administrators.</p>
-        </div>
-      </div>
-    );
-  }
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedReports, setSelectedReports] = useState<string[]>([]);
@@ -67,7 +57,7 @@ export default function ReportsPage() {
   });
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [selectedReportForDetails, setSelectedReportForDetails] = useState<Report | null>(null);
-  
+
   // API data state
   const [reportStatistics, setReportStatistics] = useState<ReportStatistics | null>(null);
   const [totalReports, setTotalReports] = useState(0);
@@ -80,7 +70,7 @@ export default function ReportsPage() {
       setLoading(true);
       setApiError(null);
 
-      console.log('🔍 SA Reports - Fetching data with filters:', filters);
+      console.log('🔍 HQ Reports - Fetching data with filters:', filters);
 
       // Build API filters from current state
       const apiFilters: APIReportFilters = {
@@ -89,12 +79,12 @@ export default function ReportsPage() {
         ...filters,
       };
 
-      console.log('📋 SA Reports - API filters:', apiFilters);
+      console.log('📋 HQ Reports - API filters:', apiFilters);
 
       // Note: Backend /reports endpoint does NOT support dateFrom/dateTo filtering
       // Date filtering will be applied to statistics endpoint only
       // For reports list, we fetch all and can filter client-side if needed
-      
+
       // Store date range for statistics API call
       let statsStartDate: string | undefined;
       let statsEndDate: string | undefined;
@@ -163,17 +153,17 @@ export default function ReportsPage() {
         }),
       ]);
 
-      console.log('📦 SA Reports - Raw API response:', reportsResponse);
-      console.log('📊 SA Reports - Statistics response:', statisticsResponse);
+      console.log('📦 HQ Reports - Raw API response:', reportsResponse);
+      console.log('📊 HQ Reports - Statistics response:', statisticsResponse);
 
       // Safely handle reports response structure - PaginatedResponse has {data: [], pagination: {}}
       const rawReportsData = Array.isArray(reportsResponse?.data) ? reportsResponse.data : [];
-      
-      console.log('✅ SA Reports - Processed data:', { 
-        reportsCount: rawReportsData.length, 
-        total: reportsResponse?.pagination?.total 
+
+      console.log('✅ HQ Reports - Processed data:', {
+        reportsCount: rawReportsData.length,
+        total: reportsResponse?.pagination?.total
       });
-      console.log('🔍 SA Reports - First report sample:', rawReportsData[0]);
+      console.log('🔍 HQ Reports - First report sample:', rawReportsData[0]);
 
       // Transform API data to match expected Report interface
       const reportsData = rawReportsData.map((report: any) => ({
@@ -199,7 +189,7 @@ export default function ReportsPage() {
         declineReason: report.declineReason || undefined,
       }));
 
-      console.log('🔄 SA Reports - Transformed first report:', reportsData[0]);
+      console.log('🔄 HQ Reports - Transformed first report:', reportsData[0]);
 
       setReports(reportsData);
       // Handle pagination - use data from backend pagination object
@@ -235,7 +225,7 @@ export default function ReportsPage() {
   // Convert API statistics to StatSection format
   const statistics = useMemo(() => {
     if (!reportStatistics) return [];
-    
+
     const statSections: StatSection[] = [
       {
         label: 'Total Reports',
@@ -285,9 +275,9 @@ export default function ReportsPage() {
   const handleApplyFilters = (filters: ReportsFilters) => {
     setAppliedFilters(filters);
     setCurrentPage(1);
-    
+
     const activeCount = Object.values(filters).filter(v => v !== '').length;
-    
+
     if (activeCount > 0) {
       success(`${activeCount} filter${activeCount > 1 ? 's' : ''} applied successfully!`);
     }
@@ -301,10 +291,10 @@ export default function ReportsPage() {
   const handleReportClick = async (report: Report) => {
     try {
       setLoading(true);
-      
+
       // Fetch detailed report information from API
       const detailedReport = await reportsService.getReportById(report.id);
-      
+
       setSelectedReportForDetails(detailedReport);
       setDetailsModalOpen(true);
     } catch (err) {
@@ -322,11 +312,11 @@ export default function ReportsPage() {
 
         const approvalData = {
           status: 'approved' as const,
-          approvedBy: session?.firstName && session?.lastName 
-            ? `${session.firstName} ${session.lastName}` 
+          approvedBy: session?.firstName && session?.lastName
+            ? `${session.firstName} ${session.lastName}`
             : session?.role || 'HQ Manager',
           approvedAt: new Date().toISOString(),
-          comments: 'Report approved via system admin dashboard'
+          comments: 'Report approved via HQ dashboard'
         };
 
         const updatedReport = await reportsService.approveReport(
@@ -365,11 +355,11 @@ export default function ReportsPage() {
 
         const declineData = {
           status: 'declined' as const,
-          approvedBy: session?.firstName && session?.lastName 
-            ? `${session.firstName} ${session.lastName}` 
+          approvedBy: session?.firstName && session?.lastName
+            ? `${session.firstName} ${session.lastName}`
             : session?.role || 'HQ Manager',
           approvedAt: new Date().toISOString(),
-          comments: 'Report declined via system admin dashboard',
+          comments: 'Report declined via HQ dashboard',
         };
 
         const updatedReport = await reportsService.declineReport(
@@ -492,12 +482,12 @@ export default function ReportsPage() {
               {loading ? (
                 <TableSkeleton rows={itemsPerPage} />
               ) : reports.length === 0 ? (
-                <div 
+                <div
                   className="bg-white rounded-[12px] border border-[#EAECF0] p-12 text-center"
                   role="status"
                   aria-live="polite"
                 >
-                  <p 
+                  <p
                     className="text-base text-[#475467]"
                     style={{ fontFamily: "'Open Sauce Sans', sans-serif" }}
                   >
@@ -510,8 +500,8 @@ export default function ReportsPage() {
                     reports={reports}
                     selectedReports={selectedReports}
                     onSelectionChange={handleSelectionChange}
-                    // System Admins can't edit/delete reports - only approve/decline
-                    // Edit/Delete buttons will be hidden when these props are undefined
+                    // HQ Managers can edit/delete reports? Possibly. Passing undefined hides buttons.
+                    // Assuming similar to SA for now.
                     onReportClick={handleReportClick}
                   />
 

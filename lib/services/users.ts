@@ -148,23 +148,86 @@ class UserAPIService implements UserService {
 
   async createStaffUser(data: CreateStaffData): Promise<User> {
     try {
-      const response = await apiClient.post<User>(API_ENDPOINTS.ADMIN.CREATE_STAFF, data);
+      console.log('Creating staff user with data:', { ...data, password: '[REDACTED]' });
+      
+      // Check if trying to create system_admin via staff endpoint
+      if (data.role === 'system_admin') {
+        console.warn('Attempting to create system_admin via staff endpoint - this may not be supported by backend');
+      }
+      
+      // Try different field name variations to handle backend inconsistencies
+      const requestData = {
+        ...data,
+        // Try multiple field name variations
+        phone: data.mobileNumber, // Some backends expect 'phone'
+        mobileNumber: data.mobileNumber, // Keep original
+        mobile_number: data.mobileNumber, // Snake case variation
+      };
+      
+      console.log('Sending request data:', { ...requestData, password: '[REDACTED]' });
+      
+      const response = await apiClient.post<User>(API_ENDPOINTS.ADMIN.CREATE_STAFF, requestData);
+      
+      console.log('Raw response received:', response);
+      console.log('Response data type:', typeof response);
+      console.log('Response data:', response);
 
-      // Backend returns direct data format, not wrapped in success/data
+      // Handle different response formats from backend
+      let userData: any = null;
+
+      // Check if response is wrapped in Axios response format
       if (response && typeof response === 'object') {
-        // Check if it's wrapped in success/data format
-        if ((response as any).success && (response as any).data) {
-          return (response as any).data;
+        // First check if it's an Axios response with .data property
+        if ((response as any).data) {
+          const responseData = (response as any).data;
+          console.log('Found response.data:', responseData);
+          
+          // Check if it's wrapped in success/data format
+          if (responseData.success && responseData.data) {
+            userData = responseData.data;
+            console.log('Using success.data format:', userData);
+          }
+          // Check if response.data is the user object directly
+          else if (responseData.id || responseData.email || responseData.firstName) {
+            userData = responseData;
+            console.log('Using direct response.data format:', userData);
+          }
+          // Check if response.data is an array (some backends return array)
+          else if (Array.isArray(responseData) && responseData.length > 0) {
+            userData = responseData[0];
+            console.log('Using first item from array format:', userData);
+          }
         }
-        // Check if it's direct data format (has user fields)
+        // Check if response itself is the user object (direct format)
         else if ((response as any).id || (response as any).email || (response as any).firstName) {
-          return response as unknown as User;
+          userData = response;
+          console.log('Using direct response format:', userData);
         }
       }
 
+      if (userData) {
+        console.log('Successfully parsed user data:', userData);
+        return userData as User;
+      }
+
+      console.error('Could not parse response format. Response:', response);
       throw new Error('Failed to create staff user - invalid response format');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Staff user creation error:', error);
+      console.error('Error response data:', error?.response?.data);
+      console.error('Error status:', error?.response?.status);
+      console.error('Error message:', error?.message);
+      
+      // Log the full error object for debugging
+      if (error?.response?.data) {
+        console.error('Backend validation errors:', JSON.stringify(error.response.data, null, 2));
+      }
+      
+      // If system_admin role is rejected, provide helpful error message
+      if (error?.response?.status === 400 && data.role === 'system_admin') {
+        throw new Error('Cannot create system_admin users via staff creation endpoint. System admin users may need to be created through a different process.');
+      }
+      
       throw error;
     }
   }
@@ -220,24 +283,80 @@ class UserAPIService implements UserService {
 
   async updateUserRole(id: string, role: string): Promise<User> {
     try {
+      // Try the dedicated role update endpoint first
       const response = await apiClient.patch<User>(API_ENDPOINTS.ADMIN.UPDATE_ROLE(id), { role });
 
-      // Backend returns direct data format, not wrapped in success/data
+      // Handle different response formats from backend
+      let userData: any = null;
+
       if (response && typeof response === 'object') {
-        // Check if it's wrapped in success/data format
-        if ((response as any).success && (response as any).data) {
-          return (response as any).data;
+        if ((response as any).data) {
+          const responseData = (response as any).data;
+          
+          if (responseData.success && responseData.data) {
+            userData = responseData.data;
+          }
+          else if (responseData.id || responseData.email || responseData.firstName) {
+            userData = responseData;
+          }
+          else if (Array.isArray(responseData) && responseData.length > 0) {
+            userData = responseData[0];
+          }
         }
-        // Check if it's direct data format (has user fields)
         else if ((response as any).id || (response as any).email || (response as any).firstName) {
-          return response as unknown as User;
+          userData = response;
         }
       }
 
+      if (userData) {
+        return userData as User;
+      }
+
       throw new Error('Failed to update user role - invalid response format');
-    } catch (error) {
-      console.error('User role update error:', error);
-      throw error;
+    } catch (roleEndpointError: any) {
+      console.error('User role update error:', roleEndpointError);
+      
+      // If the dedicated role endpoint returns 404, try the regular user update endpoint
+      if (roleEndpointError?.response?.status === 404 || roleEndpointError?.status === 404) {
+        console.warn('Role update endpoint not found, trying regular user update endpoint');
+        
+        try {
+          const response = await apiClient.patch<User>(API_ENDPOINTS.ADMIN.UPDATE_USER(id), { role });
+
+          // Handle different response formats from backend
+          let userData: any = null;
+
+          if (response && typeof response === 'object') {
+            if ((response as any).data) {
+              const responseData = (response as any).data;
+              
+              if (responseData.success && responseData.data) {
+                userData = responseData.data;
+              }
+              else if (responseData.id || responseData.email || responseData.firstName) {
+                userData = responseData;
+              }
+              else if (Array.isArray(responseData) && responseData.length > 0) {
+                userData = responseData[0];
+              }
+            }
+            else if ((response as any).id || (response as any).email || (response as any).firstName) {
+              userData = response;
+            }
+          }
+
+          if (userData) {
+            return userData as User;
+          }
+
+          throw new Error('Failed to update user role via user update endpoint - invalid response format');
+        } catch (fallbackError: any) {
+          console.error('User role update via fallback endpoint failed:', fallbackError);
+          throw fallbackError;
+        }
+      }
+      
+      throw roleEndpointError;
     }
   }
 

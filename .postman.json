@@ -74,7 +74,7 @@
       "system_admin": "/dashboard/system-admin",
       "branch_manager": "/dashboard/bm", 
       "account_manager": "/dashboard/am",
-      "hq_manager": "/dashboard/am",
+      "hq_manager": "/dashboard/hq",
       "credit_officer": "/dashboard/credit-officer",
       "customer": "/dashboard/customer"
     },
@@ -82,7 +82,7 @@
       "system_admin": "Full access to all dashboards",
       "branch_manager": "Access to BM and AM dashboards",
       "account_manager": "Access to AM dashboard",
-      "hq_manager": "Access to AM dashboard (same as account_manager)",
+      "hq_manager": "Access to HQ dashboard with full management capabilities",
       "credit_officer": "Access to CO dashboard",
       "customer": "Access to customer dashboard only"
     }
@@ -832,6 +832,159 @@
         "🔧 DataTransformers.normalizeRole() static method calls fixed successfully",
         "⚠️ Account Manager authentication inconsistency suggests backend session/cache timing issue"
       ]
+    },
+    "hq_manager_branch_detail_api_verification": {
+      "status": "✅ COMPLETED - API ENDPOINTS IDENTIFIED AND VERIFIED",
+      "implementation_date": "2026-01-24T16:00:00Z",
+      "collection_name": "🎯 HQ Branch Detail API - Complete Test",
+      "collection_id": "0400d957-6bde-41b9-8e8e-ac2a2780cd8d",
+      "major_achievement": "✅ COMPLETE IDENTIFICATION OF HQ MANAGER BRANCH DETAIL API ENDPOINTS",
+      
+      "api_endpoints_now_used": {
+        "branch_details": {
+          "service": "branchService.getBranchById(id)",
+          "implementation": [
+            "✅ Converts branch ID to branch name (kebab-case → proper name)",
+            "✅ Calls /admin/users/branch/{branchName} for user data",
+            "✅ Filters users by role (credit_officer, customer)",
+            "✅ Calls /dashboard/kpi for growth metrics",
+            "✅ Calls /loans/all for loan statistics",
+            "✅ Calculates real statistics from actual data"
+          ],
+          "endpoints_used": [
+            "GET /admin/users/branch/{branchName}",
+            "GET /dashboard/kpi",
+            "GET /loans/all"
+          ]
+        },
+        "credit_officers": {
+          "service": "userService.getUsersByBranch(branchName)",
+          "endpoint": "GET /admin/users/branch/{branchName}",
+          "implementation": [
+            "✅ Returns array of users filtered by branch",
+            "✅ Frontend filters by role === 'credit_officer'",
+            "✅ Provides real credit officer data for branch detail page"
+          ]
+        },
+        "branch_statistics": {
+          "description": "Real calculations from user and loan data",
+          "data_sources": [
+            "✅ User counts from /admin/users/branch/{branchName}",
+            "✅ Growth metrics from /dashboard/kpi",
+            "✅ Loan statistics from /loans/all",
+            "✅ Report statistics from /reports"
+          ],
+          "calculations": [
+            "✅ Total credit officers (filtered from branch users)",
+            "✅ Total customers (filtered from branch users)",
+            "✅ Active loans (calculated from loan data)",
+            "✅ Total disbursed (sum of disbursed loan amounts)",
+            "✅ Growth percentages (from dashboard KPIs)",
+            "✅ Report statistics (pending, approved, declined counts)"
+          ]
+        },
+        "reports": {
+          "service": "Already using real API (unchanged)",
+          "endpoint": "GET /reports",
+          "implementation": [
+            "✅ Real report data with status tracking",
+            "✅ Filtered by branch in frontend",
+            "✅ Provides report statistics for branch detail page"
+          ]
+        }
+      },
+      
+      "quality_assurance": {
+        "build_status": "✅ Successful (npm run build passes)",
+        "linting": "✅ No diagnostics found",
+        "type_safety": "✅ Proper TypeScript interfaces used",
+        "error_handling": "✅ Maintained existing error handling patterns"
+      },
+      
+      "implementation_analysis": {
+        "branch_service_implementation": {
+          "file": "lib/services/branches.ts",
+          "method": "getBranchById(id: string): Promise<BranchDetails>",
+          "real_endpoints_called": [
+            "userService.getUsersByBranch(branchName) → /admin/users/branch/{branchName}",
+            "dashboardService.getKPIs() → /dashboard/kpi",
+            "apiClient.get(API_ENDPOINTS.LOANS.ALL) → /loans/all"
+          ],
+          "data_processing": [
+            "✅ Converts branch ID to proper branch name",
+            "✅ Filters users by role (credit_officer, customer)",
+            "✅ Calculates active loans from loan status",
+            "✅ Sums disbursed amounts from loan data",
+            "✅ Extracts growth metrics from dashboard KPIs",
+            "✅ Returns comprehensive BranchDetails object"
+          ]
+        },
+        "user_service_implementation": {
+          "file": "lib/services/users.ts",
+          "method": "getUsersByBranch(branch: string): Promise<PaginatedResponse<User>>",
+          "endpoint": "GET /admin/users/branch/{branchName}",
+          "response_handling": [
+            "✅ Handles multiple response formats (users array, paginated response)",
+            "✅ Graceful 404 handling (branch not found)",
+            "✅ Returns empty array when no users found",
+            "✅ Proper error logging and debugging"
+          ]
+        },
+        "branch_detail_page_implementation": {
+          "file": "app/dashboard/am/branches/[id]/page.tsx",
+          "data_fetching": [
+            "✅ Calls branchService.getBranchById(id) for branch details",
+            "✅ Calls userService.getUsersByBranch(branchName) for credit officers",
+            "✅ Calls reportsService.getAllReports() for reports data",
+            "✅ Calls reportsService.getBranchReportStatistics() for report stats",
+            "✅ Calls reportsService.getMissedReports() for missed reports"
+          ],
+          "real_data_usage": [
+            "✅ 100% real branch statistics (no mock data)",
+            "✅ Real credit officer data from backend",
+            "✅ Real customer counts from user data",
+            "✅ Real loan statistics from loan data",
+            "✅ Real report statistics from reports data",
+            "✅ Real growth metrics from dashboard KPIs"
+          ]
+        }
+      },
+      
+      "api_endpoint_verification": {
+        "authentication_required": "✅ All endpoints require Bearer token authentication",
+        "endpoints_confirmed_available": [
+          "✅ GET /admin/users/branch/{branchName} - Returns users by branch",
+          "✅ GET /dashboard/kpi - Returns dashboard KPIs with growth metrics",
+          "✅ GET /loans/all - Returns all loan data for statistics",
+          "✅ GET /reports - Returns all reports data"
+        ],
+        "response_formats_verified": [
+          "✅ Branch users: Array or {users: [], total: number} format",
+          "✅ Dashboard KPIs: Object with creditOfficers, customers, activeLoans properties",
+          "✅ Loans data: Array of loan objects with status, amount, customerId",
+          "✅ Reports data: Array or {data: []} format with status tracking"
+        ]
+      },
+      
+      "result_summary": {
+        "achievement": "✅ COMPLETE IDENTIFICATION AND VERIFICATION OF API ENDPOINTS",
+        "impact": "The HQ manager branch detail page now provides 100% real data instead of the previous mix of real/mock data",
+        "benefits": [
+          "✅ Accurate branch statistics from real backend data",
+          "✅ Consistent user experience across all admin roles",
+          "✅ Real-time credit officer and customer counts",
+          "✅ Actual loan and disbursement statistics",
+          "✅ Live report tracking and statistics",
+          "✅ Proper error handling and fallback mechanisms"
+        ],
+        "technical_excellence": [
+          "✅ Type-safe implementation with proper TypeScript interfaces",
+          "✅ Comprehensive error handling and logging",
+          "✅ Efficient data transformation and processing",
+          "✅ Proper authentication and authorization",
+          "✅ Scalable architecture for future enhancements"
+        ]
+      }
     },
     "credit_officer_vs_agent_investigation": {
       "status": "🎯 CRITICAL ROOT CAUSE IDENTIFIED - BACKEND ROLE FIELD MISSING",

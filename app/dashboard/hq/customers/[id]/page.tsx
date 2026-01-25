@@ -1,6 +1,6 @@
 /**
- * AM Customer Details Page
- * Display comprehensive customer information for Account Manager oversight
+ * Customer Details Page
+ * Display comprehensive customer information including accounts, loans, and transactions
  */
 
 'use client';
@@ -12,13 +12,17 @@ import CustomerInfoCard from '@/app/_components/ui/CustomerInfoCard';
 import ActiveLoanCard from '@/app/_components/ui/ActiveLoanCard';
 import TransactionHistoryTable from '@/app/_components/ui/TransactionHistoryTable';
 import SavingsTransactionsTable from '@/app/_components/ui/SavingsTransactionsTable';
-import { unifiedUserService } from '@/lib/services/unifiedUser';
-import { unifiedLoanService } from '@/lib/services/unifiedLoan';
-import { unifiedSavingsService } from '@/lib/services/unifiedSavings';
-import { useToast } from '@/app/hooks/useToast';
-import { ToastContainer } from '@/app/_components/ui/ToastContainer';
+import SavingsDepositModal from '@/app/_components/ui/SavingsDepositModal';
+import SavingsWithdrawalModal from '@/app/_components/ui/SavingsWithdrawalModal';
+import LoanCoverageModal from '@/app/_components/ui/LoanCoverageModal';
+import TransactionApprovalModal from '@/app/_components/ui/TransactionApprovalModal';
+import { userService } from '@/lib/services/users';
+import { loanService } from '@/lib/services/loans';
 import { formatDate } from '@/lib/utils';
 import { formatCustomerDate } from '@/lib/dateUtils';
+import { savingsService } from '@/lib/services/savings';
+import { useToast } from '@/app/hooks/useToast';
+import { ToastContainer } from '@/app/_components/ui/ToastContainer';
 import type { User, Loan, SavingsAccount, Transaction } from '@/lib/api/types';
 
 interface PageProps {
@@ -34,9 +38,6 @@ interface CustomerDetails {
   phoneNumber: string;
   gender: string;
   address: string;
-  branch: string;
-  creditOfficer: string;
-  riskScore: string;
   loanRepayment: {
     amount: number;
     nextPayment: string;
@@ -74,36 +75,41 @@ interface CustomerDetails {
   }>;
 }
 
-export default function AMCustomerDetailsPage({ params }: PageProps) {
+export default function CustomerDetailsPage({ params }: PageProps) {
   const { id } = use(params);
   const router = useRouter();
-  const { toasts, removeToast, error, success } = useToast();
+  const { toasts, removeToast, error } = useToast();
 
   // API data state
   const [customerDetails, setCustomerDetails] = useState<CustomerDetails | null>(null);
+  const [savingsAccount, setSavingsAccount] = useState<SavingsAccount | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
 
+  // Modal states
+  const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+  const [isWithdrawalModalOpen, setIsWithdrawalModalOpen] = useState(false);
+  const [isLoanCoverageModalOpen, setIsLoanCoverageModalOpen] = useState(false);
+  const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+
   // Transform API data to CustomerDetails format
   const transformApiDataToCustomerDetails = (
-    customer: any,
-    loans: any[] = [],
-    savings: any = null
+    user: User,
+    loans: Loan[],
+    savings: SavingsAccount | null
   ): CustomerDetails => {
     const activeLoan = loans.find(loan => loan.status === 'active') || loans[0];
 
     return {
-      id: customer.id,
-      name: `${customer.firstName} ${customer.lastName}`,
-      userId: customer.customerId || String(customer.id).slice(-8).toUpperCase(),
-      dateJoined: formatCustomerDate(customer.joinDate || customer.createdAt),
-      email: customer.email,
-      phoneNumber: customer.mobileNumber || customer.phone,
-      gender: customer.gender || 'Not specified',
-      address: customer.address || 'Not specified',
-      branch: customer.branch || 'Not assigned',
-      creditOfficer: customer.creditOfficer || 'Not assigned',
-      riskScore: customer.riskScore || 'Low',
+      id: String(user.id), // Ensure ID is string
+      name: `${user.firstName} ${user.lastName}`,
+      userId: String(user.id).slice(-8).toUpperCase(),
+      dateJoined: formatCustomerDate(user.createdAt),
+      email: user.email,
+      phoneNumber: user.mobileNumber,
+      gender: 'Not specified', // This field might not be available in the API
+      address: 'Not specified', // This field might not be available in the API
       loanRepayment: {
         amount: activeLoan ? activeLoan.amount * 0.1 : 0, // Assuming 10% monthly payment
         nextPayment: activeLoan?.nextRepaymentDate ?
@@ -111,7 +117,7 @@ export default function AMCustomerDetailsPage({ params }: PageProps) {
         growth: 5 // Placeholder
       },
       savingsAccount: {
-        balance: savings?.balance || customer.savingsBalance || 0,
+        balance: savings?.balance || 0,
         growth: 12, // Placeholder
         chartData: [25, 30, 20, 25] // Placeholder chart data
       },
@@ -120,10 +126,17 @@ export default function AMCustomerDetailsPage({ params }: PageProps) {
         amount: activeLoan.amount,
         outstanding: activeLoan.amount * 0.7, // Placeholder - 70% outstanding
         monthlyPayment: activeLoan.amount * 0.1, // Placeholder - 10% monthly
-        interestRate: activeLoan.interestRate || 15,
-        startDate: activeLoan.createdAt || activeLoan.disbursementDate,
+        interestRate: activeLoan.interestRate,
+        startDate: activeLoan.createdAt,
         endDate: activeLoan.nextRepaymentDate || activeLoan.createdAt,
-        paymentSchedule: [] // Would need separate API call for payment schedule
+        paymentSchedule: [] as Array<{
+          id: string;
+          paymentNumber: number;
+          amount: number;
+          status: 'Paid' | 'Missed' | 'Upcoming';
+          dueDate: Date;
+          isPaid: boolean;
+        }> // Would need separate API call for payment schedule
       } : {
         loanId: 'N/A',
         amount: 0,
@@ -134,49 +147,75 @@ export default function AMCustomerDetailsPage({ params }: PageProps) {
         endDate: '',
         paymentSchedule: []
       },
-      transactions: [] // Would be populated from separate API calls
+      transactions: savings?.transactions?.map(transaction => ({
+        id: String(transaction.id), // Ensure ID is string
+        transactionId: String(transaction.id).slice(-8).toUpperCase(),
+        type: transaction.type === 'deposit' ? 'Savings' : 'Repayment',
+        amount: transaction.amount,
+        status: transaction.status === 'approved' ? 'Successful' :
+          transaction.status === 'rejected' ? 'Pending' : 'In Progress',
+        date: new Date(transaction.createdAt).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric'
+        })
+      })) || []
     };
   };
 
-  // Fetch customer details from AM API
+  // Fetch customer details from API
   const fetchCustomerDetails = async () => {
     try {
       setIsLoading(true);
       setApiError(null);
 
-      // Fetch customer details using unified service
-      const customer = await unifiedUserService.getUserById(id);
+      // Fetch user details
+      const user = await userService.getUserById(id);
+      if (user.role !== 'customer') {
+        throw new Error(`User is not a customer. Found role: "${user.role}". Expected role: "customer". This user appears to be a ${user.role.replace('_', ' ')}.`);
+      }
 
       // Fetch customer loans
-      let loans: any[] = [];
+      let loans: Loan[] = [];
       try {
-        const loansResponse = await unifiedLoanService.getCustomerLoans(id);
-        loans = loansResponse.data || [];
+        loans = await loanService.getCustomerLoans(id);
       } catch (err) {
         console.warn('Failed to fetch customer loans:', err);
         // Continue without loan data
       }
 
       // Fetch customer savings
-      let savings: any = null;
+      let savings: SavingsAccount | null = null;
       try {
-        const savingsResponse = await unifiedSavingsService.getCustomerSavings(id);
-        savings = savingsResponse || null;
+        savings = await savingsService.getCustomerSavings(id);
       } catch (err) {
         console.warn('Failed to fetch customer savings:', err);
         // Continue without savings data
       }
 
-      const details = transformApiDataToCustomerDetails(customer, loans, savings);
+      const details = transformApiDataToCustomerDetails(user, loans, savings);
       setCustomerDetails(details);
+      setSavingsAccount(savings);
 
     } catch (err) {
-      console.error('Failed to fetch AM customer details:', err);
+      console.error('Failed to fetch customer details:', err);
       setApiError(err instanceof Error ? err.message : 'Failed to load customer details');
       error('Failed to load customer details. Please try again.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Handle savings operations success
+  const handleSavingsOperationSuccess = () => {
+    // Refresh customer details to show updated data
+    fetchCustomerDetails();
+  };
+
+  // Handle transaction approval
+  const handleTransactionApproval = (transaction: Transaction) => {
+    setSelectedTransaction(transaction);
+    setIsApprovalModalOpen(true);
   };
 
   // Load initial data
@@ -207,54 +246,13 @@ export default function AMCustomerDetailsPage({ params }: PageProps) {
     );
   }
 
-  // Show error state
-  if (apiError) {
-    return (
-      <div className="drawer-content flex flex-col min-h-screen">
-        <main className="flex-1 px-4 sm:px-6 md:pl-[58px] md:pr-6" style={{ paddingTop: '40px' }}>
-          <div className="w-full" style={{ maxWidth: '1200px' }}>
-            <div className="mb-6">
-              <button
-                onClick={() => router.push('/dashboard/am/customers')}
-                className="mb-4 hover:opacity-70 transition-opacity flex items-center gap-2"
-                aria-label="Go back to customers list"
-              >
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                  <path
-                    d="M15.8334 10H4.16669M4.16669 10L10 15.8333M4.16669 10L10 4.16667"
-                    stroke="#000000"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
-            </div>
-
-            <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-              <div className="text-red-800 font-medium mb-2">Error Loading Customer Details</div>
-              <div className="text-red-700 text-sm mb-4">{apiError}</div>
-              <button
-                onClick={fetchCustomerDetails}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm"
-              >
-                Try Again
-              </button>
-            </div>
-          </div>
-        </main>
-        <ToastContainer toasts={toasts} onClose={removeToast} />
-      </div>
-    );
-  }
-
   // Calculate loan repayment percentage for donut chart
   const loanAmount = customerDetails.activeLoan.amount;
   const loanOutstanding = customerDetails.activeLoan.outstanding;
   const loanPaid = loanAmount - loanOutstanding;
-  const loanPercentage = loanAmount > 0 ? (loanPaid / loanAmount) * 100 : 0;
+  const loanPercentage = (loanPaid / loanAmount) * 100;
 
-  // Prepare chart data
+  // Prepare chart data (kept for backwards compatibility)
   const loanChartData = [
     { value: loanPaid, color: '#7F56D9' },
     { value: loanOutstanding, color: '#F4EBFF' }
@@ -282,7 +280,7 @@ export default function AMCustomerDetailsPage({ params }: PageProps) {
           {/* Back Button and Header */}
           <div className="mb-6">
             <button
-              onClick={() => router.push('/dashboard/am/customers')}
+              onClick={() => router.push('/dashboard/hq/customers')}
               className="mb-4 hover:opacity-70 transition-opacity flex items-center gap-2"
               aria-label="Go back to customers list"
             >
@@ -326,50 +324,39 @@ export default function AMCustomerDetailsPage({ params }: PageProps) {
             />
           </div>
 
-          {/* AM-Specific Customer Management */}
+          {/* Savings Actions */}
           <div className="mb-6">
             <div className="bg-white border border-[#EAECF0] rounded-lg p-6">
               <h3 className="text-[18px] font-semibold text-[#101828] mb-4">
-                Account Management
+                Savings Operations
               </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                <div>
-                  <p className="text-sm text-[#667085]">Branch</p>
-                  <p className="text-base font-medium text-[#101828]">{customerDetails.branch}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-[#667085]">Credit Officer</p>
-                  <p className="text-base font-medium text-[#101828]">{customerDetails.creditOfficer}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-[#667085]">Risk Score</p>
-                  <p className="text-base font-medium text-[#101828]">{customerDetails.riskScore}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-[#667085]">Customer ID</p>
-                  <p className="text-base font-medium text-[#101828]">{customerDetails.userId}</p>
-                </div>
-              </div>
               <div className="flex flex-wrap gap-3">
                 <button
-                  onClick={() => success('Customer assignment feature coming soon!')}
-                  className="px-4 py-2 text-[14px] font-semibold text-white bg-[#7F56D9] border border-[#7F56D9] rounded-lg hover:bg-[#6941C6] transition-colors focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:ring-offset-2"
+                  onClick={() => setIsDepositModalOpen(true)}
+                  className="px-4 py-2 text-[14px] font-semibold text-white bg-[#039855] border border-[#039855] rounded-lg hover:bg-[#027A48] transition-colors focus:outline-none focus:ring-2 focus:ring-[#039855] focus:ring-offset-2"
                 >
-                  Reassign Customer
+                  Record Deposit
                 </button>
                 <button
-                  onClick={() => success('Customer communication feature coming soon!')}
+                  onClick={() => setIsWithdrawalModalOpen(true)}
                   className="px-4 py-2 text-[14px] font-semibold text-[#344054] bg-white border border-[#D0D5DD] rounded-lg hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:ring-offset-2"
+                  disabled={!savingsAccount || savingsAccount.balance <= 0}
                 >
-                  Contact Customer
+                  Record Withdrawal
                 </button>
                 <button
-                  onClick={() => router.push(`/dashboard/am/customers/${id}/loans`)}
-                  className="px-4 py-2 text-[14px] font-semibold text-[#039855] bg-white border border-[#039855] rounded-lg hover:bg-green-50 transition-colors focus:outline-none focus:ring-2 focus:ring-[#039855] focus:ring-offset-2"
+                  onClick={() => setIsLoanCoverageModalOpen(true)}
+                  className="px-4 py-2 text-[14px] font-semibold text-white bg-[#7F56D9] border border-[#7F56D9] rounded-lg hover:bg-[#6941C6] transition-colors focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:ring-offset-2"
+                  disabled={!savingsAccount || savingsAccount.balance <= 0}
                 >
-                  View Loans
+                  Use for Loan Coverage
                 </button>
               </div>
+              {savingsAccount && savingsAccount.balance <= 0 && (
+                <p className="text-[12px] text-[#667085] mt-2">
+                  Withdrawal and loan coverage options are disabled when balance is zero.
+                </p>
+              )}
             </div>
           </div>
 
@@ -400,20 +387,63 @@ export default function AMCustomerDetailsPage({ params }: PageProps) {
             />
           </div>
 
+          {/* Savings Transactions Table */}
+          {savingsAccount && savingsAccount.transactions && savingsAccount.transactions.length > 0 && (
+            <div className="mb-8">
+              <SavingsTransactionsTable
+                transactions={savingsAccount.transactions}
+                onApproveTransaction={handleTransactionApproval}
+              />
+            </div>
+          )}
+
           {/* Transaction History Table */}
           <div>
             <TransactionHistoryTable
               transactions={customerDetails.transactions}
-              onTransactionAction={(transaction) => {
-                success('Transaction details feature coming soon!');
-              }}
+              onTransactionAction={handleTransactionApproval}
             />
           </div>
         </div>
-      </main>
+      </main >
+
+      {/* Savings Modals */}
+      < SavingsDepositModal
+        isOpen={isDepositModalOpen}
+        onClose={() => setIsDepositModalOpen(false)
+        }
+        customerId={id}
+        customerName={customerDetails.name}
+        onSuccess={handleSavingsOperationSuccess}
+      />
+
+      <SavingsWithdrawalModal
+        isOpen={isWithdrawalModalOpen}
+        onClose={() => setIsWithdrawalModalOpen(false)}
+        customerId={id}
+        customerName={customerDetails.name}
+        currentBalance={savingsAccount?.balance || 0}
+        onSuccess={handleSavingsOperationSuccess}
+      />
+
+      <LoanCoverageModal
+        isOpen={isLoanCoverageModalOpen}
+        onClose={() => setIsLoanCoverageModalOpen(false)}
+        customerId={id}
+        customerName={customerDetails.name}
+        currentBalance={savingsAccount?.balance || 0}
+        onSuccess={handleSavingsOperationSuccess}
+      />
+
+      <TransactionApprovalModal
+        isOpen={isApprovalModalOpen}
+        onClose={() => setIsApprovalModalOpen(false)}
+        transaction={selectedTransaction}
+        onSuccess={handleSavingsOperationSuccess}
+      />
 
       {/* Toast Container */}
       <ToastContainer toasts={toasts} onClose={removeToast} />
-    </div>
+    </div >
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Checkbox } from './Checkbox';
+import { formatDate } from '@/lib/formatDate';
 import type { BranchReport } from '@/lib/api/types';
 
 interface BranchAggregateTableProps {
@@ -314,11 +315,7 @@ export default function BranchAggregateTable({
 
                 {/* Last Submission Cell */}
                 <td className="px-6 py-4 text-sm text-gray-600">
-                  {new Date(branchReport.lastSubmissionDate).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric'
-                  })}
+                  {formatDate(branchReport.lastSubmissionDate)}
                 </td>
               </tr>
             ))}

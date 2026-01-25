@@ -34,15 +34,19 @@ export default function LoansDisbursedTable({
   const [sortColumn, setSortColumn] = useState<SortColumn>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
+  const loansWithIds = loans.filter(loan => loan.id);
+
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      onSelectionChange(loans.map(l => l.id));
+      onSelectionChange(loansWithIds.map(l => l.id));
     } else {
       onSelectionChange([]);
     }
   };
 
   const handleSelectOne = (id: string, checked: boolean) => {
+    if (!id) return; // Don't select loans without IDs
+    
     if (checked) {
       onSelectionChange([...selectedLoans, id]);
     } else {
@@ -97,7 +101,7 @@ export default function LoansDisbursedTable({
     return 0;
   });
 
-  const isAllSelected = loans.length > 0 && selectedLoans.length === loans.length;
+  const isAllSelected = loansWithIds.length > 0 && selectedLoans.length === loansWithIds.length;
 
   return (
     <div
@@ -297,21 +301,28 @@ export default function LoansDisbursedTable({
           </tr>
         </thead>
         <tbody>
-          {sortedLoans.map((loan, index) => (
-            <tr
-              key={loan.id}
-              className="hover:bg-gray-50 cursor-pointer transition-colors duration-200"
+          {sortedLoans.map((loan, index) => {
+            // Generate a unique key that handles undefined/null IDs properly
+            const uniqueKey = loan.id && loan.id !== 'undefined' && loan.id !== 'null' 
+              ? loan.id 
+              : `loan-${index}-${loan.loanId || Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            
+            return (
+              <tr
+                key={uniqueKey}
+                className="hover:bg-gray-50 cursor-pointer transition-colors duration-200"
               style={{
                 borderBottom: index < loans.length - 1 ? '1px solid var(--color-border-gray-200)' : 'none',
-                backgroundColor: selectedLoans.includes(loan.id) ? '#F9F5FF' : undefined
+                backgroundColor: loan.id && selectedLoans.includes(loan.id) ? '#F9F5FF' : undefined
               }}
-              aria-selected={selectedLoans.includes(loan.id)}
+              aria-selected={loan.id ? selectedLoans.includes(loan.id) : false}
             >
               <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                 <Checkbox
-                  checked={selectedLoans.includes(loan.id)}
-                  onCheckedChange={(checked) => handleSelectOne(loan.id, checked === true)}
+                  checked={loan.id ? selectedLoans.includes(loan.id) : false}
+                  onCheckedChange={(checked) => loan.id && handleSelectOne(loan.id, checked === true)}
                   aria-label={`Select loan ${loan.loanId}`}
+                  disabled={!loan.id}
                 />
               </td>
               <td className="px-6 py-4">
@@ -360,10 +371,11 @@ export default function LoansDisbursedTable({
                     className="p-2 hover:bg-gray-100 rounded transition-colors duration-200"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onEdit(loan.id);
+                      if (loan.id) onEdit(loan.id);
                     }}
                     aria-label={`Edit loan ${loan.loanId}`}
                     title="Edit"
+                    disabled={!loan.id}
                   >
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
                       <path
@@ -379,10 +391,11 @@ export default function LoansDisbursedTable({
                     className="p-2 hover:bg-gray-100 rounded transition-colors duration-200"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onDelete(loan.id);
+                      if (loan.id) onDelete(loan.id);
                     }}
                     aria-label={`Delete loan ${loan.loanId}`}
                     title="Delete"
+                    disabled={!loan.id}
                   >
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
                       <path
@@ -397,7 +410,8 @@ export default function LoansDisbursedTable({
                 </div>
               </td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>

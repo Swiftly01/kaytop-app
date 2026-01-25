@@ -98,7 +98,10 @@ class ReportsAPIService implements ReportsService {
 
       // Add filter parameters with validation
       if (filters.creditOfficerId) params.append('creditOfficerId', filters.creditOfficerId);
-      if (validatedBranchId) params.append('branchId', validatedBranchId);
+      if (validatedBranchId) {
+        // Ensure proper URL encoding for branch names with spaces
+        params.append('branch', validatedBranchId); // URLSearchParams handles encoding automatically
+      }
       if (filters.status) params.append('status', filters.status);
       if (filters.reportType) params.append('reportType', filters.reportType);
 
@@ -110,8 +113,15 @@ class ReportsAPIService implements ReportsService {
       if (filters.limit) params.append('limit', filters.limit.toString());
 
       console.log('🔍 Get all reports URL params:', params.toString());
+      console.log('🔍 Branch filter details:', {
+        originalBranchId: filters.branchId,
+        validatedBranchId,
+        paramValue: validatedBranchId,
+        encodedParam: encodeURIComponent(validatedBranchId || '')
+      });
 
       const url = `${API_ENDPOINTS.REPORTS.LIST}${params.toString() ? `?${params.toString()}` : ''}`;
+      console.log('🔍 Full API URL:', url);
       const response = await apiClient.get(url);
 
       console.log('🔍 Raw API response structure:', {
@@ -692,7 +702,7 @@ class ReportsAPIService implements ReportsService {
       const params = new URLSearchParams();
 
       if (validatedBranchId) {
-        params.append('branchId', validatedBranchId);
+        params.append('branch', validatedBranchId); // API expects 'branch' parameter, not 'branchId'
       }
 
       // Note: Backend /reports endpoint does NOT support dateFrom/dateTo filtering
@@ -753,10 +763,15 @@ class ReportsAPIService implements ReportsService {
         const branchKey = report.branchId || report.branch;
         
         if (!branchMap.has(branchKey)) {
+          // Validate and set lastSubmissionDate with fallback
+          const validDate = report.createdAt && new Date(report.createdAt).getTime() 
+            ? report.createdAt 
+            : new Date().toISOString();
+            
           branchMap.set(branchKey, {
             id: branchKey,
             branchName: report.branch,
-            branchId: report.branchId,
+            branchId: report.branchId || report.branch, // Use branch name as fallback for branchId
             totalSavings: 0,
             totalDisbursed: 0,
             totalRepaid: 0,
@@ -765,7 +780,7 @@ class ReportsAPIService implements ReportsService {
             pendingReports: 0,
             approvedReports: 0,
             declinedReports: 0,
-            lastSubmissionDate: report.createdAt,
+            lastSubmissionDate: validDate,
             creditOfficerCount: 0,
             activeCreditOfficers: [],
           });
@@ -794,9 +809,14 @@ class ReportsAPIService implements ReportsService {
           branchAggregate.creditOfficerCount++;
         }
 
-        // Update last submission date
-        if (new Date(report.createdAt) > new Date(branchAggregate.lastSubmissionDate)) {
-          branchAggregate.lastSubmissionDate = report.createdAt;
+        // Update last submission date with proper validation
+        if (report.createdAt && new Date(report.createdAt).getTime()) {
+          const reportDate = new Date(report.createdAt);
+          const currentLastDate = new Date(branchAggregate.lastSubmissionDate);
+          
+          if (reportDate > currentLastDate) {
+            branchAggregate.lastSubmissionDate = report.createdAt;
+          }
         }
 
         // Determine overall status

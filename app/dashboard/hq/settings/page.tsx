@@ -22,7 +22,7 @@ import {
   useUpdateUser,
   useUpdateUserRole,
   useCreateStaff
-} from '@/app/dashboard/system-admin/queries/useSettingsQueries';
+} from '@/app/dashboard/hq/queries/useSettingsQueries';
 import {
   ActivityLog,
   User,
@@ -215,8 +215,7 @@ export default function SettingsPage() {
   const usersData = useMemo(() => {
     if (!allUsersData?.data) return [];
 
-    return allUsersData.data.map((user: User, index: number) => {
-
+    return allUsersData.data.map((user: User) => {
       const displayRole = mapBackendToFrontendRole(user.role, user.email, `${user.firstName} ${user.lastName}`);
       const permissions = getPermissionsForRole(user.role);
 
@@ -290,6 +289,7 @@ export default function SettingsPage() {
     error(`Failed to upload profile picture: ${errorMessage}`);
   };
 
+  // Security, Password, Activity Log, and Admin handlers
   const handleSecurityToggle = async (setting: keyof SecuritySettings) => {
     if (!systemSettings) return;
 
@@ -343,51 +343,32 @@ export default function SettingsPage() {
       error('New passwords do not match');
       return;
     }
-
     if (passwordData.newPassword.length < 8) {
       error('Password must be at least 8 characters long');
       return;
     }
-
     try {
       const changeData: ChangePasswordData = {
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword,
         confirmNewPassword: passwordData.confirmPassword,
       };
-
       await changePasswordMutation.mutateAsync(changeData);
       success('Password changed successfully!');
       setShowPasswordModal(false);
-      setPasswordData({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: '',
-      });
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (err) {
       error('Failed to change password. Please try again.');
     }
   };
 
-  const openPasswordModal = () => {
-    setShowPasswordModal(true);
-  };
-
+  const openPasswordModal = () => setShowPasswordModal(true);
   const closePasswordModal = () => {
     setShowPasswordModal(false);
-    setPasswordData({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
-    });
-    setShowPasswords({
-      current: false,
-      new: false,
-      confirm: false,
-    });
+    setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    setShowPasswords({ current: false, new: false, confirm: false });
   };
 
-  // Activity log handlers
   const handleSelectAll = (checked: boolean) => {
     setSelectAll(checked);
     if (checked) {
@@ -407,33 +388,24 @@ export default function SettingsPage() {
     });
   };
 
-  const handleCreateAdmin = () => {
-    setShowCreateAdminModal(true);
-  };
-
-  const handleCloseCreateAdminModal = () => {
-    setShowCreateAdminModal(false);
-  };
+  const handleCreateAdmin = () => setShowCreateAdminModal(true);
+  const handleCloseCreateAdminModal = () => setShowCreateAdminModal(false);
 
   const handleSaveNewAdmin = async (adminData: any) => {
     try {
       const backendRole = mapFrontendToBackendRole(adminData.role);
-
       const [firstName, ...lastNameParts] = adminData.name.split(' ');
       const lastName = lastNameParts.join(' ') || '.';
-
       const staffData = {
         firstName,
         lastName,
         email: adminData.email,
         mobileNumber: adminData.phoneNumber,
         role: backendRole as any,
-        // Branch is often required for staff, default to a sensible value or empty
         branch: adminData.branch || 'Head Office',
         state: adminData.state || 'Lagos', // Use state from modal or default
         password: 'TempPassword123!', // Default temporary password for new staff
       };
-
       await createStaffMutation.mutateAsync(staffData);
       success('New admin created successfully!');
       setShowCreateAdminModal(false);
@@ -443,18 +415,11 @@ export default function SettingsPage() {
     }
   };
 
-  // Global Settings handlers
-  const handleOpenGlobalSettings = useCallback(() => {
-    setShowGlobalSettingsModal(true);
-  }, []);
-
-  const handleCloseGlobalSettings = useCallback(() => {
-    setShowGlobalSettingsModal(false);
-  }, []);
+  const handleOpenGlobalSettings = useCallback(() => setShowGlobalSettingsModal(true), []);
+  const handleCloseGlobalSettings = useCallback(() => setShowGlobalSettingsModal(false), []);
 
   const handleSaveGlobalSettings = useCallback(async (data: { interestRate: string; loanDuration: string }) => {
     if (!systemSettings) return;
-
     try {
       const updatedSettings: Partial<SystemSettings> = {
         globalDefaults: {
@@ -463,7 +428,6 @@ export default function SettingsPage() {
           loanDuration: parseInt(data.loanDuration),
         },
       };
-
       await updateSystemSettingsMutation.mutateAsync(updatedSettings);
       success('Global settings updated successfully!');
     } catch (err) {
@@ -471,27 +435,18 @@ export default function SettingsPage() {
     }
   }, [systemSettings, updateSystemSettingsMutation, success, error]);
 
-  // Report Template handlers
-  const handleOpenReportTemplate = useCallback(() => {
-    setShowReportTemplateModal(true);
-  }, []);
-
-  const handleCloseReportTemplate = useCallback(() => {
-    setShowReportTemplateModal(false);
-  }, []);
+  const handleOpenReportTemplate = useCallback(() => setShowReportTemplateModal(true), []);
+  const handleCloseReportTemplate = useCallback(() => setShowReportTemplateModal(false), []);
 
   const handleSaveReportTemplate = useCallback(async (data: { thingsToReport: { collections: boolean; savings: boolean; customers: boolean; missedPayments: boolean }; newParameter: string }) => {
     if (!systemSettings) return;
-
     try {
       const requiredFields = Object.entries(data.thingsToReport)
         .filter(([_, enabled]) => enabled)
         .map(([field, _]) => field);
-
       const customParameters = data.newParameter
         ? [...((systemSettings as unknown as SystemSettings).reportTemplate.customParameters || []), data.newParameter]
         : (systemSettings as unknown as SystemSettings).reportTemplate.customParameters;
-
       const updatedSettings: Partial<SystemSettings> = {
         reportTemplate: {
           ...(systemSettings as unknown as SystemSettings).reportTemplate,
@@ -499,7 +454,6 @@ export default function SettingsPage() {
           customParameters,
         },
       };
-
       await updateSystemSettingsMutation.mutateAsync(updatedSettings);
       success('Report template updated successfully!');
     } catch (err) {
@@ -507,18 +461,11 @@ export default function SettingsPage() {
     }
   }, [systemSettings, updateSystemSettingsMutation, success, error]);
 
-  // Alert Rules handlers
-  const handleOpenAlertRules = useCallback(() => {
-    setShowAlertRulesModal(true);
-  }, []);
-
-  const handleCloseAlertRules = useCallback(() => {
-    setShowAlertRulesModal(false);
-  }, []);
+  const handleOpenAlertRules = useCallback(() => setShowAlertRulesModal(true), []);
+  const handleCloseAlertRules = useCallback(() => setShowAlertRulesModal(false), []);
 
   const handleSaveAlertRules = useCallback(async (data: AlertRulesData) => {
     if (!systemSettings) return;
-
     try {
       const updatedSettings: Partial<SystemSettings> = {
         alertRules: {
@@ -529,7 +476,6 @@ export default function SettingsPage() {
           customAlerts: data.customParameters,
         },
       };
-
       await updateSystemSettingsMutation.mutateAsync(updatedSettings);
       success('Alert rules updated successfully!');
     } catch (err) {
@@ -553,10 +499,7 @@ export default function SettingsPage() {
   const handleSaveUser = async (updatedUserData: RoleUserData) => {
     try {
       const backendRole = mapFrontendToBackendRole(updatedUserData.role);
-
-      // Update role
       await updateUserRoleMutation.mutateAsync({ id: updatedUserData.id, role: backendRole });
-
       success('User role updated successfully!');
       setShowEditRoleModal(false);
       setSelectedUser(null);
@@ -569,7 +512,6 @@ export default function SettingsPage() {
   const itemsPerPage = 10;
   const totalPages = Math.ceil(totalActivityLogs / itemsPerPage);
 
-  // Derived data from system settings (memoized to prevent re-renders)
   const globalSettings = useMemo(() => {
     return systemSettings ? {
       interestRate: String((systemSettings as unknown as SystemSettings).globalDefaults.interestRate),
@@ -587,7 +529,7 @@ export default function SettingsPage() {
       },
       newParameter: '',
     } : undefined;
-  }, [(systemSettings as any)?.reportTemplate?.requiredFields?.join(',')]);  // Use join to create stable dependency
+  }, [(systemSettings as any)?.reportTemplate?.requiredFields?.join(',')]);
 
   const alertRulesSettings = useMemo(() => {
     return systemSettings ? {
@@ -603,14 +545,12 @@ export default function SettingsPage() {
     (systemSettings as any)?.alertRules?.customAlerts
   ]);
 
-  // Loading states
   const isLoading = profileLoading || settingsLoading || usersLoading || activityLogsLoading ||
     updateProfileMutation.isPending || changePasswordMutation.isPending ||
     updateProfilePictureMutation.isPending || updateSystemSettingsMutation.isPending ||
     updateUserMutation.isPending || updateUserRoleMutation.isPending ||
     createStaffMutation.isPending;
 
-  // Prevent hydration mismatch by not rendering until mounted
   if (!isMounted) {
     return (
       <div className="drawer-content flex flex-col">
@@ -657,8 +597,6 @@ export default function SettingsPage() {
                     id={`${tab.id}-tab`}
                   >
                     {tab.label}
-
-                    {/* Active Indicator - Bottom Underline */}
                     {activeTab === tab.id && (
                       <span
                         className="absolute left-0 right-0 bottom-0 mx-auto"
@@ -678,9 +616,7 @@ export default function SettingsPage() {
             </nav>
           </div>
 
-          {/* Content Area */}
           <div className="relative">
-            {/* Main Content Card */}
             <div
               className="bg-white rounded-[5px]"
               style={{
@@ -688,7 +624,6 @@ export default function SettingsPage() {
                 minHeight: '611px',
               }}
             >
-              {/* Account Information Tab Content */}
               {activeTab === 'account-information' && (
                 <div className="p-8">
                   {/* Header */}
@@ -889,7 +824,6 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              {/* Security & Login Tab Content */}
               {activeTab === 'security-login' && (
                 <div className="p-8">
                   {/* Header */}
@@ -1115,7 +1049,6 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              {/* Activity Log Tab Content */}
               {activeTab === 'activity-log' && (
                 <div className="p-8">
                   {/* Header */}
@@ -1417,526 +1350,530 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              {/* Other Tab Contents - Placeholder */}
-
               {activeTab === 'permissions-users' && (
-                <div
-                  style={{
-                    padding: '32px',
-                    width: '941px',
-                    minHeight: '611px',
-                  }}
-                >
-                  {/* Header Section */}
+                <div style={{ padding: '32px', width: '941px', minHeight: '611px' }}>
+                  {/* Permissions Tab Content */}
                   <div
-                    className="flex items-center justify-between"
-                    style={{ marginBottom: '48px' }}
+                    style={{
+                      padding: '32px',
+                      width: '941px',
+                      minHeight: '611px',
+                    }}
                   >
-                    <div>
-                      <h1
-                        style={{
-                          fontSize: '24px',
-                          fontWeight: 700,
-                          lineHeight: '32px',
-                          letterSpacing: '0.011em',
-                          color: '#021C3E',
-                          fontFamily: 'Open Sauce Sans, sans-serif',
-                          marginBottom: '8px',
-                        }}
-                      >
-                        Roles & Permission
-                      </h1>
-                      <p
-                        style={{
-                          fontSize: '16px',
-                          fontWeight: 400,
-                          lineHeight: '20px',
-                          color: '#767D94',
-                          fontFamily: 'Open Sauce Sans, sans-serif',
-                          width: '382px',
-                          height: '40px',
-                        }}
-                      >
-                        These are the accounts with access to LAAS admin and their roles as provided by the super admin
-                      </p>
-                    </div>
-                    <button
-                      onClick={handleCreateAdmin}
-                      className="hover:bg-[#6941C6] transition-colors focus:outline-none focus:ring-2 focus:ring-[#7A62EB] focus:ring-offset-2"
-                      style={{
-                        width: '120.45px',
-                        height: '34px',
-                        background: '#7A62EB',
-                        border: '0.5px solid #7A62EB',
-                        borderRadius: '4px',
-                        fontSize: '12px',
-                        fontWeight: 500,
-                        lineHeight: '16px',
-                        fontFamily: 'Open Sauce Sans, sans-serif',
-                        color: '#FFFFFF',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      Create Admin
-                    </button>
-                  </div>
-
-                  {/* Users List */}
-                  <div>
-                    {/* Initial Divider Line */}
+                    {/* Header Section */}
                     <div
-                      style={{
-                        width: '588px',
-                        height: '0px',
-                        opacity: 0.1,
-                        border: '0.8px solid #000000',
-                      }}
-                    />
-
-                    {usersLoading ? (
-                      <div className="flex items-center justify-center py-12">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#7A62EB]"></div>
-                      </div>
-                    ) : usersData.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-12 text-center">
+                      className="flex items-center justify-between"
+                      style={{ marginBottom: '48px' }}
+                    >
+                      <div>
+                        <h1
+                          style={{
+                            fontSize: '24px',
+                            fontWeight: 700,
+                            lineHeight: '32px',
+                            letterSpacing: '0.011em',
+                            color: '#021C3E',
+                            fontFamily: 'Open Sauce Sans, sans-serif',
+                            marginBottom: '8px',
+                          }}
+                        >
+                          Roles & Permission
+                        </h1>
                         <p
                           style={{
                             fontSize: '16px',
-                            fontWeight: 500,
+                            fontWeight: 400,
+                            lineHeight: '20px',
                             color: '#767D94',
                             fontFamily: 'Open Sauce Sans, sans-serif',
+                            width: '382px',
+                            height: '40px',
                           }}
                         >
-                          No users found
+                          These are the accounts with access to Kaytop admin and their roles
                         </p>
                       </div>
-                    ) : (
-                      usersData.map((user, index) => (
-                        <div key={user.id}>
-                          <div
-                            className="flex items-center justify-between"
-                            style={{ paddingTop: '32px', paddingBottom: '32px' }}
+                      <button
+                        onClick={handleCreateAdmin}
+                        className="hover:bg-[#6941C6] transition-colors focus:outline-none focus:ring-2 focus:ring-[#7A62EB] focus:ring-offset-2"
+                        style={{
+                          width: '120.45px',
+                          height: '34px',
+                          background: '#7A62EB',
+                          border: '0.5px solid #7A62EB',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          fontWeight: 500,
+                          lineHeight: '16px',
+                          fontFamily: 'Open Sauce Sans, sans-serif',
+                          color: '#FFFFFF',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        Create Admin
+                      </button>
+                    </div>
+
+                    {/* Users List */}
+                    <div>
+                      {/* Initial Divider Line */}
+                      <div
+                        style={{
+                          width: '588px',
+                          height: '0px',
+                          opacity: 0.1,
+                          border: '0.8px solid #000000',
+                        }}
+                      />
+
+                      {usersLoading ? (
+                        <div className="flex items-center justify-center py-12">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#7A62EB]"></div>
+                        </div>
+                      ) : usersData.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-12 text-center">
+                          <p
+                            style={{
+                              fontSize: '16px',
+                              fontWeight: 500,
+                              color: '#767D94',
+                              fontFamily: 'Open Sauce Sans, sans-serif',
+                            }}
                           >
-                            <div className="flex items-center" style={{ gap: '16px' }}>
-                              <div
-                                style={{
-                                  width: '40px',
-                                  height: '40px',
-                                  borderRadius: '50%',
-                                  backgroundColor: user.avatar ? 'transparent' : '#237385',
-                                  backgroundImage: user.avatar ? `url(${user.avatar})` : 'none',
-                                  backgroundSize: 'cover',
-                                  backgroundPosition: 'center',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  fontSize: '15px',
-                                  fontWeight: 500,
-                                  lineHeight: '16px',
-                                  letterSpacing: '0.03em',
-                                  fontFamily: 'Open Sauce Sans, sans-serif',
-                                  color: '#FFFFFF',
-                                }}
-                              >
-                                {!user.avatar && user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                              </div>
-                              <div>
-                                <div className="flex items-center" style={{ gap: '8px', marginBottom: '3px' }}>
-                                  <span
+                            No users found
+                          </p>
+                        </div>
+                      ) : (
+                        usersData.map((user, index) => (
+                          <div key={user.id}>
+                            <div
+                              className="flex items-center justify-between"
+                              style={{ paddingTop: '32px', paddingBottom: '32px' }}
+                            >
+                              <div className="flex items-center" style={{ gap: '16px' }}>
+                                <div
+                                  style={{
+                                    width: '40px',
+                                    height: '40px',
+                                    borderRadius: '50%',
+                                    backgroundColor: user.avatar ? 'transparent' : '#237385',
+                                    backgroundImage: user.avatar ? `url(${user.avatar})` : 'none',
+                                    backgroundSize: 'cover',
+                                    backgroundPosition: 'center',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '15px',
+                                    fontWeight: 500,
+                                    lineHeight: '16px',
+                                    letterSpacing: '0.03em',
+                                    fontFamily: 'Open Sauce Sans, sans-serif',
+                                    color: '#FFFFFF',
+                                  }}
+                                >
+                                  {!user.avatar && user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                                </div>
+                                <div>
+                                  <div className="flex items-center" style={{ gap: '8px', marginBottom: '3px' }}>
+                                    <span
+                                      style={{
+                                        fontSize: '16px',
+                                        fontWeight: 500,
+                                        lineHeight: '16px',
+                                        color: '#000000',
+                                        opacity: 0.9,
+                                        fontFamily: 'Open Sauce Sans, sans-serif',
+                                      }}
+                                    >
+                                      {user.name}
+                                    </span>
+                                    <div
+                                      style={{
+                                        padding: '3px 6px',
+                                        background:
+                                          user.role === 'HQ' ? '#FBEFF8' :
+                                            user.role === 'BM' ? '#E0F2FE' :
+                                              user.role === 'CO' ? '#DEDAF3' :
+                                                user.role === 'ADMIN' ? '#FEF2F2' :
+                                                  '#FBEFF8', // Default fallback
+                                        borderRadius: '3px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                      }}
+                                    >
+                                      <span
+                                        style={{
+                                          fontSize: '10px',
+                                          fontWeight: 400,
+                                          lineHeight: '10px',
+                                          fontFamily: 'Open Sauce Sans, sans-serif',
+                                          color:
+                                            user.role === 'HQ' ? '#AB659C' :
+                                              user.role === 'BM' ? '#0369A1' :
+                                                user.role === 'CO' ? '#462ACD' :
+                                                  user.role === 'ADMIN' ? '#DC2626' :
+                                                    '#AB659C', // Default fallback
+                                        }}
+                                      >
+                                        {user.role}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <p
                                     style={{
-                                      fontSize: '16px',
-                                      fontWeight: 500,
+                                      fontSize: '14px',
+                                      fontWeight: 400,
                                       lineHeight: '16px',
-                                      color: '#000000',
-                                      opacity: 0.9,
+                                      color: '#767D94',
+                                      fontFamily: 'Open Sauce Sans, sans-serif',
+                                      marginBottom: '7px',
+                                    }}
+                                  >
+                                    {user.email}
+                                  </p>
+                                  <p
+                                    style={{
+                                      fontSize: '14px',
+                                      fontWeight: 500,
+                                      lineHeight: '17px',
+                                      color: '#767D94',
+                                      fontFamily: 'Open Sauce Sans, sans-serif',
+                                      marginBottom: '8px',
+                                    }}
+                                  >
+                                    {user.permissions.join(', ')}
+                                  </p>
+                                  <p
+                                    style={{
+                                      fontSize: '12px',
+                                      fontWeight: 400,
+                                      lineHeight: '15px',
+                                      color: user.status === 'active' ? '#00BE63' : '#F04438',
                                       fontFamily: 'Open Sauce Sans, sans-serif',
                                     }}
                                   >
-                                    {user.name}
-                                  </span>
-                                  <div
-                                    style={{
-                                      padding: '3px 6px',
-                                      background:
-                                        user.role === 'HQ' ? '#FBEFF8' :
-                                          user.role === 'BM' ? '#E0F2FE' :
-                                            user.role === 'CO' ? '#DEDAF3' :
-                                              user.role === 'ADMIN' ? '#FEF2F2' :
-                                                '#FBEFF8', // Default fallback
-                                      borderRadius: '3px',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                    }}
-                                  >
-                                    <span
-                                      style={{
-                                        fontSize: '10px',
-                                        fontWeight: 400,
-                                        lineHeight: '10px',
-                                        fontFamily: 'Open Sauce Sans, sans-serif',
-                                        color:
-                                          user.role === 'HQ' ? '#AB659C' :
-                                            user.role === 'BM' ? '#0369A1' :
-                                              user.role === 'CO' ? '#462ACD' :
-                                                user.role === 'ADMIN' ? '#DC2626' :
-                                                  '#AB659C', // Default fallback
-                                      }}
-                                    >
-                                      {user.role}
-                                    </span>
-                                  </div>
+                                    {user.status === 'active' ? 'Active Now' : `Last Active on ${user.lastActive || 'N/A'}`}
+                                  </p>
                                 </div>
-                                <p
-                                  style={{
-                                    fontSize: '14px',
-                                    fontWeight: 400,
-                                    lineHeight: '16px',
-                                    color: '#767D94',
-                                    fontFamily: 'Open Sauce Sans, sans-serif',
-                                    marginBottom: '7px',
-                                  }}
-                                >
-                                  {user.email}
-                                </p>
-                                <p
-                                  style={{
-                                    fontSize: '14px',
-                                    fontWeight: 500,
-                                    lineHeight: '17px',
-                                    color: '#767D94',
-                                    fontFamily: 'Open Sauce Sans, sans-serif',
-                                    marginBottom: '8px',
-                                  }}
-                                >
-                                  {user.permissions.join(', ')}
-                                </p>
-                                <p
-                                  style={{
-                                    fontSize: '12px',
-                                    fontWeight: 400,
-                                    lineHeight: '15px',
-                                    color: user.status === 'active' ? '#00BE63' : '#F04438',
-                                    fontFamily: 'Open Sauce Sans, sans-serif',
-                                  }}
-                                >
-                                  {user.status === 'active' ? 'Active Now' : `Last Active on ${user.lastActive || 'N/A'}`}
-                                </p>
                               </div>
+                              <button
+                                onClick={() => handleEditUser(user.id)}
+                                className="hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-[#7A62EB] focus:ring-offset-2"
+                                style={{
+                                  width: '78px',
+                                  height: '38px',
+                                  border: '1px solid rgba(124, 134, 161, 0.4)',
+                                  borderRadius: '4px',
+                                  fontSize: '14px',
+                                  fontWeight: 400,
+                                  lineHeight: '16px',
+                                  fontFamily: 'Open Sauce Sans, sans-serif',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: '#000000',
+                                  opacity: 0.7,
+                                  background: 'transparent',
+                                }}
+                              >
+                                Edit
+                              </button>
                             </div>
-                            <button
-                              onClick={() => handleEditUser(user.id)}
-                              className="hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-[#7A62EB] focus:ring-offset-2"
-                              style={{
-                                width: '78px',
-                                height: '38px',
-                                border: '1px solid rgba(124, 134, 161, 0.4)',
-                                borderRadius: '4px',
-                                fontSize: '14px',
-                                fontWeight: 400,
-                                lineHeight: '16px',
-                                fontFamily: 'Open Sauce Sans, sans-serif',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: '#000000',
-                                opacity: 0.7,
-                                background: 'transparent',
-                              }}
-                            >
-                              Edit
-                            </button>
+                            {index < usersData.length - 1 && (
+                              <div
+                                style={{
+                                  width: '588px',
+                                  height: '0px',
+                                  opacity: 0.1,
+                                  border: '0.8px solid #000000',
+                                }}
+                              />
+                            )}
                           </div>
-                          {index < usersData.length - 1 && (
-                            <div
-                              style={{
-                                width: '588px',
-                                height: '0px',
-                                opacity: 0.1,
-                                border: '0.8px solid #000000',
-                              }}
-                            />
-                          )}
-                        </div>
-                      ))
-                    )}
+                        ))
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
 
               {activeTab === 'configuration' && (
-                <div
-                  style={{
-                    padding: '32px',
-                    width: '941px',
-                    minHeight: '611px',
-                  }}
-                >
-                  {/* Header */}
-                  <h1
+                <div style={{ padding: '32px', width: '941px', minHeight: '611px' }}>
+                  {/* Configuration Tab Content */}
+                  <div
                     style={{
-                      fontSize: '24px',
-                      fontWeight: 700,
-                      lineHeight: '32px',
-                      letterSpacing: '0.011em',
-                      color: '#021C3E',
-                      fontFamily: 'Open Sauce Sans, sans-serif',
-                      marginBottom: '48px',
+                      padding: '32px',
+                      width: '941px',
+                      minHeight: '611px',
                     }}
                   >
-                    Configurations
-                  </h1>
+                    {/* Header */}
+                    <h1
+                      style={{
+                        fontSize: '24px',
+                        fontWeight: 700,
+                        lineHeight: '32px',
+                        letterSpacing: '0.011em',
+                        color: '#021C3E',
+                        fontFamily: 'Open Sauce Sans, sans-serif',
+                        marginBottom: '48px',
+                      }}
+                    >
+                      Configurations
+                    </h1>
 
-                  {/* System Settings Error Handling */}
-                  {settingsError ? (
-                    <div className="flex flex-col items-center justify-center py-8">
-                      <div className="text-red-500 mb-2">
-                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      <span
-                        style={{
-                          fontSize: '16px',
-                          fontWeight: 500,
-                          lineHeight: '24px',
-                          color: '#DC2626',
-                          fontFamily: 'Open Sauce Sans, sans-serif',
-                          marginBottom: '8px',
-                        }}
-                      >
-                        Configuration Settings Unavailable
-                      </span>
-                      <span
-                        style={{
-                          fontSize: '14px',
-                          fontWeight: 400,
-                          lineHeight: '20px',
-                          color: '#6B7280',
-                          fontFamily: 'Open Sauce Sans, sans-serif',
-                          textAlign: 'center',
-                          marginBottom: '4px',
-                        }}
-                      >
-                        {settingsError?.message || 'Failed to load configuration settings'}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: '12px',
-                          fontWeight: 400,
-                          lineHeight: '16px',
-                          color: '#9CA3AF',
-                          fontFamily: 'Open Sauce Sans, sans-serif',
-                          textAlign: 'center',
-                        }}
-                      >
-                        {(settingsError as any)?.status === 404
-                          ? 'The system settings endpoint is not available. Please contact your system administrator.'
-                          : 'Please try again later or contact support if the problem persists.'
-                        }
-                      </span>
-                    </div>
-                  ) : settingsLoading ? (
-                    <div className="flex items-center justify-center py-8">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#7F56D9]"></div>
-                    </div>
-                  ) : (
-                    /* Configuration Sections */
-                    <div>
-                      {/* Set Global Defaults Section */}
-                      <div
-                        className="flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors rounded-md p-2 -m-2"
-                        onClick={handleOpenGlobalSettings}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            handleOpenGlobalSettings();
-                          }
-                        }}
-                        tabIndex={0}
-                        role="button"
-                        aria-label="Open global settings configuration"
-                        style={{ paddingTop: '32px', paddingBottom: '32px' }}
-                      >
-                        <div className="flex-1 max-w-[244px]">
-                          <h3
-                            style={{
-                              fontSize: '14px',
-                              fontWeight: 500,
-                              lineHeight: '16px',
-                              color: '#01112C',
-                              fontFamily: 'Open Sauce Sans, sans-serif',
-                              marginBottom: '8px',
-                            }}
-                          >
-                            Set Global Defaults
-                          </h3>
-                          <p
-                            style={{
-                              fontSize: '16px',
-                              fontWeight: 400,
-                              lineHeight: '16px',
-                              color: '#767D94',
-                              fontFamily: 'Open Sauce Sans, sans-serif',
-                            }}
-                          >
-                            Set interest rate and loan terms
-                          </p>
+                    {/* System Settings Error Handling */}
+                    {settingsError ? (
+                      <div className="flex flex-col items-center justify-center py-8">
+                        <div className="text-red-500 mb-2">
+                          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
                         </div>
-                        <svg
-                          width="20"
-                          height="20"
-                          viewBox="0 0 20 20"
-                          fill="none"
-                          style={{ opacity: 0.8 }}
+                        <span
+                          style={{
+                            fontSize: '16px',
+                            fontWeight: 500,
+                            lineHeight: '24px',
+                            color: '#DC2626',
+                            fontFamily: 'Open Sauce Sans, sans-serif',
+                            marginBottom: '8px',
+                          }}
                         >
-                          <path
-                            d="M7.5 15L12.5 10L7.5 5"
-                            stroke="#000000"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </div>
-
-                      {/* Divider Line */}
-                      <div
-                        style={{
-                          width: '469px',
-                          height: '0px',
-                          opacity: 0.1,
-                          border: '0.8px solid #000000',
-                        }}
-                      />
-
-                      {/* Report Template Section */}
-                      <div
-                        className="flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors rounded-md p-2 -m-2"
-                        onClick={handleOpenReportTemplate}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            handleOpenReportTemplate();
+                          Configuration Settings Unavailable
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '14px',
+                            fontWeight: 400,
+                            lineHeight: '20px',
+                            color: '#6B7280',
+                            fontFamily: 'Open Sauce Sans, sans-serif',
+                            textAlign: 'center',
+                            marginBottom: '4px',
+                          }}
+                        >
+                          {settingsError?.message || 'Failed to load configuration settings'}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '12px',
+                            fontWeight: 400,
+                            lineHeight: '16px',
+                            color: '#9CA3AF',
+                            fontFamily: 'Open Sauce Sans, sans-serif',
+                            textAlign: 'center',
+                          }}
+                        >
+                          {(settingsError as any)?.status === 404
+                            ? 'The system settings endpoint is not available. Please contact your system administrator.'
+                            : 'Please try again later or contact support if the problem persists.'
                           }
-                        }}
-                        tabIndex={0}
-                        role="button"
-                        aria-label="Open report template configuration"
-                        style={{ paddingTop: '32px', paddingBottom: '32px' }}
-                      >
-                        <div className="flex-1 max-w-[244px]">
-                          <h3
-                            style={{
-                              fontSize: '14px',
-                              fontWeight: 500,
-                              lineHeight: '16px',
-                              color: '#01112C',
-                              fontFamily: 'Open Sauce Sans, sans-serif',
-                              marginBottom: '8px',
-                            }}
-                          >
-                            Report Template
-                          </h3>
-                          <p
-                            style={{
-                              fontSize: '16px',
-                              fontWeight: 400,
-                              lineHeight: '16px',
-                              color: '#767D94',
-                              fontFamily: 'Open Sauce Sans, sans-serif',
-                            }}
-                          >
-                            Set interest rate and loan terms
-                          </p>
-                        </div>
-                        <svg
-                          width="20"
-                          height="20"
-                          viewBox="0 0 20 20"
-                          fill="none"
-                          style={{ opacity: 0.8 }}
-                        >
-                          <path
-                            d="M7.5 15L12.5 10L7.5 5"
-                            stroke="#000000"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
+                        </span>
                       </div>
-
-                      {/* Divider Line */}
-                      <div
-                        style={{
-                          width: '469px',
-                          height: '0px',
-                          opacity: 0.1,
-                          border: '0.8px solid #000000',
-                        }}
-                      />
-
-                      {/* Alert Rules Section */}
-                      <div
-                        className="flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors rounded-md p-2 -m-2"
-                        onClick={handleOpenAlertRules}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            handleOpenAlertRules();
-                          }
-                        }}
-                        tabIndex={0}
-                        role="button"
-                        aria-label="Open alert rules configuration"
-                        style={{ paddingTop: '32px', paddingBottom: '32px' }}
-                      >
-                        <div className="flex-1 max-w-[244px]">
-                          <h3
-                            style={{
-                              fontSize: '14px',
-                              fontWeight: 500,
-                              lineHeight: '16px',
-                              color: '#01112C',
-                              fontFamily: 'Open Sauce Sans, sans-serif',
-                              marginBottom: '8px',
-                            }}
-                          >
-                            Alert rules
-                          </h3>
-                          <p
-                            style={{
-                              fontSize: '16px',
-                              fontWeight: 400,
-                              lineHeight: '16px',
-                              color: '#767D94',
-                              fontFamily: 'Open Sauce Sans, sans-serif',
-                            }}
-                          >
-                            Set interest rate and loan terms
-                          </p>
-                        </div>
-                        <svg
-                          width="20"
-                          height="20"
-                          viewBox="0 0 20 20"
-                          fill="none"
-                          style={{ opacity: 0.8 }}
-                        >
-                          <path
-                            d="M7.5 15L12.5 10L7.5 5"
-                            stroke="#000000"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
+                    ) : settingsLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#7F56D9]"></div>
                       </div>
-                    </div>
-                  )}
+                    ) : (
+                      /* Configuration Sections */
+                      <div>
+                        {/* Set Global Defaults Section */}
+                        <div
+                          className="flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors rounded-md p-2 -m-2"
+                          onClick={handleOpenGlobalSettings}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              handleOpenGlobalSettings();
+                            }
+                          }}
+                          tabIndex={0}
+                          role="button"
+                          aria-label="Open global settings configuration"
+                          style={{ paddingTop: '32px', paddingBottom: '32px' }}
+                        >
+                          <div className="flex-1 max-w-[244px]">
+                            <h3
+                              style={{
+                                fontSize: '14px',
+                                fontWeight: 500,
+                                lineHeight: '16px',
+                                color: '#01112C',
+                                fontFamily: 'Open Sauce Sans, sans-serif',
+                                marginBottom: '8px',
+                              }}
+                            >
+                              Set Global Defaults
+                            </h3>
+                            <p
+                              style={{
+                                fontSize: '16px',
+                                fontWeight: 400,
+                                lineHeight: '16px',
+                                color: '#767D94',
+                                fontFamily: 'Open Sauce Sans, sans-serif',
+                              }}
+                            >
+                              Set interest rate and loan terms
+                            </p>
+                          </div>
+                          <svg
+                            width="20"
+                            height="20"
+                            viewBox="0 0 20 20"
+                            fill="none"
+                            style={{ opacity: 0.8 }}
+                          >
+                            <path
+                              d="M7.5 15L12.5 10L7.5 5"
+                              stroke="#000000"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </div>
+
+                        {/* Divider Line */}
+                        <div
+                          style={{
+                            width: '469px',
+                            height: '0px',
+                            opacity: 0.1,
+                            border: '0.8px solid #000000',
+                          }}
+                        />
+
+                        {/* Report Template Section */}
+                        <div
+                          className="flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors rounded-md p-2 -m-2"
+                          onClick={handleOpenReportTemplate}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              handleOpenReportTemplate();
+                            }
+                          }}
+                          tabIndex={0}
+                          role="button"
+                          aria-label="Open report template configuration"
+                          style={{ paddingTop: '32px', paddingBottom: '32px' }}
+                        >
+                          <div className="flex-1 max-w-[244px]">
+                            <h3
+                              style={{
+                                fontSize: '14px',
+                                fontWeight: 500,
+                                lineHeight: '16px',
+                                color: '#01112C',
+                                fontFamily: 'Open Sauce Sans, sans-serif',
+                                marginBottom: '8px',
+                              }}
+                            >
+                              Report Template
+                            </h3>
+                            <p
+                              style={{
+                                fontSize: '16px',
+                                fontWeight: 400,
+                                lineHeight: '16px',
+                                color: '#767D94',
+                                fontFamily: 'Open Sauce Sans, sans-serif',
+                              }}
+                            >
+                              Set interest rate and loan terms
+                            </p>
+                          </div>
+                          <svg
+                            width="20"
+                            height="20"
+                            viewBox="0 0 20 20"
+                            fill="none"
+                            style={{ opacity: 0.8 }}
+                          >
+                            <path
+                              d="M7.5 15L12.5 10L7.5 5"
+                              stroke="#000000"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </div>
+
+                        {/* Divider Line */}
+                        <div
+                          style={{
+                            width: '469px',
+                            height: '0px',
+                            opacity: 0.1,
+                            border: '0.8px solid #000000',
+                          }}
+                        />
+
+                        {/* Alert Rules Section */}
+                        <div
+                          className="flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors rounded-md p-2 -m-2"
+                          onClick={handleOpenAlertRules}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              handleOpenAlertRules();
+                            }
+                          }}
+                          tabIndex={0}
+                          role="button"
+                          aria-label="Open alert rules configuration"
+                          style={{ paddingTop: '32px', paddingBottom: '32px' }}
+                        >
+                          <div className="flex-1 max-w-[244px]">
+                            <h3
+                              style={{
+                                fontSize: '14px',
+                                fontWeight: 500,
+                                lineHeight: '16px',
+                                color: '#01112C',
+                                fontFamily: 'Open Sauce Sans, sans-serif',
+                                marginBottom: '8px',
+                              }}
+                            >
+                              Alert rules
+                            </h3>
+                            <p
+                              style={{
+                                fontSize: '16px',
+                                fontWeight: 400,
+                                lineHeight: '16px',
+                                color: '#767D94',
+                                fontFamily: 'Open Sauce Sans, sans-serif',
+                              }}
+                            >
+                              Set interest rate and loan terms
+                            </p>
+                          </div>
+                          <svg
+                            width="20"
+                            height="20"
+                            viewBox="0 0 20 20"
+                            fill="none"
+                            style={{ opacity: 0.8 }}
+                          >
+                            <path
+                              d="M7.5 15L12.5 10L7.5 5"
+                              stroke="#000000"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -2177,6 +2114,7 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {/* Other Modals */}
       {/* Edit Role Modal */}
       {selectedUser && (
         <EditRoleModal
@@ -2274,9 +2212,6 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
-
-      {/* Toast Notifications */}
-      <ToastContainer toasts={toasts} onClose={removeToast} />
     </div>
   );
 }

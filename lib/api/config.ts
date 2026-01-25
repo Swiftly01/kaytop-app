@@ -183,7 +183,7 @@ export const API_ENDPOINTS = {
     USERS: '/admin/users',
     USER_BY_ID: (id: string) => `/admin/users/${id}`,
     USER_BY_EMAIL: (email: string) => `/admin/user/${email}`,
-    UPDATE_ROLE: (id: string) => `/admin/user/${id}/update-role`,
+    UPDATE_ROLE: (id: string) => `/admin/users/${id}/update-role`,
     DELETE_USER: (id: string) => `/admin/users/${id}`,
     CUSTOMER_DETAILS: '/admin/users/customer-details',
     GUARANTOR_DETAILS: (id: string) => `/admin/users/${id}/guarantor-details`,

@@ -442,7 +442,7 @@ export function HQReviewModal({
               <button
                 onClick={handleApproveClick}
                 disabled={loading}
-                className="w-full px-4 py-3 text-[16px] font-semibold leading-[24px] text-white bg-[#027A48] rounded-lg hover:bg-[#05603A] transition-colors focus:outline-none focus:ring-2 focus:ring-[#027A48] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-3 text-[16px] font-semibold leading-[24px] text-white bg-[#7F56D9] rounded-lg hover:bg-[#6941C6] transition-colors focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ fontFamily: 'Open Sauce Sans, sans-serif' }}
                 aria-label="Approve branch reports"
               >
@@ -453,7 +453,7 @@ export function HQReviewModal({
               <button
                 onClick={handleRejectClick}
                 disabled={loading}
-                className="w-full px-4 py-3 text-[16px] font-semibold leading-[24px] text-[#B42318] bg-white border border-[#FDA29B] rounded-lg hover:bg-[#FEF3F2] transition-colors focus:outline-none focus:ring-2 focus:ring-[#B42318] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-3 text-[16px] font-semibold leading-[24px] text-[#344054] bg-white border border-[#D0D5DD] rounded-lg hover:bg-[#F9FAFB] transition-colors focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ fontFamily: 'Open Sauce Sans, sans-serif' }}
                 aria-label="Reject branch reports"
               >
@@ -501,7 +501,7 @@ export function HQReviewModal({
                 <button
                   onClick={handleConfirmApprove}
                   disabled={loading}
-                  className="flex-1 px-4 py-3 text-[16px] font-semibold leading-[24px] text-white bg-[#027A48] rounded-lg hover:bg-[#05603A] transition-colors focus:outline-none focus:ring-2 focus:ring-[#027A48] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 px-4 py-3 text-[16px] font-semibold leading-[24px] text-white bg-[#7F56D9] rounded-lg hover:bg-[#6941C6] transition-colors focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ fontFamily: 'Open Sauce Sans, sans-serif' }}
                 >
                   {loading ? 'Approving...' : 'Confirm Approval'}
@@ -558,7 +558,7 @@ export function HQReviewModal({
                 <button
                   onClick={handleConfirmReject}
                   disabled={loading || !rejectionReason.trim()}
-                  className="flex-1 px-4 py-3 text-[16px] font-semibold leading-[24px] text-white bg-[#B42318] rounded-lg hover:bg-[#991B1B] transition-colors focus:outline-none focus:ring-2 focus:ring-[#B42318] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 px-4 py-3 text-[16px] font-semibold leading-[24px] text-white bg-[#D92D20] rounded-lg hover:bg-[#B42318] transition-colors focus:outline-none focus:ring-2 focus:ring-[#D92D20] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ fontFamily: 'Open Sauce Sans, sans-serif' }}
                 >
                   {loading ? 'Rejecting...' : 'Confirm Rejection'}

@@ -18,6 +18,7 @@ interface NewAdminData {
   role: UserRoleType;
   permissions: string[];
   branch?: string;
+  state?: string; // Add state field
 }
 
 interface ValidationState {
@@ -46,6 +47,7 @@ interface FormData {
   role: UserRoleType | '';
   permissions: string[];
   branch: string;
+  state: string; // Add state field
 }
 
 // Role and permission configurations moved to @/lib/roleConfig.ts
@@ -62,7 +64,8 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
     email: '',
     role: '',
     permissions: [],
-    branch: ''
+    branch: '',
+    state: '' // Add state field
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -155,6 +158,7 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
       formData.email !== '' ||
       formData.role !== '' ||
       formData.branch !== '' ||
+      formData.state !== '' || // Add state check
       formData.permissions.length > 0;
     setHasUnsavedChanges(hasChanges);
   };
@@ -643,6 +647,42 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
               </div>
             )}
 
+            {/* State Input */}
+            <div>
+              <label
+                className="block text-sm font-medium mb-1.5"
+                style={{
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  lineHeight: '20px',
+                  color: '#344054',
+                  fontFamily: 'Open Sauce Sans, sans-serif',
+                }}
+              >
+                State
+              </label>
+              <input
+                type="text"
+                value={formData.state}
+                onChange={(e) => {
+                  setFormData(prev => ({ ...prev, state: e.target.value }));
+                  checkForChanges();
+                }}
+                className="w-full border border-[#D0D5DD] rounded-lg focus:outline-none focus:border-[#7A62EB] focus:ring-2 focus:ring-[#7A62EB]/20 transition-colors"
+                style={{
+                  height: '44px',
+                  padding: '10px 14px',
+                  fontSize: '16px',
+                  fontWeight: 400,
+                  lineHeight: '24px',
+                  fontFamily: 'Open Sauce Sans, sans-serif',
+                  backgroundColor: '#FFFFFF'
+                }}
+                placeholder="Enter state/region"
+                required
+              />
+            </div>
+
             {/* Permissions Section */}
             <div>
               <fieldset>
@@ -779,9 +819,10 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
                   name: formData.name,
                   phoneNumber: formData.phoneNumber,
                   email: formData.email,
-                  role: formData.role as 'HQ' | 'AM' | 'CO' | 'BM',
+                  role: formData.role as UserRoleType,
                   permissions: formData.permissions,
-                  branch: formData.branch || undefined
+                  branch: formData.branch || undefined,
+                  state: formData.state || undefined // Add state field
                 };
 
                 await onSave(adminData);
@@ -794,7 +835,8 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
                   email: '',
                   role: '',
                   permissions: [],
-                  branch: ''
+                  branch: '',
+                  state: '' // Add state field reset
                 });
                 setHasUnsavedChanges(false);
                 onClose();
