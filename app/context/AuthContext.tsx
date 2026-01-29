@@ -5,8 +5,8 @@ import { removeAuthCookies, setAuthCookies } from "@/lib/authCookies";
 
 
 interface AuthContextType {
-  session: { token: string; role: string } | null;
-  login: (token: string, role: string) => void;
+  session: { token: string; role: string; firstName?: string; lastName?: string } | null;
+  login: (token: string, role: string, firstName?: string, lastName?: string) => void;
   logOut: () => void;
   setCookie: (token: string, role: string) => void;
   isLoading: boolean;
@@ -22,8 +22,10 @@ function AuthProvider({
   const [session, setSession] = useLocalStorageState<{
     token: string;
     role: string;
+    firstName?: string;
+    lastName?: string;
   } | null>(null, "auth_session");
-  
+
   const [isLoading, setIsLoading] = useState(true);
 
   // Handle hydration by waiting for client-side mount
@@ -32,12 +34,12 @@ function AuthProvider({
     const timer = setTimeout(() => {
       setIsLoading(false);
     }, 0);
-    
+
     return () => clearTimeout(timer);
   }, []);
 
-  const login = (token: string, role: string): void => {
-    setSession({ token, role });
+  const login = (token: string, role: string, firstName?: string, lastName?: string): void => {
+    setSession({ token, role, firstName, lastName });
   };
 
   const logOut = (): void => {

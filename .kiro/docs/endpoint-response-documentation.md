@@ -1,3 +1,96 @@
+# Branch Creation API Endpoint - Investigation Results
+
+## 🚨 CRITICAL FINDING: ENDPOINT NOT IMPLEMENTED
+
+**Date**: January 28, 2025  
+**Status**: ❌ **ENDPOINT NOT AVAILABLE**  
+**URL**: `POST /admin/branches`  
+**Response**: `404 Not Found`
+
+## Investigation Summary
+
+### ✅ What We Tested
+- Authentication with System Admin credentials ✅
+- GET /admin/branches → 404 Not Found ❌
+- POST /admin/branches → 404 Not Found ❌
+- Alternative paths (/branches, /admin/branch) → All 404 ❌
+
+### ✅ What Works
+- `GET /users/branches` → Returns array of branch names ✅
+- `GET /admin/users` → Returns users with branch field ✅
+- `GET /dashboard/kpi` → Returns branch-related statistics ✅
+
+### 🔍 Discrepancy Found
+The `.postman.json` file claims:
+```json
+"✅ Create Branch - AVAILABLE (POST /admin/branches)"
+```
+**Reality**: This endpoint returns 404 Not Found
+
+## Current Branch Architecture
+
+Branches currently exist as:
+1. **User attributes**: Each user has a `branch` field
+2. **Branch list**: Available via `GET /users/branches`
+3. **No CRUD operations**: Cannot create/update/delete branches
+
+### Existing Branches in System
+- Head Office, Lagos Island, Ibadan Branch, Lagos Central
+- Ilaro, Osogbo, Ede, Ikire, Ado-Ekiti, Offa, Ilorin, Akure, Abeokuta
+
+## Frontend Implementation Status
+
+### ✅ Code Ready
+The frontend has complete implementation:
+```typescript
+// lib/services/branches.ts - READY
+async createBranch(data: CreateBranchData): Promise<Branch>
+
+// Interfaces defined - READY
+interface CreateBranchData {
+  name: string;
+  code: string; 
+  address: string;
+  state: string;
+  region: string;
+  // ... optional fields
+}
+```
+
+### ❌ Backend Missing
+- No `POST /admin/branches` endpoint
+- No branch CRUD operations
+- Frontend will fail at runtime
+
+## Recommendations
+
+### Immediate Actions
+1. **Backend Team**: Implement `POST /admin/branches` endpoint
+2. **Frontend Team**: Add endpoint availability check and graceful degradation
+3. **Testing**: Re-run tests once backend is implemented
+
+### Backend Requirements
+```typescript
+// Endpoints needed:
+POST /admin/branches    // Create branch
+GET /admin/branches     // List branches  
+GET /admin/branches/{id} // Get branch
+PATCH /admin/branches/{id} // Update branch
+DELETE /admin/branches/{id} // Delete branch
+```
+
+## Testing Resources Created
+
+Despite endpoint unavailability, comprehensive testing resources are ready:
+- Complete test suites (18 scenarios)
+- API documentation with TypeScript interfaces
+- Manual testing procedures
+- Error handling patterns
+
+**Status**: Ready for implementation and testing once backend endpoint is available.
+
+---
+
 # User Management Endpoints - Response Structure Documentation
 
 ## Testing Results - Updated 2026-01-26

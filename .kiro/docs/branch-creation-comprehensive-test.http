@@ -1,0 +1,312 @@
+### ========================================
+### COMPREHENSIVE BRANCH CREATION API TEST
+### Endpoint: POST /admin/branches
+### Purpose: Document exact request/response structure
+### ========================================
+
+@baseUrl = https://kaytop-production.up.railway.app
+
+### Step 1: Login as System Admin (Required for branch operations)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@kaytop.com",
+  "password": "Admin123"
+}
+
+### IMPORTANT: Copy the access_token from Step 1 response and replace {{token}} below
+@token = REPLACE_WITH_ACCESS_TOKEN_FROM_STEP_1
+
+### ========================================
+### BASELINE: GET EXISTING BRANCHES
+### ========================================
+
+### Step 2: Get all existing branches (to understand current structure)
+GET {{baseUrl}}/admin/branches
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+### ========================================
+### TEST 1: MINIMAL BRANCH CREATION
+### Based on CreateBranchData interface requirements
+### ========================================
+
+### Step 3: Create branch with minimal required fields
+POST {{baseUrl}}/admin/branches
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "API Test Branch Minimal",
+  "code": "ATBM001",
+  "address": "123 Test Street, Test Area",
+  "state": "Lagos",
+  "region": "Lagos State"
+}
+
+### ========================================
+### TEST 2: COMPLETE BRANCH CREATION
+### With all optional fields included
+### ========================================
+
+### Step 4: Create branch with all possible fields
+POST {{baseUrl}}/admin/branches
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "API Test Branch Complete",
+  "code": "ATBC001",
+  "address": "456 Complete Street, Victoria Island",
+  "state": "Lagos",
+  "region": "Lagos State",
+  "managerId": "1",
+  "phone": "08012345678",
+  "email": "testbranch@kaytop.com"
+}
+
+### ========================================
+### TEST 3: ALTERNATIVE FIELD VARIATIONS
+### Testing different field combinations
+### ========================================
+
+### Step 5: Test with location instead of address (common variation)
+POST {{baseUrl}}/admin/branches
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "API Test Branch Location",
+  "code": "ATBL001",
+  "location": "789 Location Street, Ikeja",
+  "state": "Lagos",
+  "region": "Lagos State"
+}
+
+### Step 6: Test with manager name instead of managerId
+POST {{baseUrl}}/admin/branches
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "API Test Branch Manager",
+  "code": "ATBMGR001",
+  "address": "101 Manager Street, Lekki",
+  "state": "Lagos",
+  "region": "Lagos State",
+  "manager": "Test Manager Name",
+  "phone": "08087654321",
+  "email": "manager@kaytop.com"
+}
+
+### ========================================
+### TEST 4: DIFFERENT STATES/REGIONS
+### Testing geographic variations
+### ========================================
+
+### Step 7: Create branch in different state
+POST {{baseUrl}}/admin/branches
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "API Test Branch Abuja",
+  "code": "ATBA001",
+  "address": "Central Business District, Abuja",
+  "state": "FCT",
+  "region": "Federal Capital Territory"
+}
+
+### Step 8: Create branch in another state
+POST {{baseUrl}}/admin/branches
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "API Test Branch Kano",
+  "code": "ATBK001",
+  "address": "Sabon Gari, Kano",
+  "state": "Kano",
+  "region": "Kano State"
+}
+
+### ========================================
+### TEST 5: VALIDATION TESTING
+### Testing required fields and constraints
+### ========================================
+
+### Step 9: Test missing required field (name)
+POST {{baseUrl}}/admin/branches
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "code": "INVALID001",
+  "address": "Invalid Address",
+  "state": "Lagos",
+  "region": "Lagos State"
+}
+
+### Step 10: Test missing required field (code)
+POST {{baseUrl}}/admin/branches
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Invalid Branch No Code",
+  "address": "Invalid Address",
+  "state": "Lagos",
+  "region": "Lagos State"
+}
+
+### Step 11: Test empty name
+POST {{baseUrl}}/admin/branches
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "",
+  "code": "EMPTY001",
+  "address": "Empty Name Test",
+  "state": "Lagos",
+  "region": "Lagos State"
+}
+
+### Step 12: Test duplicate code (if first creation succeeded)
+POST {{baseUrl}}/admin/branches
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Duplicate Code Test",
+  "code": "ATBM001",
+  "address": "Duplicate Code Address",
+  "state": "Lagos",
+  "region": "Lagos State"
+}
+
+### ========================================
+### TEST 6: EDGE CASES
+### Testing special characters and long values
+### ========================================
+
+### Step 13: Test special characters in name
+POST {{baseUrl}}/admin/branches
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "API Test Branch (Special & Characters)",
+  "code": "ATBSC001",
+  "address": "123 Special St. & Co.",
+  "state": "Lagos",
+  "region": "Lagos State"
+}
+
+### Step 14: Test long values
+POST {{baseUrl}}/admin/branches
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "API Test Branch With Very Long Name That Might Exceed Normal Limits",
+  "code": "ATBLONG001",
+  "address": "123 Very Long Address Street Name That Might Test Field Length Limits, Extended Area, Lagos State, Nigeria",
+  "state": "Lagos",
+  "region": "Lagos State"
+}
+
+### ========================================
+### VERIFICATION: CHECK CREATED BRANCHES
+### ========================================
+
+### Step 15: Get all branches again to see created ones
+GET {{baseUrl}}/admin/branches
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+### Step 16: Try to get specific branch by ID (if creation returned ID)
+GET {{baseUrl}}/admin/branches/REPLACE_WITH_CREATED_BRANCH_ID
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+### ========================================
+### CLEANUP: DELETE TEST BRANCHES (Optional)
+### ========================================
+
+### Step 17: Delete test branches (use IDs from creation responses)
+DELETE {{baseUrl}}/admin/branches/REPLACE_WITH_BRANCH_ID_1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+### Step 18: Delete another test branch
+DELETE {{baseUrl}}/admin/branches/REPLACE_WITH_BRANCH_ID_2
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+### ========================================
+### DOCUMENTATION TEMPLATE
+### Fill this out based on test results
+### ========================================
+
+### SUCCESSFUL REQUEST STRUCTURE:
+### {
+###   "name": "string (required)",
+###   "code": "string (required)", 
+###   "address": "string (required)",
+###   "state": "string (required)",
+###   "region": "string (required)",
+###   "managerId": "string (optional)",
+###   "phone": "string (optional)",
+###   "email": "string (optional)"
+### }
+
+### SUCCESSFUL RESPONSE STRUCTURE (201 Created):
+### {
+###   "id": "string",
+###   "name": "string",
+###   "code": "string", 
+###   "address": "string",
+###   "state": "string",
+###   "region": "string",
+###   "manager": "string",
+###   "managerId": "string",
+###   "phone": "string",
+###   "email": "string",
+###   "status": "active",
+###   "dateCreated": "ISO date string",
+###   "createdAt": "ISO date string",
+###   "updatedAt": "ISO date string"
+### }
+
+### ERROR RESPONSE STRUCTURE (400 Bad Request):
+### {
+###   "message": "string",
+###   "errors": [
+###     {
+###       "field": "string",
+###       "message": "string"
+###     }
+###   ]
+### }
+
+### VALIDATION RULES DISCOVERED:
+### - name: required, non-empty
+### - code: required, unique
+### - address: required
+### - state: required
+### - region: required
+### - managerId: optional
+### - phone: optional, format validation?
+### - email: optional, email format validation?
+
+### HTTP STATUS CODES:
+### - 201: Created successfully
+### - 400: Bad request (validation errors)
+### - 401: Unauthorized (invalid/missing token)
+### - 403: Forbidden (insufficient permissions)
+### - 409: Conflict (duplicate code/name?)
+### - 500: Internal server error
+
+### ========================================

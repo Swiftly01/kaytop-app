@@ -1,0 +1,94 @@
+### ========================================
+### BRANCH CREATION API ENDPOINT TEST
+### Testing POST /admin/branches for response structure
+### ========================================
+
+@baseUrl = https://kaytop-production.up.railway.app
+
+### Step 1: Login as System Admin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@kaytop.com",
+  "password": "Admin123"
+}
+
+### Step 2: Get existing branches (baseline)
+# @name getBranches
+GET {{baseUrl}}/admin/branches
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+### Step 3: Create a new branch - Test 1 (Minimal fields)
+# @name createBranchMinimal
+POST {{baseUrl}}/admin/branches
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+{
+  "name": "API Test Branch Minimal",
+  "location": "Test Location",
+  "state": "Lagos"
+}
+
+### Step 4: Create a new branch - Test 2 (Complete fields)
+# @name createBranchComplete
+POST {{baseUrl}}/admin/branches
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+{
+  "name": "API Test Branch Complete",
+  "location": "123 Test Street, Victoria Island",
+  "state": "Lagos",
+  "manager": "Test Manager",
+  "managerEmail": "testmanager@kaytop.com",
+  "managerPhone": "08012345678",
+  "address": "123 Test Street, Victoria Island, Lagos State",
+  "description": "Complete test branch for API documentation",
+  "isActive": true,
+  "branchCode": "ATBC001"
+}
+
+### Step 5: Test validation - Missing required fields
+# @name createBranchInvalid
+POST {{baseUrl}}/admin/branches
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+{
+  "name": "Invalid Branch"
+}
+
+### Step 6: Test validation - Empty name
+# @name createBranchEmptyName
+POST {{baseUrl}}/admin/branches
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+{
+  "name": "",
+  "location": "Test Location",
+  "state": "Lagos"
+}
+
+### Step 7: Verify created branches
+# @name verifyCreatedBranches
+GET {{baseUrl}}/admin/branches
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+### ========================================
+### MANUAL TOKEN REPLACEMENT INSTRUCTIONS
+### ========================================
+### 
+### 1. Run Step 1 (Login) first
+### 2. Copy the access_token from the response
+### 3. Replace {{systemAdminToken}} with the actual token in all subsequent requests
+### 4. Run each step individually to capture responses
+### 
+### Example token replacement:
+### Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+### 
+### ========================================

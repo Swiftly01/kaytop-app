@@ -135,27 +135,27 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
     if (!phone.trim()) {
       return { isValid: false, error: 'Mobile number is required' };
     }
-    
+
     // Remove all non-digit characters except + for country code
     const cleanPhone = phone.replace(/[\s\-\(\)\.]/g, '');
-    
+
     // Allow numbers with or without country code, more flexible validation
     // Just check that it contains only digits, spaces, hyphens, parentheses, dots, and optional + at start
     if (!/^[\+]?[\d\s\-\(\)\.]+$/.test(phone.trim())) {
       return { isValid: false, error: 'Mobile number can only contain digits, spaces, hyphens, parentheses, and dots' };
     }
-    
+
     // Extract just the digits to check length
     const digitsOnly = cleanPhone.replace(/[^\d]/g, '');
-    
+
     if (digitsOnly.length < 7) {
       return { isValid: false, error: 'Mobile number must have at least 7 digits' };
     }
-    
+
     if (digitsOnly.length > 15) {
       return { isValid: false, error: 'Mobile number cannot exceed 15 digits' };
     }
-    
+
     return { isValid: true };
   };
 
@@ -259,40 +259,21 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
     if (isOpen) {
       const loadData = async () => {
         try {
-          // Get complete Nigerian states list (fallback to comprehensive list if API is limited)
-          const completeNigerianStates = [
-            'Abia', 'Adamawa', 'Akwa Ibom', 'Anambra', 'Bauchi', 'Bayelsa', 'Benue', 'Borno',
-            'Cross River', 'Delta', 'Ebonyi', 'Edo', 'Ekiti', 'Enugu', 'FCT', 'Gombe', 'Imo',
-            'Jigawa', 'Kaduna', 'Kano', 'Katsina', 'Kebbi', 'Kogi', 'Kwara', 'Lagos',
-            'Nasarawa', 'Niger', 'Ogun', 'Ondo', 'Osun', 'Oyo', 'Plateau', 'Rivers',
-            'Sokoto', 'Taraba', 'Yobe', 'Zamfara'
-          ];
-
+          // Fetch states and branches from API endpoints
           const [apiStatesData, branchesData] = await Promise.all([
-            UserService.getStates().catch(() => []), // Don't fail if API is down
+            UserService.getStates(),
             UserService.getBranches()
           ]);
 
-          // Use API states if available and comprehensive, otherwise use complete list
-          const finalStates = apiStatesData.length >= 30 ? apiStatesData : completeNigerianStates;
-          
-          console.log(`📊 States loaded: ${finalStates.length} (API returned: ${apiStatesData.length})`);
-          
-          setStates(finalStates);
+          console.log(`📊 States loaded: ${apiStatesData.length}, Branches loaded: ${branchesData.length}`);
+
+          setStates(apiStatesData);
           setBranches(branchesData);
         } catch (err) {
           console.error('Failed to load states and branches:', err);
-          // Fallback to complete Nigerian states list
-          const fallbackStates = [
-            'Abia', 'Adamawa', 'Akwa Ibom', 'Anambra', 'Bauchi', 'Bayelsa', 'Benue', 'Borno',
-            'Cross River', 'Delta', 'Ebonyi', 'Edo', 'Ekiti', 'Enugu', 'FCT', 'Gombe', 'Imo',
-            'Jigawa', 'Kaduna', 'Kano', 'Katsina', 'Kebbi', 'Kogi', 'Kwara', 'Lagos',
-            'Nasarawa', 'Niger', 'Ogun', 'Ondo', 'Osun', 'Oyo', 'Plateau', 'Rivers',
-            'Sokoto', 'Taraba', 'Yobe', 'Zamfara'
-          ];
-          setStates(fallbackStates);
+          setStates([]);
           setBranches([]);
-          error('Failed to load data from server. Using default Nigerian states list.');
+          error('Failed to load states and branches from server. Please try again.');
         }
       };
       loadData();
@@ -636,7 +617,7 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
                   fontFamily: 'Open Sauce Sans, sans-serif',
                   backgroundColor: '#FFFFFF'
                 }}
-                placeholder="e.g. 08012345678 or +234-801-234-5678"
+                placeholder="e.g. 08012345678"
                 aria-invalid={!validation.mobileNumber.isValid}
                 aria-describedby={!validation.mobileNumber.isValid ? 'mobile-error' : undefined}
               />
@@ -671,6 +652,18 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
               >
                 Password
               </label>
+              <p
+                className="text-xs text-gray-500 mb-2"
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 400,
+                  lineHeight: '16px',
+                  color: '#667085',
+                  fontFamily: 'Open Sauce Sans, sans-serif',
+                }}
+              >
+                Must contain at least one uppercase letter, one lowercase letter, and one number. Minimum 8 characters.
+              </p>
               <input
                 type="password"
                 value={formData.password}
@@ -841,52 +834,56 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
               )}
             </div>
 
-            {/* Branch Input (Conditional) */}
-            {formData.role === 'BM' && (
-              <div>
-                <label
-                  className="block text-sm font-medium mb-1.5"
+            {/* Branch Input */}
+            <div>
+              <label
+                className="block text-sm font-medium mb-1.5"
+                style={{
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  lineHeight: '20px',
+                  color: '#344054',
+                  fontFamily: 'Open Sauce Sans, sans-serif',
+                }}
+              >
+                Branch
+              </label>
+              <Select
+                value={formData.branch}
+                onValueChange={(value) => {
+                  setFormData(prev => ({ ...prev, branch: value }));
+                  checkForChanges();
+                }}
+              >
+                <SelectTrigger
+                  className="w-full border border-[#D0D5DD] rounded-lg focus:outline-none focus:border-[#7A62EB] focus:ring-2 focus:ring-[#7A62EB]/20 transition-colors"
                   style={{
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    lineHeight: '20px',
-                    color: '#344054',
+                    height: '44px',
+                    padding: '10px 14px',
+                    fontSize: '16px',
+                    fontWeight: 400,
+                    lineHeight: '24px',
                     fontFamily: 'Open Sauce Sans, sans-serif',
+                    backgroundColor: '#FFFFFF'
                   }}
                 >
-                  Branch
-                </label>
-                <Select
-                  value={formData.branch}
-                  onValueChange={(value) => {
-                    setFormData(prev => ({ ...prev, branch: value }));
-                    checkForChanges();
-                  }}
-                >
-                  <SelectTrigger
-                    className="w-full border border-[#D0D5DD] rounded-lg focus:outline-none focus:border-[#7A62EB] focus:ring-2 focus:ring-[#7A62EB]/20 transition-colors"
-                    style={{
-                      height: '44px',
-                      padding: '10px 14px',
-                      fontSize: '16px',
-                      fontWeight: 400,
-                      lineHeight: '24px',
-                      fontFamily: 'Open Sauce Sans, sans-serif',
-                      backgroundColor: '#FFFFFF'
-                    }}
-                  >
-                    <SelectValue placeholder="Select branch" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {branches.map((branch) => (
+                  <SelectValue placeholder="Select branch" />
+                </SelectTrigger>
+                <SelectContent>
+                  {branches.length === 0 ? (
+                    <SelectItem value="loading" disabled>
+                      Loading branches...
+                    </SelectItem>
+                  ) : (
+                    branches.map((branch) => (
                       <SelectItem key={branch} value={branch}>
                         {branch}
                       </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
 
             {/* State Input */}
             <div>
@@ -927,7 +924,7 @@ export default function CreateAdminModal({ isOpen, onClose, onSave }: CreateAdmi
                 >
                   <SelectValue placeholder="Select state" />
                 </SelectTrigger>
-                <SelectContent 
+                <SelectContent
                   className="z-[1100] bg-white border border-gray-200 shadow-lg"
                   style={{
                     backgroundColor: '#FFFFFF',

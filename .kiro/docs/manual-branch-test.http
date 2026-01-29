@@ -1,0 +1,53 @@
+### MANUAL BRANCH CREATION TEST
+### Copy and paste each request individually into your HTTP client
+
+@baseUrl = https://kaytop-production.up.railway.app
+
+### 1. LOGIN FIRST - Copy the access_token from response
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@kaytop.com",
+  "password": "Admin123"
+}
+
+### 2. REPLACE TOKEN BELOW with actual token from step 1
+### Example: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+### 3. GET EXISTING BRANCHES (baseline)
+GET {{baseUrl}}/admin/branches
+Authorization: Bearer REPLACE_WITH_ACTUAL_TOKEN
+Content-Type: application/json
+
+### 4. CREATE TEST BRANCH
+POST {{baseUrl}}/admin/branches
+Authorization: Bearer REPLACE_WITH_ACTUAL_TOKEN
+Content-Type: application/json
+
+{
+  "name": "API Documentation Test Branch",
+  "code": "ADTB001",
+  "address": "123 Documentation Street, Test Area",
+  "state": "Lagos",
+  "region": "Lagos State",
+  "phone": "08012345678",
+  "email": "testbranch@kaytop.com"
+}
+
+### 5. VERIFY CREATION
+GET {{baseUrl}}/admin/branches
+Authorization: Bearer REPLACE_WITH_ACTUAL_TOKEN
+Content-Type: application/json
+
+### INSTRUCTIONS:
+### 1. Run step 1 in your HTTP client (VS Code REST Client, Postman, etc.)
+### 2. Copy the "access_token" value from the response
+### 3. Replace "REPLACE_WITH_ACTUAL_TOKEN" with the actual token in steps 3-5
+### 4. Run each step and document the responses
+### 5. Pay attention to:
+###    - HTTP status codes
+###    - Response structure
+###    - Field names and types
+###    - Error messages (if any)
+###    - Generated IDs and timestamps

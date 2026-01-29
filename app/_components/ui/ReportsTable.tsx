@@ -3,27 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Checkbox } from './Checkbox';
 
-interface Report {
-  id: string;
-  reportId: string;
-  creditOfficer: string;
-  creditOfficerId: string;
-  branch: string;
-  branchId: string;
-  email: string;
-  dateSent: string;
-  timeSent: string;
-  reportType: 'daily' | 'weekly' | 'monthly';
-  status: 'submitted' | 'pending' | 'approved' | 'declined';
-  isApproved?: boolean;
-  loansDispursed: number;
-  loansValueDispursed: string;
-  savingsCollected: string;
-  repaymentsCollected: number;
-  createdAt: string;
-  updatedAt: string;
-  isMissed?: boolean;
-}
+import type { Report } from '@/lib/api/types';
 
 interface ReportsTableProps {
   reports: Report[];

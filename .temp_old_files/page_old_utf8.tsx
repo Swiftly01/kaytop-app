@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
 import FilterControls from '@/app/_components/ui/FilterControls';
@@ -13,8 +13,7 @@ import { StatisticsCardSkeleton, TableSkeleton } from '@/app/_components/ui/Skel
 import { PAGINATION_LIMIT } from '@/lib/config';
 import { reportsService } from '@/lib/services/reports';
 import { dashboardService } from '@/lib/services/dashboard';
-import type { Report, ReportStatistics, ReportFilters as APIReportFilters, BranchReport } from '@/lib/api/types';
-import BranchAggregateTable from '@/app/_components/ui/BranchAggregateTable';
+import type { Report, ReportStatistics, ReportFilters as APIReportFilters } from '@/lib/api/types';
 import { DateRange } from 'react-day-picker';
 import type { TimePeriod } from '@/app/_components/ui/FilterControls';
 import { useAuth } from '@/app/context/AuthContext';
@@ -48,8 +47,6 @@ export default function ReportsPage() {
   const [itemsPerPage, setItemsPerPage] = useState(PAGINATION_LIMIT);
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'reports' | 'branches'>('reports');
-  const [branchAggregates, setBranchAggregates] = useState<BranchReport[]>([]);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [appliedFilters, setAppliedFilters] = useState<ReportsFilters>({
     creditOfficer: '',
@@ -73,7 +70,7 @@ export default function ReportsPage() {
       setLoading(true);
       setApiError(null);
 
-      console.log('🔍 HQ Reports - Fetching data with filters:', filters);
+      console.log('≡ƒöì HQ Reports - Fetching data with filters:', filters);
 
       // Build API filters from current state
       const apiFilters: APIReportFilters = {
@@ -82,7 +79,7 @@ export default function ReportsPage() {
         ...filters,
       };
 
-      console.log('📋 HQ Reports - API filters:', apiFilters);
+      console.log('≡ƒôï HQ Reports - API filters:', apiFilters);
 
       // Note: Backend /reports endpoint does NOT support dateFrom/dateTo filtering
       // Date filtering will be applied to statistics endpoint only
@@ -156,17 +153,17 @@ export default function ReportsPage() {
         }),
       ]);
 
-      console.log('📦 HQ Reports - Raw API response:', reportsResponse);
-      console.log('📊 HQ Reports - Statistics response:', statisticsResponse);
+      console.log('≡ƒôª HQ Reports - Raw API response:', reportsResponse);
+      console.log('≡ƒôè HQ Reports - Statistics response:', statisticsResponse);
 
       // Safely handle reports response structure - PaginatedResponse has {data: [], pagination: {}}
       const rawReportsData = Array.isArray(reportsResponse?.data) ? reportsResponse.data : [];
 
-      console.log('✅ HQ Reports - Processed data:', {
+      console.log('Γ£à HQ Reports - Processed data:', {
         reportsCount: rawReportsData.length,
         total: reportsResponse?.pagination?.total
       });
-      console.log('🔍 HQ Reports - First report sample:', rawReportsData[0]);
+      console.log('≡ƒöì HQ Reports - First report sample:', rawReportsData[0]);
 
       // Transform API data to match expected Report interface
       const reportsData = rawReportsData.map((report: any) => ({
@@ -192,7 +189,7 @@ export default function ReportsPage() {
         declineReason: report.declineReason || undefined,
       }));
 
-      console.log('🔄 HQ Reports - Transformed first report:', reportsData[0]);
+      console.log('≡ƒöä HQ Reports - Transformed first report:', reportsData[0]);
 
       setReports(reportsData);
       // Handle pagination - use data from backend pagination object
@@ -211,55 +208,19 @@ export default function ReportsPage() {
     }
   };
 
-  // Fetch branch aggregates data
-  const fetchBranchAggregates = async () => {
-    try {
-      setLoading(true);
-      setApiError(null);
-
-      const response = await reportsService.getBranchAggregateReports({
-        page: currentPage,
-        limit: itemsPerPage,
-        // Apply basic filters if needed
-        reportType: appliedFilters.reportType ? appliedFilters.reportType.toLowerCase() as any : undefined,
-        status: appliedFilters.reportStatus ? appliedFilters.reportStatus.toLowerCase() as any : undefined
-      });
-
-      setBranchAggregates(response.data);
-      setTotalReports(response.pagination.total);
-      setTotalPages(response.pagination.totalPages);
-
-    } catch (err) {
-      console.error('Failed to fetch branch aggregates:', err);
-      setApiError(err instanceof Error ? err.message : 'Failed to load branch data');
-      error('Failed to load branch data. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Load initial data
   useEffect(() => {
-    if (viewMode === 'reports') {
-      fetchReportsData();
-    } else {
-      fetchBranchAggregates();
-    }
-  }, [currentPage, itemsPerPage, viewMode]);
+    fetchReportsData();
+  }, [currentPage, itemsPerPage]);
 
   // Reload data when filters change
   useEffect(() => {
     if (currentPage === 1) {
-      setCurrentPage(1);
-    }
-
-    // Trigger refetch based on current view mode
-    if (viewMode === 'reports') {
       fetchReportsData();
     } else {
-      fetchBranchAggregates();
+      setCurrentPage(1);
     }
-  }, [selectedPeriod, dateRange, appliedFilters, viewMode]);
+  }, [selectedPeriod, dateRange, appliedFilters]);
 
   // Convert API statistics to StatSection format
   const statistics = useMemo(() => {
@@ -293,7 +254,7 @@ export default function ReportsPage() {
     }
     setCurrentPage(1);
     // Refetch data with the new period filter
-    if (viewMode === 'reports') fetchReportsData(); else fetchBranchAggregates();
+    fetchReportsData();
   };
 
   const handleDateRangeChange = (range: DateRange | undefined) => {
@@ -304,7 +265,7 @@ export default function ReportsPage() {
     }
     setCurrentPage(1);
     // Refetch data with the new date range
-    if (viewMode === 'reports') fetchReportsData(); else fetchBranchAggregates();
+    fetchReportsData();
   };
 
   const handleFilterClick = () => {
@@ -514,41 +475,13 @@ export default function ReportsPage() {
               >
                 Reports
               </h2>
-
-              {/* View Toggle */}
-              <div className="flex bg-gray-100 rounded-lg p-1">
-                <button
-                  onClick={() => {
-                    setViewMode('reports');
-                    setCurrentPage(1);
-                  }}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${viewMode === 'reports'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-900'
-                    }`}
-                >
-                  All Reports
-                </button>
-                <button
-                  onClick={() => {
-                    setViewMode('branches');
-                    setCurrentPage(1);
-                  }}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${viewMode === 'branches'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-900'
-                    }`}
-                >
-                  By Branch
-                </button>
-              </div>
             </div>
 
-            {/* Content Section */}
+            {/* Reports Table */}
             <div className="max-w-[1075px]">
               {loading ? (
                 <TableSkeleton rows={itemsPerPage} />
-              ) : (viewMode === 'reports' && reports.length === 0) || (viewMode === 'branches' && branchAggregates.length === 0) ? (
+              ) : reports.length === 0 ? (
                 <div
                   className="bg-white rounded-[12px] border border-[#EAECF0] p-12 text-center"
                   role="status"
@@ -558,31 +491,19 @@ export default function ReportsPage() {
                     className="text-base text-[#475467]"
                     style={{ fontFamily: "'Open Sauce Sans', sans-serif" }}
                   >
-                    {apiError ? 'Failed to load data. Please try again.' : `No ${viewMode === 'branches' ? 'branch data' : 'reports'} found matching the selected filters.`}
+                    {apiError ? 'Failed to load reports data. Please try again.' : 'No reports found matching the selected filters.'}
                   </p>
                 </div>
               ) : (
                 <>
-                  {viewMode === 'reports' ? (
-                    <ReportsTable
-                      reports={reports}
-                      selectedReports={selectedReports}
-                      onSelectionChange={handleSelectionChange}
-                      onReportClick={handleReportClick}
-                    />
-                  ) : (
-                    <BranchAggregateTable
-                      data={branchAggregates}
-                      loading={loading}
-                      selectedReports={selectedReports}
-                      onSelectionChange={handleSelectionChange}
-                      onRowClick={(branch) => {
-                        // Optional: Navigate to branch details or filter reports by this branch
-                        console.log('Branch clicked:', branch);
-                      }}
-                      onSort={() => { }} // Sorting not implemented yet
-                    />
-                  )}
+                  <ReportsTable
+                    reports={reports}
+                    selectedReports={selectedReports}
+                    onSelectionChange={handleSelectionChange}
+                    // HQ Managers can edit/delete reports? Possibly. Passing undefined hides buttons.
+                    // Assuming similar to SA for now.
+                    onReportClick={handleReportClick}
+                  />
 
                   {/* Pagination Controls */}
                   {totalReports > 0 && (
