@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import FilterControls from '@/app/_components/ui/FilterControls';
 import { StatisticsCard, StatSection } from '@/app/_components/ui/StatisticsCard';
 import Table, { BranchRecord } from '@/app/_components/ui/Table';
-import CreateBranchModal from '@/app/_components/ui/CreateBranchModal';
 import { ToastContainer } from '@/app/_components/ui/ToastContainer';
 import { useToast } from '@/app/hooks/useToast';
 import Pagination from '@/app/_components/ui/Pagination';
@@ -17,12 +16,6 @@ import { dashboardService } from '@/lib/services/dashboard';
 import type { User, PaginatedResponse } from '@/lib/api/types';
 import type { TimePeriod } from '@/app/_components/ui/FilterControls';
 
-interface BranchFormData {
-  branchName: string;
-  stateRegion: string;
-  assignUsers: string[];
-}
-
 import { branchService } from '@/lib/services/branches';
 
 export default function BranchesPage() {
@@ -31,7 +24,6 @@ export default function BranchesPage() {
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortColumn, setSortColumn] = useState<keyof BranchRecord | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -60,49 +52,64 @@ export default function BranchesPage() {
       setIsLoading(true);
       setApiError(null);
 
-      // Fetch branches directly from branch service (no more user transformation)
+      // Fetch branches directly from branch service
       const branchesResponse = await branchService.getAllBranches({ limit: 1000 });
-      const branchRecords = branchesResponse.data.map(branch => ({
-        id: branch.id,
-        branchId: `ID: ${branch.code}`,
-        name: branch.name,
-        cos: '0', // Will be populated from user data
-        customers: 0, // Will be populated from user data
-        dateCreated: branch.dateCreated.split('T')[0]
-      }));
+      
+      // Get ALL customers once using the same service as customer page (for consistency)
+      const { enhancedUserService } = await import('@/lib/services/enhancedUserService');
+      const allCustomersResponse = await enhancedUserService.getCustomers({ limit: 1000 });
+      const allCustomers = allCustomersResponse.data;
+      
+      console.log(`🎯 Total customers from enhanced service: ${allCustomers.length}`);
+      console.log(`📊 Customer page uses this same count: ${allCustomersResponse.pagination.total}`);
 
-      // Get user counts for each branch
+      // Create branch records and count customers per branch from the global customer list
       const branchRecordsWithCounts = await Promise.all(
-        branchRecords.map(async (record) => {
+        branchesResponse.data.map(async (branch) => {
           try {
-            const branchUsers = await userService.getUsersByBranch(record.name, { page: 1, limit: 1000 });
+            // Count customers assigned to this branch (deduplicated)
+            const branchCustomers = allCustomers.filter(customer => 
+              customer.branch?.toLowerCase() === branch.name.toLowerCase()
+            );
+            
+            // Get credit officers for this branch using the existing method
+            const branchUsers = await userService.getUsersByBranch(branch.name, { page: 1, limit: 1000 });
             const usersData = branchUsers?.data || [];
             const creditOfficers = usersData.filter(user => user.role === 'credit_officer');
-            const customers = usersData.filter(user => 
-              user.role === 'user' || 
-              user.role === 'customer' ||
-              user.role === 'client'
-            );
+
+            console.log(`🏢 Branch "${branch.name}": ${branchCustomers.length} customers (deduplicated)`);
 
             return {
-              ...record,
+              id: branch.id,
+              branchId: `ID: ${branch.code}`,
+              name: branch.name,
               cos: creditOfficers.length.toString(),
-              customers: customers.length,
+              customers: branchCustomers.length, // Deduplicated count from global customer list
+              dateCreated: branch.dateCreated.split('T')[0]
             };
           } catch (error: any) {
             // Log warning but don't fail - return record with zero counts
             const errorMsg = error?.message || 'Unknown error';
             const statusCode = error?.response?.status || error?.status;
-            console.warn(`Failed to get user counts for branch "${record.name}" (${statusCode || 'no status'}): ${errorMsg}`);
+            console.warn(`Failed to get user counts for branch "${branch.name}" (${statusCode || 'no status'}): ${errorMsg}`);
 
             return {
-              ...record,
+              id: branch.id,
+              branchId: `ID: ${branch.code}`,
+              name: branch.name,
               cos: '0',
               customers: 0,
+              dateCreated: branch.dateCreated.split('T')[0]
             };
           }
         })
       );
+
+      // Verify the counts add up correctly
+      const totalBranchCustomers = branchRecordsWithCounts.reduce((sum, branch) => sum + branch.customers, 0);
+      console.log(`🔍 Total customers across all branches: ${totalBranchCustomers}`);
+      console.log(`🎯 Total customers from customer service: ${allCustomers.length}`);
+      console.log(`✅ Counts match: ${totalBranchCustomers === allCustomers.length ? 'YES' : 'NO'}`);
 
       // Apply time period and date range filters
       let filteredBranches = branchRecordsWithCounts;
@@ -177,38 +184,9 @@ export default function BranchesPage() {
     fetchBranchData();
   }, []);
 
-  const handleCreateBranch = () => {
-    setIsModalOpen(true);
-  };
-
   const handleRowClick = (row: BranchRecord) => {
     // Extract the ID from the row object
     router.push(`/dashboard/system-admin/branches/${row.id}`);
-  };
-
-  const handleModalClose = () => {
-    setIsModalOpen(false);
-  };
-
-  const handleModalSubmit = async (data: BranchFormData) => {
-    try {
-      console.log('Branch created:', data);
-      console.log('Assigned users:', data.assignUsers);
-
-      // TODO: Add API call to create branch when endpoint is available
-      // For now, just refresh the data to show updated branch list
-      await fetchBranchData();
-
-      // Show success notification
-      const userCount = data.assignUsers.length;
-      const message = userCount > 0
-        ? `Branch "${data.branchName}" created with ${userCount} user${userCount > 1 ? 's' : ''} assigned!`
-        : `Branch "${data.branchName}" created successfully!`;
-      success(message);
-    } catch (err) {
-      console.error('Failed to create branch:', err);
-      error('Failed to create branch. Please try again.');
-    }
   };
 
   const handlePeriodChange = (period: TimePeriod) => {
@@ -369,7 +347,7 @@ export default function BranchesPage() {
       <main className="flex-1 px-4 sm:px-6 md:pl-[58px] md:pr-6" style={{ paddingTop: '40px' }}>
         <div className="max-w-[1150px]">
           <div>
-            {/* Page Header with Create Button */}
+            {/* Page Header */}
             <div className="mb-12 flex flex-col sm:flex-row items-start justify-between gap-4">
               <div>
                 <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)', marginBottom: '8px' }}>
@@ -379,18 +357,6 @@ export default function BranchesPage() {
                   Osun State
                 </p>
               </div>
-
-              {/* Create New Branch Button */}
-              <button
-                onClick={handleCreateBranch}
-                className="w-[265px] h-[44px] px-[18px] py-[10px] text-white text-base font-semibold leading-[24px] rounded-lg shadow-[0px_1px_2px_rgba(16,24,40,0.05)] transition-colors duration-200"
-                style={{ backgroundColor: 'var(--color-primary-600)' }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#6941C6'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--color-primary-600)'}
-                aria-label="Create new branch"
-              >
-                Create New Branch
-              </button>
             </div>
 
             {/* Filter Controls */}
@@ -554,13 +520,6 @@ export default function BranchesPage() {
           </div>
         </div>
       </main>
-
-      {/* Create Branch Modal */}
-      <CreateBranchModal
-        isOpen={isModalOpen}
-        onClose={handleModalClose}
-        onSubmit={handleModalSubmit}
-      />
 
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onClose={removeToast} />

@@ -1,0 +1,137 @@
+@baseUrl = https://kaytop-production.up.railway.app
+
+### ========================================
+### CUSTOMER COUNT DISCREPANCY INVESTIGATION
+### ========================================
+### 
+### PURPOSE: Investigate why customer page shows 4 total customers
+### but branch page shows multiple branches with customer counts that don't add up
+### 
+### HYPOTHESIS: Different endpoints return different user sets
+### ========================================
+
+### Step 1: Login as System Admin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@kaytop.com",
+  "password": "Admin123"
+}
+
+### Variables (Update with token from login response above)
+@systemAdminToken = REPLACE_WITH_SYSTEM_ADMIN_TOKEN_FROM_STEP_1
+
+### ========================================
+### SECTION A: TEST CUSTOMER PAGE DATA SOURCE
+### ========================================
+
+### Step 2: Test /admin/staff/my-staff (Used by dashboard and enhanced service)
+GET {{baseUrl}}/admin/staff/my-staff
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+### Step 3: Test /admin/staff/my-staff with pagination
+GET {{baseUrl}}/admin/staff/my-staff?page=1&limit=1000
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+### ========================================
+### SECTION B: TEST BRANCH PAGE DATA SOURCE
+### ========================================
+
+### Step 4: Get list of branches first
+GET {{baseUrl}}/users/branches
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+### Step 5: Test /users/branches/{branch} for each branch (replace with actual branch names)
+GET {{baseUrl}}/users/branches/Osogbo
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+### Step 6: Test /users/branches/{branch} for Ikire
+GET {{baseUrl}}/users/branches/Ikire
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+### Step 7: Test /users/branches/{branch} for Ede
+GET {{baseUrl}}/users/branches/Ede
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+### Step 8: Test /users/branches/{branch} for Ado-Ekiti
+GET {{baseUrl}}/users/branches/Ado-Ekiti
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+### Step 9: Test /users/branches/{branch} for Offa
+GET {{baseUrl}}/users/branches/Offa
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+### ========================================
+### SECTION C: TEST ALTERNATIVE CUSTOMER ENDPOINTS
+### ========================================
+
+### Step 10: Test /admin/users (Used by some services)
+GET {{baseUrl}}/admin/users
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+### Step 11: Test /admin/users with role filter
+GET {{baseUrl}}/admin/users?role=user
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+### Step 12: Test /admin/users with customer role
+GET {{baseUrl}}/admin/users?role=customer
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+### Step 13: Test /admin/users with client role
+GET {{baseUrl}}/admin/users?role=client
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+### ========================================
+### SECTION D: TEST DASHBOARD DATA SOURCE
+### ========================================
+
+### Step 14: Test dashboard KPI endpoint
+GET {{baseUrl}}/dashboard/kpi
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+### Step 15: Test dashboard KPI with filters
+GET {{baseUrl}}/dashboard/kpi?timeFilter=all
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+### ========================================
+### SECTION E: CROSS-REFERENCE CUSTOMER IDs
+### ========================================
+
+### Step 16: Get all loans to see customer IDs
+GET {{baseUrl}}/loans/all
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+### Step 17: Get all savings to see customer IDs
+GET {{baseUrl}}/savings/all
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+### ========================================
+### ANALYSIS QUESTIONS TO ANSWER:
+### ========================================
+### 
+### 1. How many users does /admin/staff/my-staff return?
+### 2. How many users with role 'user', 'customer', or 'client' are in that response?
+### 3. How many users does each /users/branches/{branch} return?
+### 4. How many customers are in each branch response?
+### 5. Are there duplicate customer IDs across branches?
+### 6. Do the customer IDs in loans/savings match the user IDs?
+### 7. Which endpoint is the "source of truth" for customer count?
+### 
+### ========================================

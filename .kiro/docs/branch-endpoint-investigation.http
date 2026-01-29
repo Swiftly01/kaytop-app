@@ -1,0 +1,134 @@
+# Branch Customer Count Endpoint Investigation
+# Systematic testing of all potential endpoints that might return branch statistics
+
+### Variables
+@baseUrl = https://kaytop-production.up.railway.app
+
+### Step 1: Authenticate as System Admin
+# @name auth
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@kaytop.com",
+  "password": "Admin123",
+  "userType": "admin"
+}
+
+### Step 2: Extract token from auth response
+@token = {{auth.response.body.access_token}}
+
+### Step 3: Test current endpoints (baseline)
+# @name currentBranches
+GET {{baseUrl}}/users/branches
+Authorization: Bearer {{token}}
+
+### Step 4: Test current users by branch (baseline)
+# @name currentUsersByBranch
+GET {{baseUrl}}/admin/users/branch/Osogbo
+Authorization: Bearer {{token}}
+
+### Step 5: Test admin branches endpoint (most promising)
+# @name adminBranches
+GET {{baseUrl}}/admin/branches
+Authorization: Bearer {{token}}
+
+### Step 6: Test dashboard KPI endpoint (might have branch breakdown)
+# @name dashboardKPI
+GET {{baseUrl}}/dashboard/kpi
+Authorization: Bearer {{token}}
+
+### Step 7: Test potential branch statistics endpoint
+# @name branchStatistics
+GET {{baseUrl}}/admin/branches/statistics
+Authorization: Bearer {{token}}
+
+### Step 8: Test potential branch summary endpoint
+# @name branchSummary
+GET {{baseUrl}}/admin/branches/summary
+Authorization: Bearer {{token}}
+
+### Step 9: Test branches with statistics query parameter
+# @name branchesWithStats
+GET {{baseUrl}}/admin/branches?include=statistics
+Authorization: Bearer {{token}}
+
+### Step 10: Test branches with users query parameter
+# @name branchesWithUsers
+GET {{baseUrl}}/admin/branches?include=users
+Authorization: Bearer {{token}}
+
+### Step 11: Test branches with counts query parameter
+# @name branchesWithCounts
+GET {{baseUrl}}/admin/branches?include=counts
+Authorization: Bearer {{token}}
+
+### Step 12: Test users endpoint with branch grouping
+# @name usersGroupedByBranch
+GET {{baseUrl}}/admin/users?groupBy=branch
+Authorization: Bearer {{token}}
+
+### Step 13: Test users endpoint with branch statistics
+# @name usersWithBranchStats
+GET {{baseUrl}}/admin/users?statistics=branch
+Authorization: Bearer {{token}}
+
+### Step 14: Test users endpoint with branch counts
+# @name usersWithBranchCounts
+GET {{baseUrl}}/admin/users?counts=branch
+Authorization: Bearer {{token}}
+
+### Step 15: Test potential branch performance endpoint
+# @name branchPerformance
+GET {{baseUrl}}/admin/branches/performance
+Authorization: Bearer {{token}}
+
+### Step 16: Test potential branch analytics endpoint
+# @name branchAnalytics
+GET {{baseUrl}}/admin/branches/analytics
+Authorization: Bearer {{token}}
+
+### Step 17: Test potential branch overview endpoint
+# @name branchOverview
+GET {{baseUrl}}/admin/branches/overview
+Authorization: Bearer {{token}}
+
+### Step 18: Test potential branch metrics endpoint
+# @name branchMetrics
+GET {{baseUrl}}/admin/branches/metrics
+Authorization: Bearer {{token}}
+
+### Step 19: Test ratings branch endpoint
+# @name ratingsBranch
+GET {{baseUrl}}/ratings/branch/Osogbo
+Authorization: Bearer {{token}}
+
+### Step 20: Test reports by branch endpoint
+# @name reportsByBranch
+GET {{baseUrl}}/reports/branch/Osogbo
+Authorization: Bearer {{token}}
+
+### Step 21: Test potential analytics branches endpoint
+# @name analyticsBranches
+GET {{baseUrl}}/analytics/branches
+Authorization: Bearer {{token}}
+
+### Step 22: Test potential statistics branches endpoint
+# @name statisticsBranches
+GET {{baseUrl}}/statistics/branches
+Authorization: Bearer {{token}}
+
+### Step 23: Test potential metrics branches endpoint
+# @name metricsBranches
+GET {{baseUrl}}/metrics/branches
+Authorization: Bearer {{token}}
+
+### Step 24: Test potential unified branch data endpoint
+# @name unifiedBranchData
+GET {{baseUrl}}/api/branches/data
+Authorization: Bearer {{token}}
+
+### Step 25: Test potential v1 branch statistics endpoint
+# @name v1BranchStats
+GET {{baseUrl}}/api/v1/branches/statistics
+Authorization: Bearer {{token}}

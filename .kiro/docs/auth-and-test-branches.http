@@ -1,0 +1,75 @@
+# Authentication and Branch Statistics Testing
+# Step 1: Authenticate to get token, then test branch endpoints
+
+### Variables
+@baseUrl = https://kaytop-production.up.railway.app
+
+### Step 1: Authenticate as System Admin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@kaytop.com",
+  "password": "Admin123",
+  "userType": "admin"
+}
+
+### Step 2: Test current branch names endpoint
+GET {{baseUrl}}/users/branches
+Authorization: Bearer {{token}}
+
+### Step 3: Test current users by branch endpoint (Osogbo)
+GET {{baseUrl}}/admin/users/branch/Osogbo
+Authorization: Bearer {{token}}
+
+### Step 4: Test admin branches endpoint (most likely to have statistics)
+GET {{baseUrl}}/admin/branches
+Authorization: Bearer {{token}}
+
+### Step 5: Test dashboard KPI endpoint (might have branch breakdown)
+GET {{baseUrl}}/dashboard/kpi
+Authorization: Bearer {{token}}
+
+### Step 6: Test potential branch statistics endpoint
+GET {{baseUrl}}/admin/branches/statistics
+Authorization: Bearer {{token}}
+
+### Step 7: Test potential branch summary endpoint
+GET {{baseUrl}}/admin/branches/summary
+Authorization: Bearer {{token}}
+
+### Step 8: Test branches with statistics query parameter
+GET {{baseUrl}}/admin/branches?include=statistics
+Authorization: Bearer {{token}}
+
+### Step 9: Test branches with users query parameter
+GET {{baseUrl}}/admin/branches?include=users
+Authorization: Bearer {{token}}
+
+### Step 10: Test users endpoint with branch grouping
+GET {{baseUrl}}/admin/users?groupBy=branch
+Authorization: Bearer {{token}}
+
+### Step 11: Test users endpoint with branch statistics
+GET {{baseUrl}}/admin/users?statistics=branch
+Authorization: Bearer {{token}}
+
+### Step 12: Test potential branch performance endpoint
+GET {{baseUrl}}/admin/branches/performance
+Authorization: Bearer {{token}}
+
+### Step 13: Test potential branch analytics endpoint
+GET {{baseUrl}}/admin/branches/analytics
+Authorization: Bearer {{token}}
+
+### Step 14: Test potential branch overview endpoint
+GET {{baseUrl}}/admin/branches/overview
+Authorization: Bearer {{token}}
+
+### Step 15: Test ratings branch endpoint
+GET {{baseUrl}}/ratings/branch/Osogbo
+Authorization: Bearer {{token}}
+
+### Step 16: Test reports by branch endpoint
+GET {{baseUrl}}/reports/branch/Osogbo
+Authorization: Bearer {{token}}

@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import FilterControls from '@/app/_components/ui/FilterControls';
 import { StatisticsCard, StatSection } from '@/app/_components/ui/StatisticsCard';
 import Table, { BranchRecord } from '@/app/_components/ui/Table';
-import CreateBranchModal from '@/app/_components/ui/CreateBranchModal';
 import { ToastContainer } from '@/app/_components/ui/ToastContainer';
 import { useToast } from '@/app/hooks/useToast';
 import Pagination from '@/app/_components/ui/Pagination';
@@ -17,12 +16,6 @@ import { dashboardService } from '@/lib/services/dashboard';
 import type { User, PaginatedResponse } from '@/lib/api/types';
 import type { TimePeriod } from '@/app/_components/ui/FilterControls';
 
-interface BranchFormData {
-  branchName: string;
-  stateRegion: string;
-  assignUsers: string[];
-}
-
 import { branchService } from '@/lib/services/branches';
 
 export default function BranchesPage() {
@@ -31,7 +24,6 @@ export default function BranchesPage() {
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortColumn, setSortColumn] = useState<keyof BranchRecord | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -78,8 +70,8 @@ export default function BranchesPage() {
             const branchUsers = await userService.getUsersByBranch(record.name, { page: 1, limit: 1000 });
             const usersData = branchUsers?.data || [];
             const creditOfficers = usersData.filter(user => user.role === 'credit_officer');
-            const customers = usersData.filter(user => 
-              user.role === 'user' || 
+            const customers = usersData.filter(user =>
+              user.role === 'user' ||
               user.role === 'customer' ||
               user.role === 'client'
             );
@@ -177,38 +169,9 @@ export default function BranchesPage() {
     fetchBranchData();
   }, []);
 
-  const handleCreateBranch = () => {
-    setIsModalOpen(true);
-  };
-
   const handleRowClick = (row: BranchRecord) => {
     // Extract the ID from the row object
     router.push(`/dashboard/hq/branches/${row.id}`);
-  };
-
-  const handleModalClose = () => {
-    setIsModalOpen(false);
-  };
-
-  const handleModalSubmit = async (data: BranchFormData) => {
-    try {
-      console.log('Branch created:', data);
-      console.log('Assigned users:', data.assignUsers);
-
-      // TODO: Add API call to create branch when endpoint is available
-      // For now, just refresh the data to show updated branch list
-      await fetchBranchData();
-
-      // Show success notification
-      const userCount = data.assignUsers.length;
-      const message = userCount > 0
-        ? `Branch "${data.branchName}" created with ${userCount} user${userCount > 1 ? 's' : ''} assigned!`
-        : `Branch "${data.branchName}" created successfully!`;
-      success(message);
-    } catch (err) {
-      console.error('Failed to create branch:', err);
-      error('Failed to create branch. Please try again.');
-    }
   };
 
   const handlePeriodChange = (period: TimePeriod) => {
@@ -369,7 +332,7 @@ export default function BranchesPage() {
       <main className="flex-1 px-4 sm:px-6 md:pl-[58px] md:pr-6" style={{ paddingTop: '40px' }}>
         <div className="max-w-[1150px]">
           <div>
-            {/* Page Header with Create Button */}
+            {/* Page Header */}
             <div className="mb-12 flex flex-col sm:flex-row items-start justify-between gap-4">
               <div>
                 <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)', marginBottom: '8px' }}>
@@ -379,18 +342,6 @@ export default function BranchesPage() {
                   All Branches
                 </p>
               </div>
-
-              {/* Create New Branch Button */}
-              <button
-                onClick={handleCreateBranch}
-                className="w-[265px] h-[44px] px-[18px] py-[10px] text-white text-base font-semibold leading-[24px] rounded-lg shadow-[0px_1px_2px_rgba(16,24,40,0.05)] transition-colors duration-200"
-                style={{ backgroundColor: 'var(--color-primary-600)' }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#6941C6'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--color-primary-600)'}
-                aria-label="Create new branch"
-              >
-                Create New Branch
-              </button>
             </div>
 
             {/* Filter Controls */}
@@ -554,13 +505,6 @@ export default function BranchesPage() {
           </div>
         </div>
       </main>
-
-      {/* Create Branch Modal */}
-      <CreateBranchModal
-        isOpen={isModalOpen}
-        onClose={handleModalClose}
-        onSubmit={handleModalSubmit}
-      />
 
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onClose={removeToast} />

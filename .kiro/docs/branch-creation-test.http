@@ -1,0 +1,254 @@
+### ========================================
+### BRANCH CREATION ENDPOINT TESTING
+### Testing POST /admin/branches endpoint
+### ========================================
+
+@baseUrl = https://kaytop-production.up.railway.app
+
+### Step 1: Login as System Admin (Required for branch creation)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@kaytop.com",
+  "password": "Admin123"
+}
+
+### Variables (Update this with token from login response above)
+@systemAdminToken = REPLACE_WITH_SYSTEM_ADMIN_TOKEN_FROM_STEP_1
+
+### ========================================
+### SECTION A: TEST EXISTING BRANCHES (BASELINE)
+### ========================================
+
+### Step 2: Get all existing branches (to understand current structure)
+GET {{baseUrl}}/admin/branches
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+### Step 3: Get specific branch by ID (if any exist)
+GET {{baseUrl}}/admin/branches/1
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+### ========================================
+### SECTION B: TEST BRANCH CREATION ENDPOINT
+### ========================================
+
+### Step 4: Create new branch - Minimal required fields
+POST {{baseUrl}}/admin/branches
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+{
+  "name": "Test Branch Minimal",
+  "location": "Test Location",
+  "state": "Lagos"
+}
+
+### Step 5: Create new branch - With all possible fields
+POST {{baseUrl}}/admin/branches
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+{
+  "name": "Test Branch Complete",
+  "location": "123 Test Street, Test Area",
+  "state": "Lagos",
+  "manager": "Test Manager",
+  "managerEmail": "testmanager@kaytop.com",
+  "managerPhone": "08012345678",
+  "address": "123 Test Street, Test Area, Lagos State",
+  "description": "Test branch for API testing",
+  "isActive": true,
+  "branchCode": "TB001"
+}
+
+### Step 6: Create branch with different state
+POST {{baseUrl}}/admin/branches
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+{
+  "name": "Abuja Test Branch",
+  "location": "Central Business District",
+  "state": "FCT",
+  "manager": "Abuja Manager",
+  "address": "CBD, Abuja, FCT"
+}
+
+### ========================================
+### SECTION C: TEST VALIDATION AND ERROR CASES
+### ========================================
+
+### Step 7: Test with missing required fields (should fail)
+POST {{baseUrl}}/admin/branches
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+{
+  "name": "Incomplete Branch"
+}
+
+### Step 8: Test with empty name (should fail)
+POST {{baseUrl}}/admin/branches
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+{
+  "name": "",
+  "location": "Test Location",
+  "state": "Lagos"
+}
+
+### Step 9: Test with duplicate name (might fail)
+POST {{baseUrl}}/admin/branches
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+{
+  "name": "Test Branch Minimal",
+  "location": "Different Location",
+  "state": "Lagos"
+}
+
+### ========================================
+### SECTION D: TEST DIFFERENT DATA TYPES
+### ========================================
+
+### Step 10: Test with numeric fields
+POST {{baseUrl}}/admin/branches
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+{
+  "name": "Numeric Test Branch",
+  "location": "Test Location",
+  "state": "Lagos",
+  "capacity": 100,
+  "staffCount": 5,
+  "establishedYear": 2024
+}
+
+### Step 11: Test with boolean fields
+POST {{baseUrl}}/admin/branches
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+{
+  "name": "Boolean Test Branch",
+  "location": "Test Location",
+  "state": "Lagos",
+  "isActive": true,
+  "isMainBranch": false,
+  "hasATM": true,
+  "hasParking": false
+}
+
+### ========================================
+### SECTION E: VERIFY CREATED BRANCHES
+### ========================================
+
+### Step 12: Get all branches again (to see newly created ones)
+GET {{baseUrl}}/admin/branches
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+### Step 13: Search for specific created branch
+GET {{baseUrl}}/admin/branches?name=Test Branch Minimal
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+### ========================================
+### SECTION F: TEST BRANCH UPDATE (if supported)
+### ========================================
+
+### Step 14: Update a created branch (use ID from creation response)
+PATCH {{baseUrl}}/admin/branches/REPLACE_WITH_CREATED_BRANCH_ID
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+{
+  "name": "Updated Test Branch",
+  "manager": "Updated Manager"
+}
+
+### ========================================
+### SECTION G: TEST BRANCH DELETION (if supported)
+### ========================================
+
+### Step 15: Delete a test branch (use ID from creation response)
+DELETE {{baseUrl}}/admin/branches/REPLACE_WITH_CREATED_BRANCH_ID
+Authorization: Bearer {{systemAdminToken}}
+Content-Type: application/json
+
+### ========================================
+### ANALYSIS CHECKLIST
+### ========================================
+### 
+### CRITICAL QUESTIONS TO ANSWER:
+### 
+### 1. ENDPOINT AVAILABILITY:
+###    ✅ Does POST /admin/branches exist and work?
+###    ✅ What HTTP status code does it return on success?
+###    ✅ Does it require authentication?
+### 
+### 2. REQUEST STRUCTURE:
+###    ✅ What fields are required vs optional?
+###    ✅ What data types are accepted?
+###    ✅ Are there field length limits?
+### 
+### 3. RESPONSE STRUCTURE:
+###    ✅ What does the success response look like?
+###    ✅ Does it return the created branch object?
+###    ✅ Are there additional metadata fields?
+### 
+### 4. VALIDATION RULES:
+###    ✅ What validation errors are returned?
+###    ✅ Are there unique constraints (name, code)?
+###    ✅ What are the required field error messages?
+### 
+### 5. ERROR HANDLING:
+###    ✅ What error codes are returned for different failures?
+###    ✅ How are validation errors structured?
+###    ✅ Are error messages user-friendly?
+### 
+### ========================================
+### EXPECTED RESPONSE STRUCTURES
+### ========================================
+### 
+### SUCCESS RESPONSE (201 Created):
+### {
+###   "id": 1,
+###   "name": "Test Branch",
+###   "location": "Test Location",
+###   "state": "Lagos",
+###   "manager": "Test Manager",
+###   "isActive": true,
+###   "createdAt": "2024-01-28T10:00:00Z",
+###   "updatedAt": "2024-01-28T10:00:00Z"
+### }
+### 
+### ERROR RESPONSE (400 Bad Request):
+### {
+###   "message": "Validation failed",
+###   "errors": [
+###     {
+###       "field": "name",
+###       "message": "Name is required"
+###     }
+###   ]
+### }
+### 
+### ========================================
+### FRONTEND INTEGRATION NOTES
+### ========================================
+### 
+### Based on test results, update:
+### 1. Branch creation form validation
+### 2. API service method signatures
+### 3. Error handling in UI components
+### 4. Success/failure feedback messages
+### 5. TypeScript interfaces for request/response
+### 
+### ========================================

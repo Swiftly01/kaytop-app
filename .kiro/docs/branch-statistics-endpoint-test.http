@@ -1,0 +1,106 @@
+# Branch Statistics Endpoint Investigation
+# Testing all potential endpoints that might return branch customer count data
+
+### Variables
+@baseUrl = https://kaytop-production.up.railway.app
+@token = {{$dotenv SYSTEM_ADMIN_TOKEN}}
+
+### 1. Test /users/branches endpoint (currently used for branch names)
+GET {{baseUrl}}/users/branches
+Authorization: Bearer {{token}}
+
+### 2. Test /admin/users/branch/{branchName} endpoint (currently used for user counts)
+GET {{baseUrl}}/admin/users/branch/Osogbo
+Authorization: Bearer {{token}}
+
+### 3. Test potential branch statistics endpoint
+GET {{baseUrl}}/admin/branches/statistics
+Authorization: Bearer {{token}}
+
+### 4. Test potential branch summary endpoint
+GET {{baseUrl}}/admin/branches/summary
+Authorization: Bearer {{token}}
+
+### 5. Test potential branches with counts endpoint
+GET {{baseUrl}}/admin/branches/counts
+Authorization: Bearer {{token}}
+
+### 6. Test potential branches with metrics endpoint
+GET {{baseUrl}}/admin/branches/metrics
+Authorization: Bearer {{token}}
+
+### 7. Test dashboard KPI endpoint (might have branch breakdown)
+GET {{baseUrl}}/dashboard/kpi
+Authorization: Bearer {{token}}
+
+### 8. Test dashboard branches endpoint
+GET {{baseUrl}}/dashboard/branches
+Authorization: Bearer {{token}}
+
+### 9. Test admin branches endpoint (might return full branch data)
+GET {{baseUrl}}/admin/branches
+Authorization: Bearer {{token}}
+
+### 10. Test branches with query parameters
+GET {{baseUrl}}/admin/branches?include=statistics
+Authorization: Bearer {{token}}
+
+### 11. Test branches with counts query parameter
+GET {{baseUrl}}/admin/branches?include=counts
+Authorization: Bearer {{token}}
+
+### 12. Test branches with users query parameter
+GET {{baseUrl}}/admin/branches?include=users
+Authorization: Bearer {{token}}
+
+### 13. Test ratings branch endpoint (might have user counts)
+GET {{baseUrl}}/ratings/branch/Osogbo
+Authorization: Bearer {{token}}
+
+### 14. Test reports by branch endpoint (might have user info)
+GET {{baseUrl}}/reports/branch/Osogbo
+Authorization: Bearer {{token}}
+
+### 15. Test potential analytics branches endpoint
+GET {{baseUrl}}/analytics/branches
+Authorization: Bearer {{token}}
+
+### 16. Test potential statistics branches endpoint
+GET {{baseUrl}}/statistics/branches
+Authorization: Bearer {{token}}
+
+### 17. Test potential metrics branches endpoint
+GET {{baseUrl}}/metrics/branches
+Authorization: Bearer {{token}}
+
+### 18. Test users endpoint with branch grouping
+GET {{baseUrl}}/admin/users?groupBy=branch
+Authorization: Bearer {{token}}
+
+### 19. Test users endpoint with branch statistics
+GET {{baseUrl}}/admin/users?statistics=branch
+Authorization: Bearer {{token}}
+
+### 20. Test users endpoint with branch counts
+GET {{baseUrl}}/admin/users?counts=branch
+Authorization: Bearer {{token}}
+
+### 21. Test potential branch performance endpoint
+GET {{baseUrl}}/admin/branches/performance
+Authorization: Bearer {{token}}
+
+### 22. Test potential branch analytics endpoint
+GET {{baseUrl}}/admin/branches/analytics
+Authorization: Bearer {{token}}
+
+### 23. Test potential unified branch data endpoint
+GET {{baseUrl}}/api/branches/data
+Authorization: Bearer {{token}}
+
+### 24. Test potential v1 branch statistics endpoint
+GET {{baseUrl}}/api/v1/branches/statistics
+Authorization: Bearer {{token}}
+
+### 25. Test potential branch overview endpoint
+GET {{baseUrl}}/admin/branches/overview
+Authorization: Bearer {{token}}
